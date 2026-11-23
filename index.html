@@ -3696,6 +3696,28 @@ dialog.mb-d::backdrop{background:rgba(30,25,15,.45)}
 .mb-frow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.55rem;margin:.45rem 0}
 .mb-frow label{font-size:.82rem;display:block}
 .mb-frow input,.mb-frow select{width:100%;margin-top:.2rem}
+.mb-menubar{display:flex;gap:.35rem;flex-wrap:wrap;margin:.5rem 0;position:relative;z-index:30}
+.mb-menu{position:relative}
+.mb-mpanel{position:absolute;top:calc(100% + 4px);right:0;min-width:220px;background:#fff;border:1px solid #ddd2c0;border-radius:10px;box-shadow:0 10px 30px rgba(60,45,20,.18);padding:.3rem;display:none;z-index:60}
+.mb-mpanel.open{display:block}
+.mb-mpanel button{display:flex;width:100%;text-align:right;background:none;border:none;padding:.5rem .6rem;border-radius:7px;font:inherit;font-size:.88rem;cursor:pointer;color:#3d2f16}
+.mb-mpanel button:hover{background:#fdf3e0}
+.mb-info{display:flex;gap:.4rem 1.1rem;flex-wrap:wrap;background:#fdfaf3;border:1px solid #e7dcc8;border-radius:10px;padding:.5rem .8rem;font-size:.85rem;color:#6b5b3e}
+.mb-info b{color:#3d2f16}
+.mb-descbox{margin-top:.45rem;background:#fff;border:1px solid #e7dcc8;border-right:4px solid #c9a86a;border-radius:10px;padding:.55rem .8rem;font-size:.9rem;line-height:1.9;min-height:2.6rem}
+.mb-entry{display:flex;gap:.45rem;flex-wrap:wrap;align-items:center;background:#eef6e6;border:1px solid #cfe0bd;border-radius:10px;padding:.5rem .6rem;margin:.55rem 0}
+.mb-entry-h{font-size:.85rem;color:#43602a;font-weight:700}
+.mb-entry input[type=text],.mb-entry select{padding:.5rem .55rem;border:1px solid #c4d6ae;border-radius:8px;font:inherit;background:#fff}
+.mb-qwrap{position:relative;flex:1;min-width:230px}
+.mb-qwrap input{width:100%}
+.mb-sug{position:absolute;top:calc(100% + 4px);right:0;left:0;background:#fff;border:1px solid #ddd2c0;border-radius:10px;box-shadow:0 10px 30px rgba(60,45,20,.2);z-index:70;max-height:300px;overflow:auto}
+.mb-sug-i{display:flex;gap:.6rem;align-items:baseline;padding:.5rem .65rem;cursor:pointer;font-size:.87rem;border-bottom:1px solid #f3eee2}
+.mb-sug-i:hover{background:#fdf3e0}
+.mb-sug-i .d{flex:1;color:#5b4a2f}
+.mb-sug-i .u,.mb-sug-i .p{color:#8a7a55;white-space:nowrap}
+.mb-status{display:flex;gap:.5rem 1.1rem;flex-wrap:wrap;align-items:center;margin-top:.55rem;background:#f7f3ea;border:1px solid #e7dcc8;border-top:2px solid #d8cfc0;border-radius:10px;padding:.5rem .8rem;font-size:.85rem;color:#6b5b3e}
+.mb-status b{color:#3d2f16}
+table.mb-grid .op-in{min-width:150px}
 </style>
 <script id="df-fix10">
 /* df-fix10: بومی‌سازی متره‌برآورد طبق نقشه‌ی مصطفی (مرجع: تدکار) — متره (ریزمتره)، برآورد،
@@ -3703,7 +3725,7 @@ dialog.mb-d::backdrop{background:rgba(30,25,15,.45)}
    داده‌ها در db.mb[contractId] می‌نشینند تا با همگام‌سازی گیت‌هاب جابه‌جا شوند. */
 (function () {
   'use strict';
-  var MB = { q: '', fasl: '', sec: '', fj: '', starOnly: false, estQ: '', cols: null, pendingCode: '' };
+  var MB = { q: '', fasl: '', sec: '', fj: '', starOnly: false, estQ: '', cols: null, pendingCode: '', selId: '', estSel: '', sugFirst: '', focusOp: false };
   try { MB.cols = JSON.parse(localStorage.getItem('df_mb_cols') || 'null'); } catch (e) {}
   if (!MB.cols) MB.cols = { N: 1, X: 1, Y: 1, Z: 1, W: 1, formula: 1, sec: 1, note: 1 };
 
@@ -3805,24 +3827,60 @@ dialog.mb-d::backdrop{background:rgba(30,25,15,.45)}
       if (MB.sec && r.sec !== MB.sec) return false;
       if (MB.fj && (r.fj || 'ف') !== MB.fj) return false;
       if (MB.starOnly && !isStar(r.code)) return false;
-      if (MB.q) { var q = MB.q.toLowerCase(); if ((String(r.code) + ' ' + (r.desc || '')).toLowerCase().indexOf(q) < 0) return false; }
+      if (MB.q) { var q = MB.q.toLowerCase(); if ((String(r.code) + ' ' + (r.desc || '') + ' ' + (r.op || '')).toLowerCase().indexOf(q) < 0) return false; }
       return true;
     });
   }
+  function selMetreRow() { var d = D(); if (!d) return null; return d.rows.find(function (x) { return x.id === MB.selId; }) || null; }
+  function normQ(s) { return String(s || '').replace(/[۰-۹]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c); }).replace(/\s+/g, '').toLowerCase(); }
+  function aggQtyFor(code, fj, sec, useSec) {
+    var d = D(); if (!d) return 0; var s = 0;
+    d.rows.forEach(function (r) { if (String(r.code || '').trim() === String(code || '').trim() && (r.fj || 'ف') === (fj || 'ف') && (!useSec || (r.sec || '') === (sec || ''))) s += evalRow(r); });
+    return s;
+  }
+  function descBoxHTML(r) {
+    if (!r || !r.code) return '<span class="muted">ردیفی انتخاب نشده است — روی یک ردیف کلیک کنید تا شرح آیتم اینجا نمایش داده شود.</span>';
+    var it = resolveItem(r.code);
+    var desc = (it ? it.desc : '') || r.desc || '';
+    return '<b>شرح آیتم ' + E(r.code) + ':</b> ' + E(desc || '—') +
+      ' <span class="muted">| واحد: ' + E((it ? it.unit : '') || r.unit || '—') + ' | بهای واحد: ' + fmtM(listPrice(r.code)) + (isStar(r.code) ? ' | ⭐ ستاره‌دار' : '') + '</span>';
+  }
+  function infoStripHTML(r) {
+    var proj = '', con = '';
+    try { var c = curContract(); if (c) { con = c.name || ''; var pr = projOf(c.projectId); if (pr) proj = pr.name || ''; } } catch (e) {}
+    var resh = r ? (reshteOf(r.code) || 'ابنیه') : 'ابنیه';
+    var fasl = r ? faslOf(r.code) : 0;
+    return '<div class="mb-info">' +
+      '<span>پروژه: <b>' + E(proj || '—') + '</b></span>' +
+      '<span>پیمان: <b>' + E(con || '—') + '</b></span>' +
+      '<span>رسته: <b>ساختمان</b></span>' +
+      '<span>رشته: <b id="mbInfoResh">' + E(resh) + '</b></span>' +
+      '<span>فصل: <b id="mbInfoFasl">' + (fasl ? 'فصل ' + fmtQ(fasl) + (FASL_NAMES[fasl] ? ' — ' + FASL_NAMES[fasl] : '') : '—') + '</b></span>' +
+      '<span>سازمان برنامه و بودجه</span>' +
+      '<span>سال: <b>۱۴۰۴</b></span></div>' +
+      '<div class="mb-descbox" id="mbDescBox">' + descBoxHTML(r) + '</div>';
+  }
+  function menuHTML(title, id, items) {
+    return '<div class="mb-menu"><button class="btn mb-mbtn" onclick="MB10.menu(event,\'' + id + '\')">' + E(title) + ' ▾</button>' +
+      '<div class="mb-mpanel" id="' + id + '">' + items.map(function (x) { return '<button onclick="' + x[1] + '">' + E(x[0]) + '</button>'; }).join('') + '</div></div>';
+  }
   function metrePage() {
     var d = D(); if (!d) { body('<div class="notice">ابتدا پروژه و پیمان را انتخاب کنید.</div>'); return; }
+    d.rows.forEach(function (r) { if (r.op == null) r.op = ''; });
+    if (!selMetreRow() && d.rows.length) MB.selId = d.rows[0].id;
     var rows = metreRowsFiltered();
     var fasls = {}; d.rows.forEach(function (r) { var f = faslOf(r.code); if (f) fasls[f] = 1; });
     Object.keys(BANK_RESH).forEach(function (k) { ((db.mod || {})[k] || []).forEach(function (r) { var f = faslOf(r.code); if (f) fasls[f] = 1; }); });
     var cols = MB.cols;
+    var selR = selMetreRow();
     var trs = rows.map(function (r, i) {
       var res = evalRow(r);
-      return '<tr data-rid="' + r.id + '">' +
-        '<td><input type="checkbox" class="mb-sel" data-id="' + r.id + '"></td>' +
+      return '<tr data-rid="' + r.id + '"' + (r.id === MB.selId ? ' class="sel"' : '') + ' onclick="MB10.mSelRow(\'' + r.id + '\')">' +
+        '<td><input type="checkbox" class="mb-sel" data-id="' + r.id + '" onchange="MB10.mCountSel()"></td>' +
         '<td>' + (i + 1) + '</td>' +
         '<td><input type="text" class="code-in" value="' + E(r.code) + '" onchange="MB10.mF(\'' + r.id + '\',\'code\',this)"></td>' +
         '<td><select onchange="MB10.mF(\'' + r.id + '\',\'fj\',this)">' + ['ف', 'ج', '*'].map(function (x) { return '<option ' + ((r.fj || 'ف') === x ? 'selected' : '') + '>' + x + '</option>'; }).join('') + '</select></td>' +
-        '<td><input type="text" class="desc-in" value="' + E(r.desc || '') + '" onchange="MB10.mF(\'' + r.id + '\',\'desc\',this)"></td>' +
+        '<td><input type="text" class="op-in" placeholder="شرح عملیات (مثل: دیوار ۱)" value="' + E(r.op || '') + '" onchange="MB10.mF(\'' + r.id + '\',\'op\',this)"></td>' +
         '<td><a class="mb-lnk" title="مشاهده در برآورد" onclick="MB10.mToEst(\'' + E(r.code) + '\')">🔗</a></td>' +
         (cols.N ? '<td><input type="text" class="num" value="' + E(r.N == null ? '' : r.N) + '" onchange="MB10.mF(\'' + r.id + '\',\'N\',this)"></td>' : '') +
         (cols.X ? '<td><input type="text" class="num" value="' + E(r.X == null ? '' : r.X) + '" onchange="MB10.mF(\'' + r.id + '\',\'X\',this)"></td>' : '') +
@@ -3836,61 +3894,92 @@ dialog.mb-d::backdrop{background:rgba(30,25,15,.45)}
         (cols.note ? '<td><input type="text" value="' + E(r.note || '') + '" onchange="MB10.mF(\'' + r.id + '\',\'note\',this)"></td>' : '') +
         '<td style="white-space:nowrap"><button class="mb-del" title="صورت‌مجلس دارد/ندارد" style="' + (r.mj ? 'color:#1a9e54' : 'color:#bbb') + '" onclick="MB10.mMj(\'' + r.id + '\')">📋</button><button class="mb-del" title="درج ردیف زیر" onclick="MB10.mIns(\'' + r.id + '\')">⤵</button><button class="mb-del" title="کپی ردیف" onclick="MB10.mDup(\'' + r.id + '\')">⧉</button><button class="mb-del" title="حذف" onclick="MB10.mDel(\'' + r.id + '\')">✕</button></td></tr>';
     }).join('');
-    var codes = {}; d.rows.forEach(function (r) { codes[String(r.code || '').trim()] = 1; });
-    var tot = rows.reduce(function (s, r) { return s + evalRow(r); }, 0);
-    body(head('متره برآورد فهرست بهایی', 'ریزمتره فهرست‌بهایی — هر آیتم می‌تواند چند بار تکرار شود؛ برآورد از همین‌جا تجمیع می‌شود') +
+    var menus =
+      menuHTML('عملیات', 'mmOp', [
+        ['＋ ردیف خالی', 'MB10.mAddEmpty()'],
+        ['حذف انتخاب‌شده‌ها', 'MB10.mDelSel()'],
+        ['محاسبه مجدد حاصل‌ها', 'MB10.mRecalc()'],
+        ['سفارشی کردن ستون‌ها', 'MB10.mColsDlg()'],
+        ['مدیریت بخش‌ها', 'MB10.mSecDlg()']
+      ]) +
+      menuHTML('میانبر', 'mmGo', [
+        ['کتاب فهرست‌بها', 'MB10.mPick()'],
+        ['ستاره‌دار / قیمت جدید', 'MB10.go(\'mb:star\')'],
+        ['ساختار شکست', 'engGo(\'v14:wbs\')'],
+        ['آنالیز بها', 'engGo(\'an:items\')'],
+        ['صورت‌مجلس و گزارش‌ها', 'MB10.go(\'mb:rpt\')'],
+        ['مغایرت', 'MB10.go(\'mb:rpt\')']
+      ]) +
+      menuHTML('اکسل', 'mmXl', [
+        ['ارسال به Excel', 'MB10.mExcelOut()'],
+        ['خواندن از Excel', 'MB10.mExcelIn()']
+      ]) +
+      menuHTML('گزارش', 'mmRp', [
+        ['ریز متره', 'MB10.go(\'mb:rpt\')'],
+        ['خلاصه متره', 'MB10.go(\'mb:rpt\')'],
+        ['صورت‌مجلس', 'MB10.go(\'mb:rpt\')'],
+        ['رفتن به برآورد فهرست بهایی', 'MB10.go(\'mb:est\')']
+      ]);
+    body(head('متره برآورد فهرست بهایی', 'ریزمتره — هر آیتم می‌تواند چند بار تکرار شود؛ برآورد از همین‌جا تجمیع می‌شود') +
       '<div class="mb-wrap">' +
-      '<div class="mb-tools">' +
-      '<input type="text" id="mbQCode" placeholder="کد ردیف را بنویسید و Enter بزنید…" style="min-width:210px" onkeydown="if(event.key===\'Enter\')MB10.mQuick()">' +
-      '<button class="btn primary" onclick="MB10.mPick()">＋ انتخاب از فهرست‌بها</button>' +
-      '<button class="btn" onclick="MB10.mAddEmpty()">ردیف خالی</button>' +
-      '<button class="btn" onclick="MB10.go(\'mb:star\')">⭐ ستاره‌دار</button>' +
-      '<button class="btn" onclick="MB10.mSecDlg()">بخش‌ها (' + d.sections.length + ')</button>' +
-      '<button class="btn" onclick="MB10.mColsDlg()">ستون‌ها</button>' +
-      '<button class="btn" onclick="MB10.mExcelOut()">ارسال به Excel</button>' +
-      '<button class="btn" onclick="MB10.mExcelIn()">خواندن از Excel</button>' +
-      '<button class="btn" onclick="MB10.go(\'mb:rpt\')">گزارش</button>' +
-      '<button class="btn" onclick="engGo(\'an:items\')">میانبر: آنالیز بها</button>' +
-      '<button class="btn" onclick="engGo(\'v14:wbs\')">میانبر: ساختار شکست</button>' +
-      '<button class="btn" onclick="MB10.mDelSel()">حذف انتخاب‌شده‌ها</button>' +
+      infoStripHTML(selR) +
+      '<div class="mb-menubar">' + menus + '</div>' +
+      '<div class="mb-entry"><span class="mb-entry-h">اطلاعات سطر جدید را وارد نمایید:</span>' +
+      '<div class="mb-qwrap"><input type="text" id="mbQCode" placeholder="شماره ردیف (کد) — تایپ کنید، پیشنهاد می‌آید…" autocomplete="off" oninput="MB10.qSug(this)" onkeydown="MB10.qKey(event)" onblur="MB10.qBlur()"><div class="mb-sug" id="mbSug" style="display:none"></div></div>' +
+      '<input type="text" id="mbQOp" placeholder="شرح عملیات (مثل: دیوار ۱)" style="flex:1;min-width:150px">' +
+      '<select id="mbQFj"><option>ف</option><option>ج</option><option>*</option></select>' +
+      '<button class="btn primary" onclick="MB10.qAdd()">＋ افزودن</button>' +
+      '<button class="btn" onclick="MB10.mPick()">انتخاب از فهرست‌بها</button>' +
       '</div>' +
       '<div class="mb-tools">' +
       '<label>فصل <select onchange="MB10.mSetF(\'fasl\',this.value)"><option value="">همه فصل‌ها</option>' + Object.keys(fasls).sort(function (a, b) { return a - b; }).map(function (f) { return '<option value="' + f + '" ' + (String(MB.fasl) === String(f) ? 'selected' : '') + '>فصل ' + f + (FASL_NAMES[f] ? ': ' + FASL_NAMES[f] : '') + '</option>'; }).join('') + '</select></label>' +
       '<label>بخش <select onchange="MB10.mSetF(\'sec\',this.value)"><option value="">همه بخش‌ها</option>' + d.sections.map(function (s) { return '<option value="' + s.id + '" ' + (MB.sec === s.id ? 'selected' : '') + '>' + E(s.name) + '</option>'; }).join('') + '</select></label>' +
       '<label>ف/ج <select onchange="MB10.mSetF(\'fj\',this.value)"><option value="">همه</option>' + ['ف', 'ج', '*'].map(function (x) { return '<option ' + (MB.fj === x ? 'selected' : '') + '>' + x + '</option>'; }).join('') + '</select></label>' +
       '<label><input type="checkbox" ' + (MB.starOnly ? 'checked' : '') + ' onchange="MB10.mSetF(\'starOnly\',this.checked)"> فقط ستاره‌دارها</label>' +
-      '<input type="text" placeholder="جستجو در کد یا شرح…" value="' + E(MB.q) + '" style="min-width:170px" oninput="MB10.mSetQ(this.value)">' +
       '</div>' +
       '<div class="mb-scroll"><table class="mb-grid"><thead><tr><th><input type="checkbox" onchange="MB10.mSelAll(this)"></th><th>ردیف</th><th>شماره ردیف</th><th>ف/ج</th><th>شرح عملیات</th><th>مرتبط</th>' +
       (cols.N ? '<th>N</th>' : '') + (cols.X ? '<th>X</th>' : '') + (cols.Y ? '<th>Y</th>' : '') + (cols.Z ? '<th>Z</th>' : '') + (cols.W ? '<th>W</th>' : '') + (cols.formula ? '<th>فرمول</th>' : '') +
-      '<th>حاصل</th><th>واحد</th>' + (cols.sec ? '<th>بخش</th>' : '') + (cols.note ? '<th>ملاحظات</th>' : '') + '<th></th></tr></thead><tbody>' +
-      (trs || '<tr><td colspan="20" style="text-align:center;padding:1rem" class="muted">هنوز ردیفی نیست — کد را بالا بنویسید یا از فهرست‌بها انتخاب کنید.</td></tr>') +
+      '<th>حاصل</th><th>واحد</th>' + (cols.sec ? '<th>بخش</th>' : '') + (cols.note ? '<th>ملاحظات</th>' : '') + '<th></th></tr></thead><tbody id="mbGridBody">' +
+      (trs || '<tr><td colspan="20" style="text-align:center;padding:1rem" class="muted">هنوز ردیفی نیست — شماره ردیف را بالا بنویسید یا از فهرست‌بها انتخاب کنید.</td></tr>') +
       '</tbody></table></div>' +
-      '<div class="mb-foot"><span>تعداد ردیف‌ها: <b>' + fmtQ(d.rows.length) + '</b></span><span>نمایش: <b>' + fmtQ(rows.length) + '</b></span><span>آیتم‌های یکتا (در برآورد): <b>' + fmtQ(Object.keys(codes).length) + '</b></span><span>جمع حاصل نمایش: <b>' + fmtQ(tot) + '</b></span></div>' +
+      '<div class="mb-status"><span>تعداد ردیف‌ها: <b>' + fmtQ(d.rows.length) + '</b></span>' +
+      '<span>نمایش: <b>' + fmtQ(rows.length) + '</b></span>' +
+      '<span>انتخاب شده: <b id="mbStSel">۰</b></span>' +
+      '<span>مقدار ردیف در برآورد: <b id="mbStEst">' + fmtQ(selR ? aggQtyFor(selR.code, selR.fj, '', false) : 0) + '</b></span>' +
+      '<span>مقدار ردیف در بخش برآورد: <b id="mbStSec">' + fmtQ(selR ? aggQtyFor(selR.code, selR.fj, selR.sec, true) : 0) + '</b></span>' +
+      '<span style="flex:1"></span>' +
+      '<label>متن جستجو <input type="text" placeholder="کد یا شرح…" value="' + E(MB.q) + '" style="min-width:150px" oninput="MB10.mSetQ(this.value)"></label>' +
+      '<button class="btn" onclick="MB10.mCancel()">انصراف</button>' +
+      '<button class="btn primary" onclick="MB10.mSave()">ثبت</button>' +
+      '</div>' +
       '</div>');
     if (MB.pendingCode) { var pc = MB.pendingCode; MB.pendingCode = ''; mAddByCode(pc, true); }
+    if (MB.focusOp) { MB.focusOp = false; var tr = document.querySelector('tr[data-rid="' + MB.selId + '"] .op-in'); if (tr) { tr.focus(); } }
   }
-  function mAddByCode(code, silent) {
+  function mAddByCode(code, silent, op, fj) {
     var d = D(); if (!d) return;
     code = String(code || '').trim(); if (!code) return;
     var it = resolveItem(code);
-    if (!it && !silent) { T('ردیف «' + code + '» در فهرست‌بها یا ستاره‌دارها پیدا نشد؛ ردیف خالی ساخته شد تا شرح را دستی بنویسید.', 1); }
-    d.rows.push({ id: nid('mbr'), code: code, desc: it ? (it.desc || '') : '', unit: it ? (it.unit || '') : '', fj: 'ف', sec: '', N: '', X: '', Y: '', Z: '', W: '', formula: 'N*X*Y*Z+W', note: '' });
+    if (!it && !silent) { T('ردیف «' + code + '» در فهرست‌بها یا ستاره‌دارها پیدا نشد؛ ردیف خالی ساخته شد — شرح عملیات را دستی بنویسید.', 1); }
+    var _id = nid('mbr');
+    d.rows.push({ id: _id, code: code, desc: it ? (it.desc || '') : '', unit: it ? (it.unit || '') : '', fj: fj || 'ف', op: op || '', sec: '', N: '', X: '', Y: '', Z: '', W: '', formula: 'N*X*Y*Z+W', note: '' });
+    MB.selId = _id;
     SV(); metrePage();
   }
   G.mQuick = function () { var el = document.getElementById('mbQCode'); mAddByCode(el ? el.value : ''); };
-  G.mAddEmpty = function () { var d = D(); if (!d) return; d.rows.push({ id: nid('mbr'), code: '', desc: '', unit: '', fj: 'ف', sec: '', N: '', X: '', Y: '', Z: '', W: '', formula: 'N*X*Y*Z+W', note: '' }); SV(); metrePage(); };
+  G.mAddEmpty = function () { var d = D(); if (!d) return; d.rows.push({ id: nid('mbr'), code: '', desc: '', unit: '', fj: 'ف', op: '', sec: '', N: '', X: '', Y: '', Z: '', W: '', formula: 'N*X*Y*Z+W', note: '' }); SV(); metrePage(); };
   G.mF = function (id, f, el) {
     var d = D(); if (!d) return; var r = d.rows.find(function (x) { return x.id === id; }); if (!r) return;
     r[f] = el.value;
     if (f === 'code') { var it = resolveItem(el.value); if (it) { if (!r.desc) r.desc = it.desc || ''; if (!r.unit) r.unit = it.unit || ''; } }
     SV();
     var c = document.getElementById('mres-' + id); if (c) c.textContent = fmtQ(evalRow(r));
+    if (MB.selId === id) { var _e1 = document.getElementById('mbStEst'); if (_e1) _e1.textContent = fmtQ(aggQtyFor(r.code, r.fj, '', false)); var _e2 = document.getElementById('mbStSec'); if (_e2) _e2.textContent = fmtQ(aggQtyFor(r.code, r.fj, r.sec, true)); }
     if (f === 'code') metrePage();
   };
   G.mDel = function (id) { var d = D(); if (!d) return; d.rows = d.rows.filter(function (x) { return x.id !== id; }); SV(); metrePage(); };
   G.mDup = function (id) { var d = D(); if (!d) return; var i = d.rows.findIndex(function (x) { return x.id === id; }); if (i < 0) return; var c = JSON.parse(JSON.stringify(d.rows[i])); c.id = nid('mbr'); d.rows.splice(i + 1, 0, c); SV(); metrePage(); };
-  G.mIns = function (id) { var d = D(); if (!d) return; var i = d.rows.findIndex(function (x) { return x.id === id; }); if (i < 0) return; d.rows.splice(i + 1, 0, { id: nid('mbr'), code: '', desc: '', unit: '', fj: 'ف', sec: d.rows[i].sec || '', N: '', X: '', Y: '', Z: '', W: '', formula: 'N*X*Y*Z+W', note: '' }); SV(); metrePage(); };
+  G.mIns = function (id) { var d = D(); if (!d) return; var i = d.rows.findIndex(function (x) { return x.id === id; }); if (i < 0) return; d.rows.splice(i + 1, 0, { id: nid('mbr'), code: '', desc: '', unit: '', fj: 'ف', op: '', sec: d.rows[i].sec || '', N: '', X: '', Y: '', Z: '', W: '', formula: 'N*X*Y*Z+W', note: '' }); SV(); metrePage(); };
   G.mMj = function (id) { var d = D(); if (!d) return; var r = d.rows.find(function (x) { return x.id === id; }); if (!r) return; r.mj = !r.mj; SV(); metrePage(); };
   G.mSelAll = function (chk) { document.querySelectorAll('.mb-sel').forEach(function (c) { c.checked = chk.checked; }); };
   G.mDelSel = function () {
@@ -3956,8 +4045,8 @@ dialog.mb-d::backdrop{background:rgba(30,25,15,.45)}
   };
   G.mExcelOut = function () {
     var d = D(); if (!d) return;
-    var aoa = [['شماره ردیف', 'ف/ج', 'شرح عملیات', 'واحد', 'بخش', 'N', 'X', 'Y', 'Z', 'W', 'فرمول', 'حاصل', 'ملاحظات']];
-    d.rows.forEach(function (r) { aoa.push([r.code, r.fj || 'ف', r.desc || '', r.unit || '', secName(r.sec), r.N || '', r.X || '', r.Y || '', r.Z || '', r.W || '', r.formula || 'N*X*Y*Z+W', evalRow(r), r.note || '']); });
+    var aoa = [['شماره ردیف', 'ف/ج', 'شرح عملیات', 'شرح آیتم', 'واحد', 'بخش', 'N', 'X', 'Y', 'Z', 'W', 'فرمول', 'حاصل', 'ملاحظات']];
+    d.rows.forEach(function (r) { aoa.push([r.code, r.fj || 'ف', r.op || '', r.desc || '', r.unit || '', secName(r.sec), r.N || '', r.X || '', r.Y || '', r.Z || '', r.W || '', r.formula || 'N*X*Y*Z+W', evalRow(r), r.note || '']); });
     try { dl('متره.xlsx', makeXlsx([{ name: 'ریزمتره', aoa: aoa, widths: [14, 6, 46, 10, 14, 8, 8, 8, 8, 8, 16, 14, 24] }]), XLSX_T); T('فایل Excel آماده شد.'); } catch (e) { T('خطا در ساخت Excel: ' + e.message, 1); }
   };
   G.mExcelIn = function () {
@@ -3965,11 +4054,13 @@ dialog.mb-d::backdrop{background:rgba(30,25,15,.45)}
     pickFile('.xlsx', async function (f) {
       try {
         var x = await readXlsx(await f.arrayBuffer()); var rows = x.sheets[x.names[0]] || []; var n = 0;
+        var _nw = String((rows[0] || [])[3] || '') === 'شرح آیتم';
+        var ix = _nw ? { op: 2, desc: 3, unit: 4, sec: 5, N: 6, X: 7, Y: 8, Z: 9, W: 10, f: 11, note: 13 } : { op: -1, desc: 2, unit: 3, sec: 4, N: 5, X: 6, Y: 7, Z: 8, W: 9, f: 10, note: 12 };
         rows.slice(1).forEach(function (r) {
           var code = String(r[0] == null ? '' : r[0]).trim(); if (!code) return;
-          var sec = null; if (r[4]) { sec = d.sections.find(function (s) { return s.name === String(r[4]).trim(); }); if (!sec) { sec = { id: nid('sec'), name: String(r[4]).trim() }; d.sections.push(sec); } }
+          var sec = null; if (r[ix.sec]) { sec = d.sections.find(function (sx) { return sx.name === String(r[ix.sec]).trim(); }); if (!sec) { sec = { id: nid('sec'), name: String(r[ix.sec]).trim() }; d.sections.push(sec); } }
           var it = resolveItem(code);
-          d.rows.push({ id: nid('mbr'), code: code, fj: ['ف', 'ج', '*'].indexOf(String(r[1] || 'ف').trim()) >= 0 ? String(r[1]).trim() : 'ف', desc: String(r[2] || (it ? it.desc : '') || ''), unit: String(r[3] || (it ? it.unit : '') || ''), sec: sec ? sec.id : '', N: r[5] == null ? '' : r[5], X: r[6] == null ? '' : r[6], Y: r[7] == null ? '' : r[7], Z: r[8] == null ? '' : r[8], W: r[9] == null ? '' : r[9], formula: String(r[10] || 'N*X*Y*Z+W'), note: String(r[12] || '') });
+          d.rows.push({ id: nid('mbr'), code: code, fj: ['ف', 'ج', '*'].indexOf(String(r[1] || 'ف').trim()) >= 0 ? String(r[1]).trim() : 'ف', op: ix.op >= 0 ? String(r[ix.op] || '') : '', desc: String(r[ix.desc] || (it ? it.desc : '') || ''), unit: String(r[ix.unit] || (it ? it.unit : '') || ''), sec: sec ? sec.id : '', N: r[ix.N] == null ? '' : r[ix.N], X: r[ix.X] == null ? '' : r[ix.X], Y: r[ix.Y] == null ? '' : r[ix.Y], Z: r[ix.Z] == null ? '' : r[ix.Z], W: r[ix.W] == null ? '' : r[ix.W], formula: String(r[ix.f] || 'N*X*Y*Z+W'), note: String(r[ix.note] || '') });
           n++;
         });
         SV(); metrePage(); T(fmtQ(n) + ' ردیف از Excel وارد شد.');
@@ -3978,14 +4069,21 @@ dialog.mb-d::backdrop{background:rgba(30,25,15,.45)}
   };
 
   /* ================= برآورد (خلاصه متره) ================= */
+  function estDescHTML(r) {
+    if (!r) return '<span class="muted">ردیفی انتخاب نشده است.</span>';
+    return '<b>شرح:</b> ' + E(r.desc || '—') +
+      ' <span class="muted">| رشته: ' + E(reshteOf(r.code) || '—') + ' | واحد: ' + E(r.unit || '—') + ' | مقدار: ' + fmtQ(r.qty) + (r.star ? ' | ⭐ ستاره‌دار' : '') + '</span>';
+  }
   function estPage() {
     var d = D(); if (!d) { body('<div class="notice">ابتدا پروژه و پیمان را انتخاب کنید.</div>'); return; }
     var rows = aggEst();
     if (MB.estQ) rows = rows.filter(function (r) { return (r.code + ' ' + r.desc).toLowerCase().indexOf(MB.estQ.toLowerCase()) >= 0; });
+    if (!rows.some(function (r) { return r.key === MB.estSel; }) && rows.length) MB.estSel = rows[0].key;
+    var selR = rows.find(function (r) { return r.key === MB.estSel; }) || null;
     var gB = 0, gP = 0;
     var trs = rows.map(function (r, i) {
       var n = estNums(r); gB += n.totB; gP += n.totP;
-      return '<tr><td>' + (i + 1) + '</td><td><b>' + E(r.code) + '</b>' + (r.star ? ' ⭐' : '') + '</td><td>' + E(r.fj) + '</td><td>' + E(r.desc) + '</td><td>' + E(r.unit) + '</td>' +
+      return '<tr data-key="' + E(r.key) + '"' + (r.key === MB.estSel ? ' class="sel"' : '') + ' onclick="MB10.eSelRow(\'' + E(r.key) + '\')"><td>' + (i + 1) + '</td><td><b>' + E(r.code) + '</b>' + (r.star ? ' ⭐' : '') + '</td><td>' + E(r.fj) + '</td><td>' + E(r.desc) + '</td><td>' + E(r.unit) + '</td>' +
         '<td><a class="mb-lnk" title="مشاهده در متره" onclick="MB10.eToMetre(\'' + E(r.code) + '\')">🔗</a></td>' +
         '<td class="res">' + fmtQ(r.qty) + '</td>' +
         '<td><input type="text" class="num" style="min-width:84px" value="' + (priceOf(r.key).b != null ? priceOf(r.key).b : '') + '" placeholder="' + fmtM(listPrice(r.code)) + '" onchange="MB10.eF(\'' + r.key + '\',\'b\',this)"></td>' +
@@ -3996,22 +4094,43 @@ dialog.mb-d::backdrop{background:rgba(30,25,15,.45)}
         '<td class="res">' + (isFinite(n.pct) ? fmtQ(Math.round(n.pct * 100) / 100) + '٪' : '—') + '</td>' +
         '<td><button class="btn" onclick="MB10.openFac(\'' + r.key + '\')">آنالیز/حمل</button></td></tr>';
     }).join('');
+    var menus =
+      menuHTML('عملیات', 'emOp', [
+        ['ضرایب', 'MB10.go(\'mb:coef\')'],
+        ['آنالیز/حمل ردیف انتخاب‌شده', 'MB10.eFacSel()'],
+        ['فهرست عوامل مؤثر در پروژه', 'MB10.facAll()'],
+        ['رفتن به متره', 'MB10.go(\'mb:metre\')']
+      ]) +
+      menuHTML('میانبر', 'emGo', [
+        ['آنالیز بها', 'engGo(\'an:items\')'],
+        ['متره برآورد فهرست بهایی', 'MB10.go(\'mb:metre\')'],
+        ['ستاره‌دارها', 'MB10.go(\'mb:star\')'],
+        ['ساختار شکست', 'engGo(\'v14:wbs\')'],
+        ['مغایرت‌ها', 'MB10.go(\'mb:rpt\')']
+      ]) +
+      menuHTML('اکسل', 'emXl', [
+        ['ارسال به Excel', 'MB10.eExcel()']
+      ]) +
+      menuHTML('گزارش', 'emRp', [
+        ['گزارشات برآورد', 'MB10.eReports()']
+      ]);
     body(head('برآورد فهرست بهایی', 'خلاصه متره — هر آیتم فقط یک بار؛ مقدارها از متره تجمیع شده‌اند') +
-      '<div class="mb-wrap"><div class="mb-tools">' +
-      '<input type="text" placeholder="جستجو در کد یا شرح…" value="' + E(MB.estQ) + '" style="min-width:180px" oninput="MB10.eSetQ(this.value)">' +
-      '<button class="btn" onclick="MB10.go(\'mb:coef\')">ضرایب</button>' +
-      '<button class="btn" onclick="MB10.go(\'mb:star\')">ستاره‌دار</button>' +
-      '<button class="btn" onclick="engGo(\'an:items\')">آنالیز بها</button>' +
-      '<button class="btn" onclick="engGo(\'v14:wbs\')">ساختار شکست</button>' +
-      '<button class="btn" onclick="MB10.facAll()">فهرست عوامل مؤثر در پروژه</button>' +
-      '<button class="btn" onclick="MB10.eExcel()">ارسال به Excel</button>' +
-      '<button class="btn" onclick="MB10.eReports()">گزارشات برآورد</button>' +
-      '<button class="btn" onclick="MB10.go(\'mb:metre\')">رفتن به متره</button>' +
-      '</div>' +
-      '<div class="mb-kpi"><div class="k">جمع برآورد<b>' + fmtM(gB) + '</b></div><div class="k">جمع پیشنهاد<b>' + fmtM(gP) + '</b></div><div class="k">اختلاف<b>' + (gB ? fmtQ(Math.round(((gP / gB) - 1) * 10000) / 100) + '٪' : '—') + '</b></div><div class="k">تعداد آیتم<b>' + fmtQ(rows.length) + '</b></div></div>' +
-      '<div class="mb-scroll"><table class="mb-grid"><thead><tr><th>ردیف</th><th>فهرست‌بها</th><th>ف/ج</th><th>شرح</th><th>واحد</th><th>مرتبط</th><th>مقدار</th><th>بهای واحد برآورد</th><th>بهای واحد پیشنهاد</th><th>ضریب برآورد</th><th>ضریب پیشنهاد</th><th>حاصل برآورد</th><th>حاصل پیشنهاد</th><th>٪ اضافه یا تخفیف</th><th></th></tr></thead><tbody>' +
+      '<div class="mb-wrap">' +
+      infoStripHTML(selR ? (selMetreRow() || { code: selR.code }) : null) +
+      '<div class="mb-descbox" id="estDescBox">' + estDescHTML(selR) + '</div>' +
+      '<div class="mb-menubar">' + menus + '</div>' +
+      '<div class="mb-scroll"><table class="mb-grid"><thead><tr><th>ردیف</th><th>فهرست‌بها</th><th>ف/ج</th><th>شرح</th><th>واحد</th><th>مرتبط</th><th>مقدار</th><th>بهای واحد برآورد</th><th>بهای واحد پیشنهاد</th><th>ضریب برآورد</th><th>ضریب پیشنهاد</th><th>حاصل برآورد</th><th>حاصل پیشنهاد</th><th>٪ اضافه یا تخفیف</th><th></th></tr></thead><tbody id="estGridBody">' +
       (trs || '<tr><td colspan="15" style="text-align:center;padding:1rem" class="muted">هنوز متره‌ای ثبت نشده است.</td></tr>') +
       '</tbody></table></div>' +
+      '<div class="mb-status"><span>جمع برآورد: <b>' + fmtM(gB) + '</b></span>' +
+      '<span>جمع پیشنهاد: <b>' + fmtM(gP) + '</b></span>' +
+      '<span>اختلاف: <b>' + (gB ? fmtQ(Math.round(((gP / gB) - 1) * 10000) / 100) + '٪' : '—') + '</b></span>' +
+      '<span>تعداد آیتم: <b>' + fmtQ(rows.length) + '</b></span>' +
+      '<span style="flex:1"></span>' +
+      '<label>متن جستجو <input type="text" placeholder="کد یا شرح…" value="' + E(MB.estQ) + '" style="min-width:150px" oninput="MB10.eSetQ(this.value)"></label>' +
+      '<button class="btn" onclick="MB10.eCancel()">انصراف</button>' +
+      '<button class="btn primary" onclick="MB10.mSave()">ثبت</button>' +
+      '</div>' +
       '<p class="muted" style="font-size:.8rem">خانه‌های خالیِ بها و ضریب یعنی «پیش‌فرض»: بها از فهرست‌بها/ستاره‌دار و ضریب از ضرایب اعمال‌شده خوانده می‌شود. عدد بنویسید تا برای همین ردیف ثابت شود.</p></div>');
   }
   var _eT = null;
@@ -4384,7 +4503,7 @@ dialog.mb-d::backdrop{background:rgba(30,25,15,.45)}
     var rh = rows.map(function (r) {
       if (s.numMode === 'restart') { if (r.code !== lastCode) { no = 0; lastCode = r.code; } }
       no++;
-      var tds = td(no, 1) + td(E(r.code)) + (s.symbols ? td(E(r.fj || 'ف'), 1) : '') + td(E(r.desc || '')) + (s.formula ? td(E(r.formula || 'N*X*Y*Z+W') + ' = ' + [r.N, r.X, r.Y, r.Z, r.W].filter(function (v) { return v !== '' && v != null; }).join('×'), 1) : '') + td(fmtQ(evalRow(r)), 1) + td(E(r.unit || ''), 1) + (s.secNames ? td(E(secName(r.sec))) : '');
+      var tds = td(no, 1) + td(E(r.code)) + (s.symbols ? td(E(r.fj || 'ف'), 1) : '') + td(E(r.op || '')) + (s.formula ? td(E(r.formula || 'N*X*Y*Z+W') + ' = ' + [r.N, r.X, r.Y, r.Z, r.W].filter(function (v) { return v !== '' && v != null; }).join('×'), 1) : '') + td(fmtQ(evalRow(r)), 1) + td(E(r.unit || ''), 1) + (s.secNames ? td(E(secName(r.sec))) : '');
       return '<tr>' + tds + '</tr>';
     }).join('');
     var html = '<div class="page" style="font-family:inherit;padding:14mm 12mm">' + rptHead(s, 'ریز متره') + tblHtml(cols, rh) + sigHtml(s) + '</div>';
@@ -4411,6 +4530,88 @@ dialog.mb-d::backdrop{background:rgba(30,25,15,.45)}
     dlg.showModal();
   };
 
+
+  /* ---------- منوهای کرکره‌ای، پیشنهاد هوشمند، انتخاب ردیف (بازسازی مطابق فیلم) ---------- */
+  G.menu = function (ev, id) {
+    if (ev) ev.stopPropagation();
+    var p = document.getElementById(id); if (!p) return;
+    var was = p.classList.contains('open');
+    document.querySelectorAll('.mb-mpanel.open').forEach(function (x) { x.classList.remove('open'); });
+    if (!was) p.classList.add('open');
+  };
+  function sugSearch(q) {
+    var d = D(); if (!d || !q) return [];
+    var qn = normQ(q); if (!qn) return [];
+    var out = [];
+    function consider(code, desc, unit, price, star) {
+      var cn = normQ(code); var sc = -1;
+      if (cn.indexOf(qn) === 0) sc = 0; else if (cn.indexOf(qn) >= 0) sc = 1; else if (normQ(desc).indexOf(qn) >= 0) sc = 2;
+      if (sc >= 0) out.push({ code: String(code), desc: desc || '', unit: unit || '', price: num(price), star: !!star, sc: sc });
+    }
+    Object.keys(BANK_RESH).forEach(function (k) { ((db.mod || {})[k] || []).forEach(function (r) { consider(r.code, r.desc, r.unit, r.price, false); }); });
+    d.stars.forEach(function (s) { consider(s.code, s.desc, s.unit, s.price, true); });
+    out.sort(function (a, b) { return a.sc - b.sc || (a.code < b.code ? -1 : 1); });
+    return out.slice(0, 12);
+  }
+  G.qSug = function (el) {
+    var box = document.getElementById('mbSug'); if (!box) return;
+    var L = sugSearch(el.value);
+    MB.sugFirst = L.length ? L[0].code : '';
+    if (!L.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.innerHTML = L.map(function (r) {
+      return '<div class="mb-sug-i" onmousedown="MB10.qPick(\'' + E(r.code) + '\')"><b>' + E(r.code) + '</b>' + (r.star ? ' ⭐' : '') + '<span class="d">' + E(r.desc) + '</span><span class="u">' + E(r.unit) + '</span><span class="p">' + fmtM(r.price) + '</span></div>';
+    }).join('');
+    box.style.display = 'block';
+  };
+  G.qPick = function (code) {
+    var el = document.getElementById('mbQCode'); if (el) el.value = code;
+    var box = document.getElementById('mbSug'); if (box) box.style.display = 'none';
+    var op = document.getElementById('mbQOp'); var fj = document.getElementById('mbQFj');
+    mAddByCode(code, true, op ? op.value : '', fj ? fj.value : 'ف');
+    MB.focusOp = true; metrePage();
+  };
+  G.qKey = function (ev) {
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      var box = document.getElementById('mbSug');
+      if (box && box.style.display !== 'none' && MB.sugFirst) G.qPick(MB.sugFirst); else G.qAdd();
+    } else if (ev.key === 'Escape') { var b = document.getElementById('mbSug'); if (b) b.style.display = 'none'; }
+  };
+  G.qBlur = function () { setTimeout(function () { var b = document.getElementById('mbSug'); if (b) b.style.display = 'none'; }, 180); };
+  G.qAdd = function () {
+    var el = document.getElementById('mbQCode'); var code = el ? el.value.trim() : '';
+    if (!code) { T('اول شماره ردیف را بنویسید.', 1); return; }
+    var op = document.getElementById('mbQOp'); var fj = document.getElementById('mbQFj');
+    mAddByCode(code, false, op ? op.value : '', fj ? fj.value : 'ف');
+    MB.focusOp = true; metrePage();
+  };
+  G.mSelRow = function (id) {
+    MB.selId = id;
+    document.querySelectorAll('#mbGridBody tr').forEach(function (tr) { tr.classList.toggle('sel', tr.dataset.rid === id); });
+    var r = selMetreRow(); if (!r) return;
+    var dbx = document.getElementById('mbDescBox'); if (dbx) dbx.innerHTML = descBoxHTML(r);
+    var resh = document.getElementById('mbInfoResh'); if (resh) resh.textContent = reshteOf(r.code) || 'ابنیه';
+    var fsl = document.getElementById('mbInfoFasl'); if (fsl) { var f = faslOf(r.code); fsl.textContent = f ? 'فصل ' + fmtQ(f) + (FASL_NAMES[f] ? ' — ' + FASL_NAMES[f] : '') : '—'; }
+    var e1 = document.getElementById('mbStEst'); if (e1) e1.textContent = fmtQ(aggQtyFor(r.code, r.fj, '', false));
+    var e2 = document.getElementById('mbStSec'); if (e2) e2.textContent = fmtQ(aggQtyFor(r.code, r.fj, r.sec, true));
+  };
+  G.mCountSel = function () {
+    var n = document.querySelectorAll('.mb-sel:checked').length;
+    var el = document.getElementById('mbStSel'); if (el) el.textContent = fmtQ(n);
+  };
+  G.mSelAll = function (chk) { document.querySelectorAll('.mb-sel').forEach(function (c) { c.checked = chk.checked; }); G.mCountSel(); };
+  G.mRecalc = function () { metrePage(); T('حاصل‌ها دوباره محاسبه شدند.'); };
+  G.mSave = function () { SV(); T('ثبت شد.'); };
+  G.mCancel = function () { metrePage(); };
+  G.eSelRow = function (key) {
+    MB.estSel = key;
+    document.querySelectorAll('#estGridBody tr').forEach(function (tr) { tr.classList.toggle('sel', tr.dataset.key === key); });
+    var rows = aggEst(); var r = rows.find(function (x) { return x.key === key; });
+    var dbx = document.getElementById('estDescBox'); if (dbx && r) dbx.innerHTML = estDescHTML(r);
+  };
+  G.eFacSel = function () { if (MB.estSel) G.openFac(MB.estSel); else T('اول یک ردیف را انتخاب کنید.', 1); };
+  G.eCancel = function () { estPage(); };
+
   /* ================= ثبت در ناوبری و بوت ================= */
   G.go = function (k) { try { engGo(k); } catch (e) {} };
   function patch() {
@@ -4422,6 +4623,7 @@ dialog.mb-d::backdrop{background:rgba(30,25,15,.45)}
       TABS['mb:coef'] = function () { coefPage(); };
       TABS['mb:star'] = function () { starPage(); };
       TABS['mb:rpt'] = function () { rptPage(); };
+      if (!window.__mbMenuHook) { window.__mbMenuHook = 1; document.addEventListener('click', function (e) { if (!e.target.closest || !e.target.closest('.mb-menu')) document.querySelectorAll('.mb-mpanel.open').forEach(function (x) { x.classList.remove('open'); }); }); }
       ENG_NAV.forEach(function (g) {
         if (g.t === 'داشبورد و ابزارها') {
           g.i = g.i.filter(function (x) { return x[0] !== 'v14:coef' && x[0] !== 'v14:prices' && x[0] !== 'v14:backup'; });
