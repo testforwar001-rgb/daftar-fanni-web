@@ -3684,11 +3684,27 @@ table.mb-grid .res{font-weight:700;color:#7a5b12;white-space:nowrap}
 .mb-kpi{display:flex;gap:.6rem;flex-wrap:wrap;margin:.5rem 0}
 .mb-kpi .k{border:1px solid #e7dcc8;background:#fdfaf3;border-radius:10px;padding:.45rem .7rem;font-size:.83rem}
 .mb-kpi .k b{display:block;font-size:1rem;color:#5b430d}
-.mb-rpt{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:.4rem 1.2rem}
-.mb-rpt label{display:flex;gap:.45rem;align-items:center;font-size:.88rem;padding:.3rem 0;cursor:pointer}
-.mb-sig{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.5rem}
-.mb-sig label{font-size:.82rem;display:block}
-.mb-sig input{width:100%}
+.mb-rpt{display:grid;grid-template-columns:repeat(3,1fr);gap:.12rem .9rem}
+@media(max-width:640px){.mb-rpt{grid-template-columns:repeat(2,1fr)}}
+.mb-rpt label{display:flex;gap:.4rem;align-items:center;font-size:.83rem;line-height:1.35;padding:.17rem 0;cursor:pointer}
+.mb-rpt label input{flex:none}
+.mb-rpt label input[type="checkbox"],.mb-rpt label input[type="radio"],.mb-chk label input[type="checkbox"],.mb-chk label input[type="radio"],.mb-sig label input[type="checkbox"]{width:auto!important;flex:none!important}
+.mb-sig{display:grid;grid-template-columns:1fr 1fr;gap:.32rem .9rem}
+@media(max-width:640px){.mb-sig{grid-template-columns:1fr}}
+.mb-sig label{font-size:.82rem;display:flex;align-items:center;gap:.4rem;white-space:nowrap}
+.mb-sig input[type="checkbox"]{flex:none}
+.mb-sig input[type="text"]{flex:1;min-width:0;width:auto}
+dialog.mb-d .mb-card{padding:.5rem .6rem}
+dialog.mb-d .mb-card>h4{margin:.05rem 0 .3rem}
+dialog.mb-d .mb-rpt label{padding:.1rem 0}
+dialog.mb-d .mb-sig{gap:.22rem .9rem}
+.mb-rptrow>div{flex:1 1 150px}
+@media(max-width:640px){.mb-sig{grid-template-columns:1fr 1fr}.mb-sig label{font-size:.78rem;gap:.25rem}.mb-rpt{grid-template-columns:repeat(3,1fr);gap:.08rem .5rem}.mb-rpt label{font-size:.78rem;padding:.08rem 0}dialog.mb-d .mb-card{font-size:.93rem}dialog.mb-d input[type="text"]{padding:.3rem .45rem}}
+.mb-corow{display:flex;align-items:center;gap:.5rem;font-size:.85rem;margin-bottom:.35rem}
+.mb-corow input{flex:1;min-width:0}
+.mb-rptrow{display:flex;gap:1.4rem;flex-wrap:wrap;margin-top:.45rem}
+.mb-rptrow h5{margin:0 0 .15rem;font-size:.83rem}
+.mb-minih{margin:.5rem 0 .25rem;font-size:.86rem}
 .mb-lnk{cursor:pointer;color:#8a6d1f;text-decoration:none;font-size:1rem}
 .mb-del{cursor:pointer;color:#b3382e;border:none;background:none;font-size:1rem;padding:.3rem}
 dialog.mb-d{border:none;border-radius:14px;padding:1rem 1.1rem;max-width:min(680px,94vw);width:680px;box-shadow:0 12px 44px rgba(0,0,0,.3)}
@@ -4474,23 +4490,23 @@ table.mb-grid .op-in{min-width:150px}
   function rizCardHTML() {
     var rz = R('riz');
     return '<div class="mb-card"><h4>گزارش ریز متره</h4>' +
-      '<label style="font-size:.85rem">نام شرکت <input type="text" value="' + E(rz.co) + '" style="width:100%" onchange="MB10.rF(\'riz\',\'co\',this.value)"></label>' +
+      '<div class="mb-corow"><span>نام شرکت</span><input type="text" value="' + E(rz.co) + '" onchange="MB10.rF(\'riz\',\'co\',this.value)"></div>' +
       '<div class="mb-rpt">' + tgS('riz', 'nameCo', 'چاپ نام شرکت') + tgS('riz', 'nameProj', 'چاپ نام پروژه') + tgS('riz', 'nameCons', 'چاپ نام مشاور') + tgS('riz', 'nameEmp', 'چاپ نام کارفرما') + tgS('riz', 'logo', 'چاپ آرم') + tgS('riz', 'date', 'چاپ تاریخ') + tgS('riz', 'repReshte', 'تکرار عنوان رشته‌ها') + tgS('riz', 'secNames', 'چاپ نام بخش‌ها') + tgS('riz', 'pageNo', 'چاپ شماره صفحه') + tgS('riz', 'formula', 'چاپ فرمول') + tgS('riz', 'splitReshte', 'تفکیک چاپ رشته‌ها') + tgS('riz', 'oneLine', 'چاپ فقط یک سطر از شرح ردیف') + tgS('riz', 'faslCont', 'چاپ فصل‌ها به صورت پیوسته') + tgS('riz', 'entryOrder', 'چاپ ترتیب ورود اطلاعات') + tgS('riz', 'bySec', 'به تفکیک بخش') + '</div>' +
       '<div class="mb-rpt" style="margin-top:.4rem"><label>نشانه ممیز <input type="text" value="' + E(rz.sep) + '" style="width:52px" onchange="MB10.rF(\'riz\',\'sep\',this.value)"></label>' +
       '<label><input type="checkbox" ' + (rz.symbols ? 'checked' : '') + ' onchange="MB10.rF(\'riz\',\'symbols\',this.checked)"> چاپ نماد</label>' +
       '<span class="mb-chk">' + [['symF', 'ف'], ['symJ', 'ج'], ['symS', '*'], ['symB', 'ب']].map(function (x) { return '<label><input type="checkbox" ' + (rz[x[0]] ? 'checked' : '') + ' onchange="MB10.rF(\'riz\',\'' + x[0] + '\',this.checked)"> ' + x[1] + '</label>'; }).join('') + '</span></div>' +
-      '<h4 style="margin:.6rem 0 .3rem">شماره ردیف</h4><div class="mb-chk"><label><input type="radio" name="rnum" ' + (rz.numMode === 'seq' ? 'checked' : '') + ' onchange="MB10.rF(\'riz\',\'numMode\',\'seq\')"> به صورت پی‌درپی افزایش یابد</label><label><input type="radio" name="rnum" ' + (rz.numMode === 'restart' ? 'checked' : '') + ' onchange="MB10.rF(\'riz\',\'numMode\',\'restart\')"> با تغییر شماره فهرست‌بها از اول شروع شود</label></div>' +
-      '<h4 style="margin:.6rem 0 .3rem">ترتیب گزارش</h4><div class="mb-chk"><label><input type="radio" name="rord" ' + (rz.order === 'entry' ? 'checked' : '') + ' onchange="MB10.rF(\'riz\',\'order\',\'entry\')"> ورود اطلاعات</label><label><input type="radio" name="rord" ' + (rz.order === 'code' ? 'checked' : '') + ' onchange="MB10.rF(\'riz\',\'order\',\'code\')"> شماره ردیف فهرست‌بها</label></div>' +
-      '<h4 style="margin:.6rem 0 .3rem">امضاءها</h4><div class="mb-sig">' + sigFieldsS('riz') + '</div>' +
+      '<div class="mb-rptrow"><div><h5>شماره ردیف</h5><div class="mb-chk"><label><input type="radio" name="rnum" ' + (rz.numMode === 'seq' ? 'checked' : '') + ' onchange="MB10.rF(\'riz\',\'numMode\',\'seq\')"> به صورت پی‌درپی افزایش یابد</label><label><input type="radio" name="rnum" ' + (rz.numMode === 'restart' ? 'checked' : '') + ' onchange="MB10.rF(\'riz\',\'numMode\',\'restart\')"> با تغییر شماره فهرست‌بها از اول شروع شود</label></div></div>' +
+      '<div><h5>ترتیب گزارش</h5><div class="mb-chk"><label><input type="radio" name="rord" ' + (rz.order === 'entry' ? 'checked' : '') + ' onchange="MB10.rF(\'riz\',\'order\',\'entry\')"> ورود اطلاعات</label><label><input type="radio" name="rord" ' + (rz.order === 'code' ? 'checked' : '') + ' onchange="MB10.rF(\'riz\',\'order\',\'code\')"> شماره ردیف فهرست‌بها</label></div></div></div>' +
+      '<h4 class="mb-minih">امضاءها</h4><div class="mb-sig">' + sigFieldsS('riz') + '</div>' +
       '<div class="mb-tools" style="justify-content:flex-end;margin-top:.7rem"><button class="btn" onclick="MB10.rDiscrep()">مغایرت</button><button class="btn primary" onclick="MB10.rShowRiz()">نمایش</button></div></div>';
   }
   function kholCardHTML() {
     var kh = R('khol');
     return '<div class="mb-card"><h4>گزارش خلاصه متره</h4>' +
-      '<label style="font-size:.85rem">نام شرکت <input type="text" value="' + E(kh.co) + '" style="width:100%" onchange="MB10.rF(\'khol\',\'co\',this.value)"></label>' +
+      '<div class="mb-corow"><span>نام شرکت</span><input type="text" value="' + E(kh.co) + '" onchange="MB10.rF(\'khol\',\'co\',this.value)"></div>' +
       '<div class="mb-rpt">' + tgS('khol', 'nameCo', 'چاپ نام شرکت') + tgS('khol', 'nameProj', 'چاپ نام پروژه') + tgS('khol', 'logo', 'چاپ آرم') + tgS('khol', 'date', 'چاپ تاریخ') + tgS('khol', 'pageNo', 'چاپ شماره صفحه') + tgS('khol', 'inclNoMj', 'جمع ردیف‌های بدون صورت‌مجلس') + tgS('khol', 'oneLine', 'چاپ فقط یک سطر از شرح ردیف') + tgS('khol', 'faslCont', 'چاپ فصل‌ها به صورت پیوسته') + tgS('khol', 'bySec', 'به تفکیک بخش') + '</div>' +
       '<label style="font-size:.85rem">نشانه ممیز <input type="text" value="' + E(kh.sep) + '" style="width:52px" onchange="MB10.rF(\'khol\',\'sep\',this.value)"></label>' +
-      '<h4 style="margin:.6rem 0 .3rem">امضاءها</h4><div class="mb-sig">' + sigFieldsS('khol') + '</div>' +
+      '<h4 class="mb-minih">امضاءها</h4><div class="mb-sig">' + sigFieldsS('khol') + '</div>' +
       '<div class="mb-tools" style="justify-content:flex-end;margin-top:.7rem"><button class="btn" onclick="MB10.rDiscrep()">مغایرت</button><button class="btn primary" onclick="MB10.rShowKhol()">نمایش</button></div></div>';
   }
   function rptPage() {
@@ -4601,7 +4617,7 @@ table.mb-grid .op-in{min-width:150px}
   };
 
   G.rptDlg = function (kind) {
-    var dlg = document.createElement('dialog'); dlg.className = 'mb-d'; dlg.style.width = 'min(780px,94vw)'; document.body.appendChild(dlg);
+    var dlg = document.createElement('dialog'); dlg.className = 'mb-d'; dlg.style.width = 'min(880px,96vw)'; dlg.style.padding = '.65rem .75rem'; dlg.style.maxHeight = '96vh'; document.body.appendChild(dlg);
     dlg.innerHTML = (kind === 'riz' ? rizCardHTML() : kholCardHTML()) + '<div class="mb-tools" style="justify-content:flex-start;margin-top:.6rem"><button class="btn" id="rptDlgX">بستن</button></div>';
     dlg.addEventListener('close', function () { dlg.remove(); });
     dlg.querySelector('#rptDlgX').onclick = function () { dlg.close(); };
@@ -5840,6 +5856,180 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
   }
   var _iv = setInterval(function () { var a = patch(), b2 = navPatch(); if (a && b2) clearInterval(_iv); }, 150);
   setTimeout(function () { clearInterval(_iv); }, 30000);
+})();
+</script>
+<style id="df-fix13">
+#dfBack{white-space:nowrap;flex:none}
+#dfBack:disabled{opacity:.4;cursor:default}
+#crumb a{cursor:pointer;text-decoration:none}
+#crumb a:hover{text-decoration:underline}
+.df-home{cursor:pointer;color:var(--primary);text-decoration:none}
+.df-home:hover{text-decoration:underline}
+</style>
+<script id="df-fix13">
+(function () {
+  'use strict';
+  /* ============ df-fix13: دکمه «بازگشت» + مسیر بالای صفحه (breadcrumb) کلیک‌پذیر ============
+     - دکمه بازگشت در نوار بالا: پشته‌ای از نماهای قبلی (بخش‌های اصلی + صفحات مهندسی) نگه می‌دارد.
+     - مسیر بالای صفحه: «دفتر فنی» ← داشبورد، نام بخش ← خانه همان بخش، نام گروه ← اولین صفحه گروه. */
+  var stack = [], cur = { p: 'dashboard' }, restoring = false, started = false;
+
+  function sameView(a, b) { return !!a && !!b && a.p === b.p && a.eng === b.eng; }
+  function updBtn() {
+    var b = document.getElementById('dfBack');
+    if (b) { b.disabled = !stack.length; b.title = stack.length ? 'بازگشت به صفحه قبل' : 'صفحه قبلی نیست'; }
+  }
+  function trackTo(nv) {
+    if (restoring) { cur = nv; updBtn(); return; }
+    if (!sameView(cur, nv)) {
+      stack.push(cur);
+      if (stack.length > 40) stack.shift();
+      cur = nv; updBtn();
+    }
+  }
+  function clickNav(p) {
+    var b = document.querySelector('#nav button[data-p="' + p + '"]');
+    if (b && !b.disabled) { b.click(); return true; }
+    return false;
+  }
+  function goView(v) {
+    restoring = true;
+    try {
+      if (v.eng) {
+        if (typeof page !== 'undefined' && page !== 'engineering') {
+          clickNav('engineering');
+          setTimeout(function () { try { engGo(v.eng); } catch (e) {} restoring = false; cur = v; updBtn(); }, 90);
+          return;
+        }
+        engGo(v.eng);
+      } else {
+        clickNav(v.p || 'dashboard');
+      }
+    } catch (e) {}
+    setTimeout(function () { restoring = false; cur = v; updBtn(); }, 90);
+  }
+
+  /* ---------- breadcrumb ---------- */
+  var lastCrumbSig = null, rebuilding = false;
+  function sectionLabelMap() {
+    var map = {};
+    document.querySelectorAll('#nav button[data-p]').forEach(function (b) {
+      var t = (b.textContent || '').replace(/^[^\u0600-\u06FF]+/, '').trim();
+      if (t) map[t] = b.getAttribute('data-p');
+    });
+    return map;
+  }
+  function groupFirstKey(title) {
+    try {
+      for (var i = 0; i < ENG_NAV.length; i++) {
+        if (ENG_NAV[i].t === title && ENG_NAV[i].i && ENG_NAV[i].i.length) return ENG_NAV[i].i[0][0];
+      }
+    } catch (e) {}
+    return null;
+  }
+  function navTo(spec) {
+    if (!spec) return;
+    if (spec.indexOf('eng:') === 0) {
+      var k = spec.slice(4);
+      trackTo({ eng: k });
+      if (typeof page !== 'undefined' && page !== 'engineering') {
+        clickNav('engineering');
+        setTimeout(function () { try { engGo(k); } catch (e) {} }, 90);
+      } else { try { engGo(k); } catch (e) {} }
+    } else if (spec.indexOf('p:') === 0) {
+      trackTo({ p: spec.slice(2) });
+      clickNav(spec.slice(2));
+    }
+  }
+  function rebuildCrumb() {
+    var c = document.getElementById('crumb');
+    if (!c || rebuilding) return;
+    var text = (c.textContent || '').trim();
+    var sig = text;
+    if (sig === lastCrumbSig) return;
+    lastCrumbSig = sig;
+    var parts = text.split('/').map(function (x) { return x.trim(); }).filter(Boolean);
+    if (parts.length < 2) return;
+    var secMap = sectionLabelMap();
+    rebuilding = true;
+    c.innerHTML = parts.map(function (p, i) {
+      if (i === parts.length - 1) return '<span>' + p + '</span>';
+      var spec = null;
+      if (i === 0 && secMap[p]) spec = 'p:' + secMap[p];
+      else { var gk = groupFirstKey(p); if (gk) spec = 'eng:' + gk; else if (secMap[p]) spec = 'p:' + secMap[p]; }
+      return spec ? '<a data-dfnav="' + spec + '">' + p + '</a>' : '<span>' + p + '</span>';
+    }).join(' / ');
+    rebuilding = false;
+  }
+
+  function init() {
+    if (started) return; started = true;
+    var header = document.querySelector('header.top');
+    if (!header) return;
+    /* دکمه بازگشت */
+    var btn = document.createElement('button');
+    btn.className = 'btn'; btn.id = 'dfBack'; btn.type = 'button';
+    btn.innerHTML = '❯ بازگشت';
+    btn.addEventListener('click', function () {
+      if (!stack.length) return;
+      var v = stack.pop(); updBtn(); goView(v);
+    });
+    header.insertBefore(btn, header.firstChild);
+    updBtn();
+    /* «دفتر فنی» ابتدای مسیر ← داشبورد */
+    var small = header.querySelector('small');
+    if (small && small.firstChild && small.firstChild.nodeType === 3 && small.firstChild.textContent.indexOf('دفتر فنی') >= 0) {
+      var a = document.createElement('a');
+      a.className = 'df-home'; a.setAttribute('data-dfnav', 'p:dashboard'); a.textContent = 'دفتر فنی';
+      var rest = document.createTextNode(small.firstChild.textContent.replace('دفتر فنی', ''));
+      small.replaceChild(rest, small.firstChild);
+      small.insertBefore(a, rest);
+    }
+    /* کلیک روی بخش‌های مسیر */
+    header.addEventListener('click', function (ev) {
+      var t = ev.target && ev.target.closest ? ev.target.closest('[data-dfnav]') : null;
+      if (t) { ev.preventDefault(); navTo(t.getAttribute('data-dfnav')); }
+    });
+    /* ردیابی کلیک روی منوی اصلی */
+    document.addEventListener('click', function (ev) {
+      var b = ev.target && ev.target.closest ? ev.target.closest('#nav button[data-p]') : null;
+      if (b && !b.disabled) trackTo({ p: b.getAttribute('data-p') });
+    }, true);
+    /* ردیابی ناوبری مهندسی */
+    try {
+      var _engGo = window.engGo;
+      if (typeof _engGo === 'function' && !_engGo.__df13) {
+        var wrapped = function (k) { trackTo({ eng: String(k) }); return _engGo.apply(this, arguments); };
+        wrapped.__df13 = true;
+        window.engGo = wrapped;
+      }
+    } catch (e) {}
+    ['MB10', 'SV12'].forEach(function (nm) {
+      try {
+        var o = window[nm];
+        if (o && typeof o.go === 'function' && !o.go.__df13) {
+          var orig = o.go;
+          var w = function (k) { trackTo({ eng: String(k) }); return orig.apply(this, arguments); };
+          w.__df13 = true; o.go = w;
+        }
+      } catch (e) {}
+    });
+    /* مسیر کلیک‌پذیر */
+    var crumb = document.getElementById('crumb');
+    if (crumb) {
+      rebuildCrumb();
+      new MutationObserver(function () { rebuildCrumb(); }).observe(crumb, { childList: true, characterData: true, subtree: true });
+    }
+  }
+
+  var iv = setInterval(function () {
+    try {
+      if (typeof window.engGo === 'function' && typeof ENG_NAV !== 'undefined' && document.getElementById('crumb') && document.querySelector('header.top')) {
+        clearInterval(iv); init();
+      }
+    } catch (e) {}
+  }, 350);
+  setTimeout(function () { clearInterval(iv); }, 30000);
 })();
 </script>
 
