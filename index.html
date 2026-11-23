@@ -4157,11 +4157,11 @@ table.mb-grid .op-in{min-width:150px}
   function printDoc(title, inner) {
     var proj = '', con = '', today = '';
     try { var c = curContract(); if (c) { con = c.name || ''; var pr = projOf(c.projectId); if (pr) proj = pr.name || ''; } today = new Date().toLocaleDateString('fa-IR'); } catch (e) {}
-    var html = '<div class="page" style="font-family:inherit;padding:14mm 12mm"><h2 style="text-align:center;margin:.2rem 0">' + E(title) + '</h2>' +
+    var html = '<div class="page" dir="rtl" style="font-family:inherit;padding:14mm 12mm"><h2 style="text-align:center;margin:.2rem 0">' + E(title) + '</h2>' +
       '<div style="display:flex;justify-content:space-between;font-size:.85rem;border-bottom:2px solid #333;padding-bottom:.4rem;margin-bottom:.6rem"><span>پروژه: ' + E(proj) + '</span><span>پیمان: ' + E(con) + '</span><span>تاریخ: ' + E(today) + '</span></div>' + inner + '</div>';
     try { showPreview(html, title); } catch (e) { T('پیش‌نمایش چاپ آماده نشد.', 1); }
   }
-  function tblHtml(cols, rowsHtml) { return '<table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr>' + cols.map(function (c) { return '<th style="border:1px solid #999;padding:.3rem;background:#f0ead9">' + E(c) + '</th>'; }).join('') + '</tr></thead><tbody>' + rowsHtml + '</tbody></table>'; }
+  function tblHtml(cols, rowsHtml) { return '<table dir="rtl" style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr>' + cols.map(function (c) { return '<th style="border:1px solid #999;padding:.3rem;background:#f0ead9">' + E(c) + '</th>'; }).join('') + '</tr></thead><tbody>' + rowsHtml + '</tbody></table>'; }
   function td(v, num) { return '<td style="border:1px solid #bbb;padding:.28rem;' + (num ? 'text-align:center' : '') + '">' + v + '</td>'; }
   G.eReports = function () {
     var dlg = document.createElement('dialog'); dlg.className = 'mb-d'; document.body.appendChild(dlg);
@@ -4573,8 +4573,8 @@ table.mb-grid .op-in{min-width:150px}
       var foot = '<tr class="ft"><td colspan="' + ncol + '">جمع کارکرد ردیف: ' + E(g.fj) + (g.code ? ' ' + faD(g.code) : '') + ' ب ' + fmtQ(tot) + '</td></tr>';
       return '<table class="rz-t">' + band + colh + body + foot + '</table>';
     }).join('');
-    var html = '<div class="page" style="font-family:inherit;padding:10mm">' + css + '<div class="rz-frame">' +
-      '<div class="rz-head"><div style="display:flex;justify-content:space-between;align-items:flex-start"><span style="min-width:120px">' + (s.date ? 'تاریخ گزارش: ' + today : '') + '</span><b style="font-size:1.3rem">گزارش ریزمتره</b><span style="min-width:120px"></span></div>' +
+    var html = '<div class="page" dir="rtl" style="font-family:inherit;padding:10mm">' + css + '<div class="rz-frame">' +
+      '<div class="rz-head"><div style="display:flex;justify-content:space-between;align-items:flex-start;direction:ltr"><span style="min-width:120px">' + (s.date ? 'تاریخ گزارش: ' + today : '') + '</span><b style="font-size:1.3rem">گزارش ریزمتره</b><span style="min-width:120px"></span></div>' +
       (headLines.length ? '<div style="margin-top:.4rem;line-height:1.9;font-weight:600">' + headLines.map(function (x) { return '<div>' + x + '</div>'; }).join('') + '</div>' : '') + '</div>' +
       gh + sigRiz(s) + '</div></div>';
     try { showPreview(html, 'ریز متره'); } catch (e) { T('پیش‌نمایش آماده نشد.', 1); }
@@ -4585,7 +4585,7 @@ table.mb-grid .op-in{min-width:150px}
     var gB = 0;
     var rh = rows.map(function (r, i) { var n = estNums(r); gB += n.totB; return '<tr>' + td(i + 1, 1) + td(E(r.code)) + td(E(r.desc)) + td(E(r.unit), 1) + td(fmtQ(r.qty), 1) + td(fmtM(n.b), 1) + td(fmtM(n.totB), 1) + '</tr>'; }).join('') +
       '<tr>' + td('', 1) + td('<b>جمع کل</b>') + td('') + td('', 1) + td('', 1) + td('', 1) + td('<b>' + fmtM(gB) + '</b>', 1) + '</tr>';
-    var html = '<div class="page" style="font-family:inherit;padding:14mm 12mm">' + rptHead(s, 'خلاصه متره') + tblHtml(['ردیف', 'شماره ردیف', 'شرح', 'واحد', 'مقدار', 'بهای واحد', 'مبلغ'], rh) + sigHtml(s) + '</div>';
+    var html = '<div class="page" dir="rtl" style="font-family:inherit;padding:14mm 12mm">' + rptHead(s, 'خلاصه متره') + tblHtml(['ردیف', 'شماره ردیف', 'شرح', 'واحد', 'مقدار', 'بهای واحد', 'مبلغ'], rh) + sigHtml(s) + '</div>';
     try { showPreview(html, 'خلاصه متره'); } catch (e) { T('پیش‌نمایش آماده نشد.', 1); }
   };
   G.rDiscrep = function () {
@@ -4843,7 +4843,7 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
   }
   function tblHtml(cols, rowsHtml) { return '<table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr>' + cols.map(function (c) { return '<th style="border:1px solid #999;padding:.3rem;background:#f0ead9">' + E(c) + '</th>'; }).join('') + '</tr></thead><tbody>' + rowsHtml + '</tbody></table>'; }
   function td(v, num1) { return '<td style="border:1px solid #bbb;padding:.28rem;' + (num1 ? 'text-align:center' : '') + '">' + v + '</td>'; }
-  function printDoc(title, inner) { try { showPreview('<div class="page" style="font-family:inherit;padding:12mm 10mm">' + inner + '</div>', title); } catch (e) { T('پیش‌نمایش چاپ آماده نشد.', 1); } }
+  function printDoc(title, inner) { try { showPreview('<div class="page" dir="rtl" style="font-family:inherit;padding:12mm 10mm">' + inner + '</div>', title); } catch (e) { T('پیش‌نمایش چاپ آماده نشد.', 1); } }
 
   /* ---------- ثابت‌ها (عین صورت‌یار) ---------- */
   var TYPES = { sub: 'صورت‌وضعیت پیمانکار جزء', emp: 'صورت‌وضعیت کارفرما', min: 'صورت‌جلسه احجام' };
@@ -5710,7 +5710,7 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
   }
   function repSection(p, d, title, sub, inner) {
     var b = B();
-    return '<section class="page" style="font-family:inherit;padding:12mm 10mm;page-break-after:always">' + repHeader(p, d, title, sub) + inner + signFooterObj(b && b.signers && b.signers.length ? b.signers : SIGN_DEF()) + '</section>';
+    return '<section class="page" dir="rtl" style="font-family:inherit;padding:12mm 10mm;page-break-after:always">' + repHeader(p, d, title, sub) + inner + signFooterObj(b && b.signers && b.signers.length ? b.signers : SIGN_DEF()) + '</section>';
   }
   G.printDoc = function () {
     var b = B(), d = curDoc(); if (!b || !d) return;
@@ -5756,7 +5756,7 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
         '<tr>' + td('', 1) + td('') + td('<b>جمع کسورات انبار</b>') + td('') + td('', 1) + td('', 1) + td('', 1) + td('<b>' + fmtM(wsum) + '</b>', 1) + '</tr>';
       secs.push(repSection(p, d, 'پیوست کسورات انبار', sub, tblHtml(['ردیف', 'تاریخ', 'تحویل‌گیرنده', 'شرح کالا', 'کد', 'واحد', 'مقدار', 'قیمت واحد (ریال)', 'مبلغ (ریال)'], wr)));
     }
-    try { showPreview('<div style="font-family:inherit">' + secs.join('') + '</div>', T); } catch (e) { T('پیش‌نمایش چاپ آماده نشد.', 1); }
+    try { showPreview('<div dir="rtl" style="font-family:inherit">' + secs.join('') + '</div>', T); } catch (e) { T('پیش‌نمایش چاپ آماده نشد.', 1); }
   };
 
   /* ---------- چاپ: گزارش تعدیل (روکش ← خلاصه ← ریز به تفکیک رشته) ---------- */
@@ -5766,7 +5766,7 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
     if (!r) { T('سند تعدیل پیدا نشد.', 1); return; }
     var it = r.it, tp = it.type || 'موقت', N = docsLabel(r.sel), pd = r.prevDoc;
     var im = function (k, fb) { return A.img[k] ? '<img src="' + A.img[k] + '" alt="" style="max-width:100%;max-height:100%">' : '<span style="font-weight:700">' + E(fb || '') + '</span>'; };
-    var cover = '<section class="page" style="font-family:inherit;padding:16mm 12mm;text-align:center;page-break-after:always">' +
+    var cover = '<section class="page" dir="rtl" style="font-family:inherit;padding:16mm 12mm;text-align:center;page-break-after:always">' +
       '<div style="font-size:26px;font-weight:700;margin-top:6mm">پروژه:</div><div style="font-size:24px;font-weight:700;line-height:2.1;margin-top:4mm">' + E(p.title) + '</div>' +
       '<div style="font-size:20px;font-weight:700;margin-top:10mm">قرارداد شماره ' + E(p.contractNo || '') + '</div>' +
       '<div style="font-size:20px;font-weight:700;margin-top:3mm">تاریخ قرارداد ' + E(p.contractDate || '') + '</div>' +
@@ -5804,7 +5804,7 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
         tblHtml(['سال', 'سه‌ماهه', 'ملاک شاخص', 'فصل', 'مبلغ صورت وضعیت فعلی', 'مبلغ صورت وضعیت قبلی', 'مبلغ مابه‌التفاوت', 'نسبت مدت کارکرد', 'مبلغ کارکرد در هر دوره', 'شاخص مبنا B', 'شاخص دوره A', 'ضریب تعدیل', 'مبلغ تعدیل (ریال)'], rows) +
         signFooterObj(b.signers && b.signers.length ? b.signers : SIGN_DEF()) + '</section>';
     }).join('');
-    try { showPreview('<div style="font-family:inherit">' + cover + summary + details + '</div>', 'تعدیل'); } catch (e) { T('پیش‌نمایش چاپ آماده نشد.', 1); }
+    try { showPreview('<div dir="rtl" style="font-family:inherit">' + cover + summary + details + '</div>', 'تعدیل'); } catch (e) { T('پیش‌نمایش چاپ آماده نشد.', 1); }
   };
 
   /* ================= ثبت در ناوبری و بوت ================= */
