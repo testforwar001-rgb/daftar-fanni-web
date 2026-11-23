@@ -3917,17 +3917,17 @@ table.mb-grid .op-in{min-width:150px}
         ['ستاره‌دار / قیمت جدید', 'MB10.go(\'mb:star\')'],
         ['ساختار شکست', 'engGo(\'v14:wbs\')'],
         ['آنالیز بها', 'engGo(\'an:items\')'],
-        ['صورت‌مجلس و گزارش‌ها', 'MB10.go(\'mb:rpt\')'],
-        ['مغایرت', 'MB10.go(\'mb:rpt\')']
+        ['گزارش‌ها (تنظیمات کامل)', 'MB10.go(\'mb:rpt\')'],
+        ['مغایرت', 'MB10.rDiscrep()']
       ]) +
       menuHTML('اکسل', 'mmXl', [
         ['ارسال به Excel', 'MB10.mExcelOut()'],
         ['خواندن از Excel', 'MB10.mExcelIn()']
       ]) +
       menuHTML('گزارش', 'mmRp', [
-        ['ریز متره', 'MB10.go(\'mb:rpt\')'],
-        ['خلاصه متره', 'MB10.go(\'mb:rpt\')'],
-        ['صورت‌مجلس', 'MB10.go(\'mb:rpt\')'],
+        ['ریز متره', 'MB10.rptDlg(\'riz\')'],
+        ['خلاصه متره', 'MB10.rptDlg(\'khol\')'],
+        ['صورت‌مجلس', 'MB10.rptDlg(\'khol\')'],
         ['رفتن به برآورد فهرست بهایی', 'MB10.go(\'mb:est\')']
       ]);
     body(head('متره برآورد فهرست بهایی', 'ریزمتره — هر آیتم می‌تواند چند بار تکرار شود؛ برآورد از همین‌جا تجمیع می‌شود') +
@@ -4117,7 +4117,7 @@ table.mb-grid .op-in{min-width:150px}
         ['متره برآورد فهرست بهایی', 'MB10.go(\'mb:metre\')'],
         ['ستاره‌دارها', 'MB10.go(\'mb:star\')'],
         ['ساختار شکست', 'engGo(\'v14:wbs\')'],
-        ['مغایرت‌ها', 'MB10.go(\'mb:rpt\')']
+        ['مغایرت‌ها', 'MB10.rDiscrep()']
       ]) +
       menuHTML('اکسل', 'emXl', [
         ['ارسال به Excel', 'MB10.eExcel()']
@@ -4464,34 +4464,43 @@ table.mb-grid .op-in{min-width:150px}
     if (!on.length) return '';
     return '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:2.2rem">' + on.map(function (x) { return '<div style="flex:1;min-width:130px;text-align:center"><div style="border-top:1px solid #555;padding-top:.35rem;font-size:.82rem">' + x[2] + (s[x[1]] ? '<br>' + E(s[x[1]]) : '') + '</div></div>'; }).join('') + '</div>';
   }
-  function rptPage() {
-    var d = D(); if (!d) { body('<div class="notice">ابتدا پروژه و پیمان را انتخاب کنید.</div>'); return; }
-    function tg(kind, k, label) { var s = R(kind); return '<label><input type="checkbox" ' + (s[k] ? 'checked' : '') + ' onchange="MB10.rF(\'' + kind + '\',\'' + k + '\',this.checked)"> ' + label + '</label>'; }
-    function sigFields(kind) {
-      var s = R(kind);
-      return [['sigCon', 'sigConN', 'پیمانکار'], ['sigSup', 'sigSupN', 'ناظر'], ['sigCons', 'sigConsN', 'مشاور'], ['sigEmp', 'sigEmpN', 'کارفرما'], ['sigMgmt', 'sigMgmtN', 'مدیریت طرح']].map(function (x) {
-        return '<label><input type="checkbox" ' + (s[x[0]] ? 'checked' : '') + ' onchange="MB10.rF(\'' + kind + '\',\'' + x[0] + '\',this.checked)"> ' + x[2] + '<input type="text" value="' + E(s[x[1]] || '') + '" placeholder="نام امضاکننده" onchange="MB10.rF(\'' + kind + '\',\'' + x[1] + '\',this.value)"></label>';
-      }).join('');
-    }
-    var rz = R('riz'), kh = R('khol');
-    body(head('گزارش‌های متره', 'ریز متره و خلاصه متره با تنظیمات چاپ') +
-      '<div class="mb-wrap"><div class="mb-two">' +
-      '<div class="mb-card"><h4>گزارش ریز متره</h4>' +
+  function tgS(kind, k, label) { var s = R(kind); return '<label><input type="checkbox" ' + (s[k] ? 'checked' : '') + ' onchange="MB10.rF(\'' + kind + '\',\'' + k + '\',this.checked)"> ' + label + '</label>'; }
+  function sigFieldsS(kind) {
+    var s = R(kind);
+    return [['sigCon', 'sigConN', 'پیمانکار'], ['sigSup', 'sigSupN', 'ناظر'], ['sigCons', 'sigConsN', 'مشاور'], ['sigEmp', 'sigEmpN', 'کارفرما'], ['sigMgmt', 'sigMgmtN', 'مدیریت طرح']].map(function (x) {
+      return '<label><input type="checkbox" ' + (s[x[0]] ? 'checked' : '') + ' onchange="MB10.rF(\'' + kind + '\',\'' + x[0] + '\',this.checked)"> ' + x[2] + '<input type="text" value="' + E(s[x[1]] || '') + '" placeholder="نام امضاکننده" onchange="MB10.rF(\'' + kind + '\',\'' + x[1] + '\',this.value)"></label>';
+    }).join('');
+  }
+  function rizCardHTML() {
+    var rz = R('riz');
+    return '<div class="mb-card"><h4>گزارش ریز متره</h4>' +
       '<label style="font-size:.85rem">نام شرکت <input type="text" value="' + E(rz.co) + '" style="width:100%" onchange="MB10.rF(\'riz\',\'co\',this.value)"></label>' +
-      '<div class="mb-rpt">' + tg('riz', 'nameCo', 'چاپ نام شرکت') + tg('riz', 'nameProj', 'چاپ نام پروژه') + tg('riz', 'nameCons', 'چاپ نام مشاور') + tg('riz', 'nameEmp', 'چاپ نام کارفرما') + tg('riz', 'logo', 'چاپ آرم') + tg('riz', 'date', 'چاپ تاریخ') + tg('riz', 'repReshte', 'تکرار عنوان رشته‌ها') + tg('riz', 'secNames', 'چاپ نام بخش‌ها') + tg('riz', 'pageNo', 'چاپ شماره صفحه') + tg('riz', 'formula', 'چاپ فرمول') + tg('riz', 'splitReshte', 'تفکیک چاپ رشته‌ها') + tg('riz', 'oneLine', 'چاپ فقط یک سطر از شرح ردیف') + tg('riz', 'faslCont', 'چاپ فصل‌ها به صورت پیوسته') + tg('riz', 'entryOrder', 'چاپ ترتیب ورود اطلاعات') + tg('riz', 'bySec', 'به تفکیک بخش') + '</div>' +
+      '<div class="mb-rpt">' + tgS('riz', 'nameCo', 'چاپ نام شرکت') + tgS('riz', 'nameProj', 'چاپ نام پروژه') + tgS('riz', 'nameCons', 'چاپ نام مشاور') + tgS('riz', 'nameEmp', 'چاپ نام کارفرما') + tgS('riz', 'logo', 'چاپ آرم') + tgS('riz', 'date', 'چاپ تاریخ') + tgS('riz', 'repReshte', 'تکرار عنوان رشته‌ها') + tgS('riz', 'secNames', 'چاپ نام بخش‌ها') + tgS('riz', 'pageNo', 'چاپ شماره صفحه') + tgS('riz', 'formula', 'چاپ فرمول') + tgS('riz', 'splitReshte', 'تفکیک چاپ رشته‌ها') + tgS('riz', 'oneLine', 'چاپ فقط یک سطر از شرح ردیف') + tgS('riz', 'faslCont', 'چاپ فصل‌ها به صورت پیوسته') + tgS('riz', 'entryOrder', 'چاپ ترتیب ورود اطلاعات') + tgS('riz', 'bySec', 'به تفکیک بخش') + '</div>' +
       '<div class="mb-rpt" style="margin-top:.4rem"><label>نشانه ممیز <input type="text" value="' + E(rz.sep) + '" style="width:52px" onchange="MB10.rF(\'riz\',\'sep\',this.value)"></label>' +
       '<label><input type="checkbox" ' + (rz.symbols ? 'checked' : '') + ' onchange="MB10.rF(\'riz\',\'symbols\',this.checked)"> چاپ نماد</label>' +
       '<span class="mb-chk">' + [['symF', 'ف'], ['symJ', 'ج'], ['symS', '*'], ['symB', 'ب']].map(function (x) { return '<label><input type="checkbox" ' + (rz[x[0]] ? 'checked' : '') + ' onchange="MB10.rF(\'riz\',\'' + x[0] + '\',this.checked)"> ' + x[1] + '</label>'; }).join('') + '</span></div>' +
       '<h4 style="margin:.6rem 0 .3rem">شماره ردیف</h4><div class="mb-chk"><label><input type="radio" name="rnum" ' + (rz.numMode === 'seq' ? 'checked' : '') + ' onchange="MB10.rF(\'riz\',\'numMode\',\'seq\')"> به صورت پی‌درپی افزایش یابد</label><label><input type="radio" name="rnum" ' + (rz.numMode === 'restart' ? 'checked' : '') + ' onchange="MB10.rF(\'riz\',\'numMode\',\'restart\')"> با تغییر شماره فهرست‌بها از اول شروع شود</label></div>' +
       '<h4 style="margin:.6rem 0 .3rem">ترتیب گزارش</h4><div class="mb-chk"><label><input type="radio" name="rord" ' + (rz.order === 'entry' ? 'checked' : '') + ' onchange="MB10.rF(\'riz\',\'order\',\'entry\')"> ورود اطلاعات</label><label><input type="radio" name="rord" ' + (rz.order === 'code' ? 'checked' : '') + ' onchange="MB10.rF(\'riz\',\'order\',\'code\')"> شماره ردیف فهرست‌بها</label></div>' +
-      '<h4 style="margin:.6rem 0 .3rem">امضاءها</h4><div class="mb-sig">' + sigFields('riz') + '</div>' +
-      '<div class="mb-tools" style="justify-content:flex-end;margin-top:.7rem"><button class="btn" onclick="MB10.rDiscrep()">مغایرت</button><button class="btn primary" onclick="MB10.rShowRiz()">نمایش</button></div></div>' +
-      '<div class="mb-card"><h4>گزارش خلاصه متره</h4>' +
+      '<h4 style="margin:.6rem 0 .3rem">امضاءها</h4><div class="mb-sig">' + sigFieldsS('riz') + '</div>' +
+      '<div class="mb-tools" style="justify-content:flex-end;margin-top:.7rem"><button class="btn" onclick="MB10.rDiscrep()">مغایرت</button><button class="btn primary" onclick="MB10.rShowRiz()">نمایش</button></div></div>';
+  }
+  function kholCardHTML() {
+    var kh = R('khol');
+    return '<div class="mb-card"><h4>گزارش خلاصه متره</h4>' +
       '<label style="font-size:.85rem">نام شرکت <input type="text" value="' + E(kh.co) + '" style="width:100%" onchange="MB10.rF(\'khol\',\'co\',this.value)"></label>' +
-      '<div class="mb-rpt">' + tg('khol', 'nameCo', 'چاپ نام شرکت') + tg('khol', 'nameProj', 'چاپ نام پروژه') + tg('khol', 'logo', 'چاپ آرم') + tg('khol', 'date', 'چاپ تاریخ') + tg('khol', 'pageNo', 'چاپ شماره صفحه') + tg('khol', 'inclNoMj', 'جمع ردیف‌های بدون صورت‌مجلس') + tg('khol', 'oneLine', 'چاپ فقط یک سطر از شرح ردیف') + tg('khol', 'faslCont', 'چاپ فصل‌ها به صورت پیوسته') + tg('khol', 'bySec', 'به تفکیک بخش') + '</div>' +
+      '<div class="mb-rpt">' + tgS('khol', 'nameCo', 'چاپ نام شرکت') + tgS('khol', 'nameProj', 'چاپ نام پروژه') + tgS('khol', 'logo', 'چاپ آرم') + tgS('khol', 'date', 'چاپ تاریخ') + tgS('khol', 'pageNo', 'چاپ شماره صفحه') + tgS('khol', 'inclNoMj', 'جمع ردیف‌های بدون صورت‌مجلس') + tgS('khol', 'oneLine', 'چاپ فقط یک سطر از شرح ردیف') + tgS('khol', 'faslCont', 'چاپ فصل‌ها به صورت پیوسته') + tgS('khol', 'bySec', 'به تفکیک بخش') + '</div>' +
       '<label style="font-size:.85rem">نشانه ممیز <input type="text" value="' + E(kh.sep) + '" style="width:52px" onchange="MB10.rF(\'khol\',\'sep\',this.value)"></label>' +
-      '<h4 style="margin:.6rem 0 .3rem">امضاءها</h4><div class="mb-sig">' + sigFields('khol') + '</div>' +
-      '<div class="mb-tools" style="justify-content:flex-end;margin-top:.7rem"><button class="btn" onclick="MB10.rDiscrep()">مغایرت</button><button class="btn primary" onclick="MB10.rShowKhol()">نمایش</button></div></div>' +
+      '<h4 style="margin:.6rem 0 .3rem">امضاءها</h4><div class="mb-sig">' + sigFieldsS('khol') + '</div>' +
+      '<div class="mb-tools" style="justify-content:flex-end;margin-top:.7rem"><button class="btn" onclick="MB10.rDiscrep()">مغایرت</button><button class="btn primary" onclick="MB10.rShowKhol()">نمایش</button></div></div>';
+  }
+  function rptPage() {
+    var d = D(); if (!d) { body('<div class="notice">ابتدا پروژه و پیمان را انتخاب کنید.</div>'); return; }
+    var tg = tgS, sigFields = sigFieldsS;
+    var rz = R('riz'), kh = R('khol');
+    body(head('گزارش‌های متره', 'ریز متره و خلاصه متره با تنظیمات چاپ') +
+      '<div class="mb-wrap"><div class="mb-two">' +
+      rizCardHTML() +
+      kholCardHTML() +
       '</div></div>');
   }
   G.rF = function (kind, k, v) { R(kind)[k] = v; SV(); };
@@ -4539,6 +4548,16 @@ table.mb-grid .op-in{min-width:150px}
     dlg.innerHTML = '<h3 style="margin:.1rem 0 .5rem">مغایرت‌ها</h3>' + (issues.length ? '<ul style="font-size:.9rem;line-height:2;padding-right:1.1rem">' + issues.map(function (x) { return '<li>' + E(x) + '</li>'; }).join('') + '</ul>' : '<p>مغایرتی یافت نشد. ✅</p>') + '<div class="mb-tools" style="justify-content:flex-end"><button class="btn primary" id="rdX">بستن</button></div>';
     dlg.addEventListener('close', function () { dlg.remove(); });
     dlg.querySelector('#rdX').onclick = function () { dlg.close(); };
+    dlg.showModal();
+  };
+
+  G.rptDlg = function (kind) {
+    var dlg = document.createElement('dialog'); dlg.className = 'mb-d'; dlg.style.width = 'min(780px,94vw)'; document.body.appendChild(dlg);
+    dlg.innerHTML = (kind === 'riz' ? rizCardHTML() : kholCardHTML()) + '<div class="mb-tools" style="justify-content:flex-start;margin-top:.6rem"><button class="btn" id="rptDlgX">بستن</button></div>';
+    dlg.addEventListener('close', function () { dlg.remove(); });
+    dlg.querySelector('#rptDlgX').onclick = function () { dlg.close(); };
+    var pb = dlg.querySelector('.mb-card .btn.primary');
+    if (pb) pb.addEventListener('click', function () { setTimeout(function () { try { dlg.close(); } catch (e) {} }, 80); });
     dlg.showModal();
   };
 
@@ -4671,7 +4690,7 @@ table.mb-grid .op-in{min-width:150px}
   G.sBlur = function () { setTimeout(function () { ['mbQSug', 'estQSug'].forEach(function (id) { var b = document.getElementById(id); if (b) b.style.display = 'none'; }); }, 180); };
 
   /* ================= ثبت در ناوبری و بوت ================= */
-  G.go = function (k) { try { engGo(k); } catch (e) {} };
+  G.go = function (k) { try { if (String(k).indexOf('mb:') === 0 && typeof techShow === 'function') techShow(k); else engGo(k); } catch (e) {} };
   function patch() {
     try {
       if (typeof db === 'undefined' || typeof ENG_NAV === 'undefined' || typeof TABS === 'undefined') return false;
