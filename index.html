@@ -4793,6 +4793,1055 @@ table.mb-grid .op-in{min-width:150px}
   }, 200);
 })();
 </script>
+<style id="df-fix12">
+.sv-chip{display:inline-block;padding:.08rem .55rem;border-radius:99px;color:#fff;font-size:.76rem;font-weight:700;white-space:nowrap}
+.sv-warn{border:1px solid #e3b23c;background:#fdf6e0;border-radius:10px;padding:.6rem .8rem;margin:.6rem 0;font-size:.88rem;line-height:1.9}
+.sv-warn b{color:#8a6d1f}
+.sv-tree td .sv-ind{display:inline-block}
+.sv-num{font-variant-numeric:tabular-nums;white-space:nowrap}
+dialog.sv-d{border:none;border-radius:14px;padding:1rem 1.1rem;max-width:min(860px,94vw);width:860px;box-shadow:0 12px 44px rgba(0,0,0,.3)}
+dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
+.sv-tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin:.5rem 0}
+.sv-tabs .btn.on{background:#8a6d1f;color:#fff;border-color:#8a6d1f}
+.sv-gridwrap{overflow:auto;border:1px solid var(--line,#ddd);border-radius:10px;background:#fff;max-width:100%}
+</style>
+<script id="df-fix12">
+/* df-fix12: بومی‌سازی صورت‌وضعیت (صورت‌یار سابق) روی db اصلی — مرحلهٔ ۱ یکپارچه‌سازی.
+   داده‌ها در db.sv[contractId] می‌نشینند (نقشه: FINAL12-MAPPING.md) تا با همگام‌سازی گیت‌هاب
+   جابه‌جا شوند. محاسبات (partial/docNet/coefVals/docChap/lumpX/adjX) عین منطق صورت‌یار است. */
+(function () {
+  'use strict';
+  var S = { docId: '', ver: 'k', tf: 'all', sf: '', adjBank: 'abn', adjSel: '', migDone: false };
+  var G = {}; window.SV12 = G;
+
+  /* ---------- ابزار پایه (هم‌سبک df-fix10) ---------- */
+  function nid(p) { try { return uid(p || 'sv'); } catch (e) { return (p || 'sv') + Date.now().toString(36) + Math.floor(Math.random() * 1e5); } }
+  function num(v) { try { return pn(v); } catch (e) { var n = parseFloat(String(v == null ? '' : v).replace(/[۰-۹]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c); }).replace(/,/g, '')); return isFinite(n) ? n : 0; } }
+  function fmtQ(n) { return (Number(n) || 0).toLocaleString('fa-IR', { maximumFractionDigits: 4 }); }
+  function fmtM(n) { try { return faR(n); } catch (e) { return Math.round(Number(n) || 0).toLocaleString('fa-IR'); } }
+  function E(s) { try { return esc(s == null ? '' : s); } catch (e) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); } }
+  function T(msg, err) { try { toast(msg, err); } catch (e) {} }
+  function SV() { try { save(); } catch (e) {} }
+  function body(html) { var b = document.getElementById('moduleBody'); if (b) b.innerHTML = html; }
+  function digits(s) { var FA = '۰۱۲۳۴۵۶۷۸۹', AR = '٠١٢٣٤٥٦٧٨٩'; return String(s == null ? '' : s).replace(/[۰-۹]/g, function (d) { return FA.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return AR.indexOf(d); }); }
+  function normTxt(s) { return digits(s).replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/‌/g, ' ').toLowerCase().trim(); }
+  function head(title, sub) {
+    var proj = '', con = '';
+    try { var c = curContract(); if (c) { con = c.name || ''; var pr = projOf(c.projectId); if (pr) proj = pr.name || ''; } } catch (e) {}
+    return '<div class="head"><div><h1>' + E(title) + '</h1><p>' + E(sub || '') + (proj ? ' — پروژه: ' + E(proj) : '') + (con ? ' | پیمان: ' + E(con) : '') + '</p></div></div>';
+  }
+  function askYN(title, text) {
+    return new Promise(function (res) {
+      var d = document.createElement('dialog'); d.className = 'mb-d'; d.style.width = '420px';
+      d.innerHTML = '<h3 style="margin:.1rem 0 .5rem">' + E(title) + '</h3><p style="font-size:.92rem;line-height:1.9">' + E(text) + '</p><div class="mb-tools" style="justify-content:flex-end"><button class="btn" id="svNo">خیر</button><button class="btn primary" id="svYes">بلی</button></div>';
+      document.body.appendChild(d);
+      d.querySelector('#svYes').onclick = function () { d.close(); d.remove(); res(true); };
+      d.querySelector('#svNo').onclick = function () { d.close(); d.remove(); res(false); };
+      d.oncancel = function () { d.remove(); res(false); };
+      d.showModal();
+    });
+  }
+  function tblHtml(cols, rowsHtml) { return '<table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr>' + cols.map(function (c) { return '<th style="border:1px solid #999;padding:.3rem;background:#f0ead9">' + E(c) + '</th>'; }).join('') + '</tr></thead><tbody>' + rowsHtml + '</tbody></table>'; }
+  function td(v, num1) { return '<td style="border:1px solid #bbb;padding:.28rem;' + (num1 ? 'text-align:center' : '') + '">' + v + '</td>'; }
+  function printDoc(title, inner) { try { showPreview('<div class="page" style="font-family:inherit;padding:12mm 10mm">' + inner + '</div>', title); } catch (e) { T('پیش‌نمایش چاپ آماده نشد.', 1); } }
+
+  /* ---------- ثابت‌ها (عین صورت‌یار) ---------- */
+  var TYPES = { sub: 'صورت‌وضعیت پیمانکار جزء', emp: 'صورت‌وضعیت کارفرما', min: 'صورت‌جلسه احجام' };
+  var STAT = ['پیش‌نویس', 'در حال بررسی', 'نیازمند اصلاح', 'تأییدشده', 'بایگانی‌شده'];
+  var SC = { 'پیش‌نویس': '#8a97a3', 'در حال بررسی': '#d49a1d', 'نیازمند اصلاح': '#c8463c', 'تأییدشده': '#2f8f5b', 'بایگانی‌شده': '#5c6bc0' };
+  var VERS = { p: 'پیمانکار', c: 'مشاور', k: 'کارفرما' }, VORD = ['p', 'c', 'k'];
+  var BANKS = { abn: 'ابنیه', mech: 'مکانیک', elec: 'برق' };
+  var BN = { abn: 'ابنیه', mech: 'تاسیسات مکانیکی', elec: 'تاسیسات برقی' };
+  var BORD = ['abn', 'mech', 'elec'];
+  var AQ = ['اول', 'دوم', 'سوم', 'چهارم'];
+  var NUMK = ['count', 'len', 'wid', 'hgt', 'wgt'];
+  var BANKKEY = { abn: 'bk_abn', mech: 'bk_mech', elec: 'bk_elec' };
+
+  /* ---------- دسترسی به داده: db.sv[contractId] ---------- */
+  function CID() { try { return (typeof activeProject !== 'undefined' && activeProject) ? activeProject : null; } catch (e) { return null; } }
+  function bucketFor(cid) {
+    if (!cid || typeof db === 'undefined' || !db) return null;
+    db.sv = db.sv || {};
+    var b = db.sv[cid];
+    if (!b) b = db.sv[cid] = { kind: '', lumpCfg: { area: 0, unitRate: 0, pricing: '', parts: '', blocks: [] }, wbs: [], wbsSeq: 0, coefMul: [], coefAdd: [], adj: null, signers: [], parties: [], docs: [] };
+    b.lumpCfg = b.lumpCfg || { area: 0, unitRate: 0, pricing: '', parts: '', blocks: [] };
+    b.wbs = b.wbs || []; b.coefMul = b.coefMul || []; b.coefAdd = b.coefAdd || [];
+    b.signers = b.signers || []; b.parties = b.parties || []; b.docs = b.docs || [];
+    return b;
+  }
+  function B() { return bucketFor(CID()); }
+  /* پروژهٔ مجازی به شکل صورت‌یار: فیلدهای هویتی از پیمان اصلی، بقیه از سطل sv */
+  function P() {
+    var cid = CID(); if (!cid) return null;
+    var b = B(); if (!b) return null;
+    var c = null, pr = null;
+    try { c = curContract(); } catch (e) {}
+    if (!c) { try { c = (db.contracts || []).find(function (x) { return x.id === cid; }); } catch (e) {} }
+    if (c) { try { pr = projOf(c.projectId); } catch (e) {} }
+    var cfg = b.lumpCfg;
+    var pricing = cfg.pricing || (c && c.lumpRows ? c.lumpRows.map(function (r) { return (r.pct || '') + '|' + (r.rate || ''); }).join('\n') : '');
+    var blocks = (cfg.blocks && cfg.blocks.length) ? cfg.blocks : ((c && c.lumpParts) || (pr && pr.sections) || []);
+    return {
+      id: cid,
+      title: (pr && pr.name) || (c && c.name) || '',
+      employer: (c && c.employer) || (pr && pr.employer) || '',
+      consultant: (c && c.consultant) || (pr && pr.consultant) || '',
+      contractor: (c && c.contractor) || '',
+      subs: (c && c.subs) || '',
+      contractNo: (c && c.contractNo) || '', contractDate: (c && c.contractDate) || '',
+      amount: c ? num(c.amount) : 0, months: c ? num(c.months) : 0,
+      start: (c && c.start) || '', end: (c && c.end) || '', status: (c && c.status) || '',
+      code: (c && c.code) || (pr && pr.code) || '', note: (c && c.note) || '',
+      kind: b.kind || (c && c.kind === 'lump' ? 'lump' : 'fehresti'),
+      area: cfg.area || (c ? num(c.area) : 0) || 0,
+      unitRate: cfg.unitRate || (c ? num(c.unitRate) : 0) || 0,
+      pricing: pricing, parts: cfg.parts || '', blocks: blocks,
+      lump: { wbs: b.wbs, mul: b.coefMul, add: b.coefAdd, seq: b.wbsSeq || 0 },
+      adj: b.adj || undefined, signers: b.signers
+    };
+  }
+  function syncP(p) { var b = B(); if (!b || !p) return; b.wbsSeq = p.lump.seq || 0; if (p.adj) b.adj = p.adj; if (p.signers) b.signers = p.signers; }
+  function ADJ() { var p = P(); if (!p) return null; var a = getAdj(p); syncP(p); return a; }
+
+  /* ---------- محاسبات هسته (عین صورت‌یار) ---------- */
+  function r6(x) { return Math.round(x * 1e6) / 1e6; }
+  function locked(d) { return !!d && (d.status === 'تأییدشده' || d.status === 'بایگانی‌شده'); }
+  function partial(r) { var f = [r.count, r.len, r.wid, r.hgt, r.wgt].map(Number).filter(function (v) { return v && !isNaN(v); }); return f.length ? r6(f.reduce(function (a, b) { return a * b; }, 1)) : 0; }
+  function coefVals(coef, total) { var run = total; return (coef || []).map(function (c) { var v = c.amt != null && c.amt !== '' ? Math.round(+c.amt) : Math.round((c.base === 'run' ? run : total) * (c.pct || 0) / 100); run += v; return v; }); }
+  function docNet(d) {
+    var m = {}; (d.rows || []).forEach(function (r) { m[r.code] = r6((m[r.code] || 0) + partial(r)); });
+    var t = 0; for (var c in m) t += Math.round(m[c] * (((d.snap || {})[c] || {}).price || 0));
+    var x = coefVals(d.coef, t).reduce(function (s, v) { return s + v; }, 0);
+    return { total: t, net: t + x };
+  }
+  function chOf(bank, code) { return String(bank === 'abn' ? String(code).slice(0, 2) : String(code).slice(2, 4)); }
+  function docChap(d) {
+    var m = {}; (d.rows || []).forEach(function (r) { if (r.code) m[r.code] = r6((m[r.code] || 0) + partial(r)); });
+    var tot = 0, by = {};
+    for (var c in m) { var f = (d.snap || {})[c] || {}; if (f.bank === 'lump') continue; var bk = f.bank || 'abn', amt = Math.round(m[c] * (f.price || 0)); tot += amt; var k = bk + '|' + chOf(bk, c); by[k] = (by[k] || 0) + amt; }
+    var n = docNet(d), mult = tot ? n.net / tot : 1, out = {};
+    for (var k2 in by) out[k2] = Math.round(by[k2] * mult);
+    return out;
+  }
+  function getV(d, v) { if (!v || v === 'k') return d; var x = (d.v || {})[v] || {}; return { rows: x.rows || [], snap: x.snap || {}, coef: x.coef || [] }; }
+  function vOf(d, v) { if (!v || v === 'k') return d; var g = getV(d, v), o = {}, k; for (k in d) o[k] = d[k]; o.rows = g.rows; o.snap = g.snap; o.coef = g.coef; return o; }
+  function netOf(d, v) { var x = getV(d, v); return docNet({ rows: x.rows || [], snap: x.snap || {}, coef: x.coef || [] }); }
+  function VD(d) { if (!d || d.type !== 'emp' || S.ver === 'k') return d; d.v = d.v || {}; if (!d.v[S.ver]) d.v[S.ver] = { rows: [], snap: {}, coef: [] }; return d.v[S.ver]; }
+  function sibs(b, d) { return b.docs.filter(function (x) { return x.type === d.type && (d.type !== 'sub' || x.partyId === d.partyId); }).sort(function (a, b2) { return (a.seq || 0) - (b2.seq || 0); }); }
+  function prevDocOf(b, d) { var s = sibs(b, d).filter(function (x) { return (x.seq || 0) < (d.seq || 0); }); return s.length ? s[s.length - 1] : null; }
+  function cumNet(b, d) { return sibs(b, d).filter(function (x) { return (x.seq || 0) <= (d.seq || 0); }).reduce(function (a, x) { return a + docNet(x).net; }, 0); }
+  function nextSeq(b, type, partyId) { var m = 0; b.docs.forEach(function (x) { if (x.type === type && (type !== 'sub' || x.partyId === partyId)) m = Math.max(m, Number(x.seq) || 0); }); return m + 1; }
+  function findDoc(b, id) { return b ? (b.docs.find(function (x) { return x.id === id; }) || null) : null; }
+
+  /* ---------- تاریخ جلالی و تعدیل (عین صورت‌یار) ---------- */
+  function g2jD(gy, gm, gd) { var gdm = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]; var jy = (gy <= 1600) ? 0 : 979; gy -= (gy <= 1600) ? 621 : 1600; var gy2 = (gm > 2) ? (gy + 1) : gy;
+    var days = (365 * gy) + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100) + Math.floor((gy2 + 399) / 400) - 80 + gd + gdm[gm - 1];
+    jy += 33 * Math.floor(days / 12053); days %= 12053; jy += 4 * Math.floor(days / 1461); days %= 1461; if (days > 365) { jy += Math.floor((days - 1) / 365); days = (days - 1) % 365; }
+    var jm = (days < 186) ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30), jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30)); return [jy, jm, jd]; }
+  function j2gD(jy, jm, jd) { jy += 1595; var days = -355668 + (365 * jy) + Math.floor(jy / 33) * 8 + Math.floor(((jy % 33) + 3) / 4) + jd + ((jm < 7) ? (jm - 1) * 31 : ((jm - 7) * 30) + 186);
+    var gy = 400 * Math.floor(days / 146097); days %= 146097; if (days > 36524) { days--; gy += 100 * Math.floor(days / 36524); days %= 36524; if (days >= 365) days++; }
+    gy += 4 * Math.floor(days / 1461); days %= 1461; if (days > 365) { gy += Math.floor((days - 1) / 365); days = (days - 1) % 365; }
+    var gd = days + 1; var sa = [0, 31, ((gy % 4 === 0 && gy % 100 !== 0) || (gy % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]; var gm; for (gm = 0; gm < 13 && gd > sa[gm]; gm++) gd -= sa[gm]; return [gy, gm, gd]; }
+  function pj(s) { var m = digits(String(s || '')).replace(/[-.]/g, '/').split('/').map(function (x) { return parseInt(x, 10); }); if (m.length !== 3 || m.some(isNaN)) return null; var y = m[0], mo = m[1], d = m[2]; if (mo < 1 || mo > 12 || d < 1 || d > 31 || y < 1300 || y > 1600) return null; return [y, mo, d]; }
+  function jUTC(j) { var g = j2gD(j[0], j[1], j[2]); return Date.UTC(g[0], g[1] - 1, g[2]); }
+  function addDay(s, n) { var j = pj(s); if (!j) return ''; var dt = new Date(jUTC(j) + n * 864e5), r = g2jD(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate()); return r[0] + '/' + String(r[1]).padStart(2, '0') + '/' + String(r[2]).padStart(2, '0'); }
+  function todayJ() { var d = new Date(), j = g2jD(d.getFullYear(), d.getMonth() + 1, d.getDate()); return j[0] + '/' + String(j[1]).padStart(2, '0') + '/' + String(j[2]).padStart(2, '0'); }
+  function qk(y, q) { return y + '-' + q; }
+  function qShift(y, q, lag) { var n = y * 4 + (q - 1) - lag; return [Math.floor(n / 4), ((n % 4) + 4) % 4 + 1]; }
+  function qSplit(from, to) { var a = pj(from), b = pj(to); if (!a || !b) return null; var ua = jUTC(a), ub = jUTC(b); if (ub <= ua) return null;
+    var T = Math.round((ub - ua) / 864e5), map = [];
+    for (var i = 1; i <= T; i++) { var dt = new Date(ua + i * 864e5), j = g2jD(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate()), q = Math.ceil(j[1] / 3), k = qk(j[0], q); var e = map.find(function (x) { return x.k === k; }); if (!e) { e = { k: k, y: j[0], q: q, days: 0 }; map.push(e); } e.days++; }
+    return { T: T, quarters: map }; }
+  function getAdj(p) { var a = p.adj;
+    if (!a || a.v !== 3) { var old = a; a = p.adj = { v: 3, b: 0.95, kdec: 3, lag: 1, fb: true, baseY: 1404, baseQ: 3, plYear: 1404, months: null, monthsExt: null, start: '', idx: {}, img: {}, list: [] }; if (old && (old.comps || old.a != null || old.per)) a.old = old; }
+    if (!a.idx) a.idx = {}; if (!a.img) a.img = {}; if (!Array.isArray(a.list)) a.list = []; return a; }
+  function idxAt(A, bank, ch, y, q) { var tb = ((A.idx[bank] || {})[ch]) || {}; var v = tb[qk(y, q)]; if (v > 0) return { v: v, y: y, q: q, prov: false };
+    if (A.fb !== false) { var best = null; for (var k in tb) { var pr = k.split('-').map(Number), n = pr[0] * 4 + pr[1]; if (tb[k] > 0 && n <= y * 4 + q && (!best || n > best.n)) best = { v: tb[k], y: pr[0], q: pr[1], n: n }; } if (best) return { v: best.v, y: best.y, q: best.q, prov: true }; }
+    return null; }
+  function docsLabel(sel) { var n = sel.map(function (d) { return d.no; }); if (n.length > 2 && sel.every(function (d, i) { return i === 0 || (Number(d.seq) || 0) === (Number(sel[i - 1].seq) || 0) + 1; })) return n[0] + ' تا ' + n[n.length - 1]; return n.join(' و '); }
+  function adjCalc(p, it, docs) {
+    var A = getAdj(p); docs = docs.slice().sort(function (a, b) { return (a.seq || 0) - (b.seq || 0); });
+    var ver = it.ver || 'k', pver = it.pver || 'k', sel = docs.filter(function (d) { return (it.docIds || []).indexOf(d.id) >= 0; });
+    var R = { it: it, sel: sel, ver: ver, pver: pver, groups: [], total: 0, byBank: {}, miss: 0, prov: 0, from: '', fromExcl: '', to: '', sp: null, prevDoc: null, ok: false, err: '', prevCum: 0, cum: 0 };
+    if (!sel.length) { R.err = 'هیچ صورت‌وضعیتی انتخاب نشده است'; return R; }
+    var first = sel[0], last = sel[sel.length - 1], prevDocs = docs.filter(function (d) { return (d.seq || 0) < (first.seq || 0); }); R.prevDoc = prevDocs[prevDocs.length - 1] || null;
+    var diffM = {}, prvM = {}, man = it.man || {};
+    sel.forEach(function (d) { var c = docChap(vOf(d, ver)); for (var k in c) diffM[k] = (diffM[k] || 0) + c[k]; });
+    prevDocs.forEach(function (d) { var c = docChap(vOf(d, pver)); for (var k in c) prvM[k] = (prvM[k] || 0) + c[k]; });
+    R.to = it.to ? (addDay(it.to, 0) || it.to) : (last.date ? (addDay(last.date, 0) || last.date) : '');
+    R.fromExcl = it.from ? addDay(it.from, -1) : (R.prevDoc ? (addDay(R.prevDoc.date, 0)) : (A.start ? addDay(A.start, -1) : ''));
+    R.from = it.from ? (addDay(it.from, 0) || it.from) : (R.fromExcl ? addDay(R.fromExcl, 1) : '');
+    R.sp = qSplit(R.fromExcl, R.to);
+    var keys = Array.from(new Set(Object.keys(diffM).concat(Object.keys(prvM), Object.keys(man)))).sort(function (a, b) { var pa = a.split('|'), pb = b.split('|'); return BORD.indexOf(pa[0]) - BORD.indexOf(pb[0]) || Number(pa[1]) - Number(pb[1]); });
+    keys.forEach(function (key) {
+      var pr2 = key.split('|'), bank = pr2[0], ch = pr2[1], prev = prvM[key] || 0, diff = diffM[key] || 0, cur = prev + diff, mo = typeof man[key] === 'number';
+      if (mo) { cur = man[key]; diff = cur - prev; }
+      if (!cur && !prev && !diff) return;
+      var g = { bank: bank, ch: ch, key: key, cur: cur, prev: prev, diff: diff, rows: [], sumAmt: 0, sumAdj: 0, bad: false, manual: mo }, qs = R.sp ? R.sp.quarters : [null], tb = ((A.idx[bank] || {})[ch]) || {}, rest = diff;
+      qs.forEach(function (q, i) {
+        var isLast = i === qs.length - 1, amt = R.sp ? (isLast ? rest : Math.round(diff * q.days / R.sp.T)) : null; if (R.sp && !isLast) rest -= amt;
+        var w = { q: q, amt: amt, ratio: R.sp ? q.days + ':' + R.sp.T : '', A: null, B: null, use: null, prov: false, kk: null, adj: null };
+        if (R.sp) { var sh = qShift(q.y, q.q, A.lag || 0), uy = sh[0], uq = sh[1], a = idxAt(A, bank, ch, uy, uq), bv = tb[qk(A.baseY, A.baseQ)];
+          w.use = a ? { y: a.y, q: a.q } : { y: uy, q: uq }; w.A = a ? a.v : null; w.prov = !!(a && a.prov); w.B = bv > 0 ? bv : null;
+          if (a && w.B && typeof A.b === 'number') { w.kk = Number(((w.A / w.B - 1) * A.b).toFixed(A.kdec == null ? 3 : A.kdec)); w.adj = diff === 0 ? 0 : Math.round(amt * w.kk); } }
+        if (diff !== 0 && w.adj == null) g.bad = true; if (w.prov && diff !== 0) R.prov++; g.sumAmt += amt || 0; g.sumAdj += w.adj || 0; g.rows.push(w);
+      });
+      if (g.bad) R.miss++; R.total += g.sumAdj; R.byBank[bank] = (R.byBank[bank] || 0) + g.sumAdj; R.groups.push(g);
+    });
+    R.ok = !!R.sp && R.groups.length > 0 && R.miss === 0; return R;
+  }
+  function adjAll(p, docs) { var A = getAdj(p), run = 0; return A.list.map(function (it) { var r = adjCalc(p, it, docs); r.prevCum = typeof it.prev === 'number' ? it.prev : run; r.cum = r.prevCum + r.total; run = r.cum; return r; }); }
+  function adjStatus(r) { return r.err ? r.err : !r.sp ? 'تاریخ دوره ناقص یا نادرست' : !r.groups.length ? 'ردیف قابل تعدیل ندارد' : r.miss ? 'شاخص ناقص (' + fmtQ(r.miss) + ' فصل)' : r.prov ? 'موقت: برای ' + fmtQ(r.prov) + ' مورد از آخرین شاخص موجود استفاده شد' : 'کامل'; }
+  function kTxt(k, A) { return k == null ? '—' : fmtQ(Number(k.toFixed(A.kdec == null ? 3 : A.kdec))); }
+
+  /* ---------- سرجمع: ساختار شکست و قیمت (عین صورت‌یار) ---------- */
+  function isLump(p) { return !!p && p.kind === 'lump'; }
+  function lumpOf(p) { var L = p.lump = p.lump || {}; L.wbs = L.wbs || []; L.mul = L.mul || []; L.add = L.add || []; L.seq = L.seq || 0; return L; }
+  function parseTiers(t) { return String(t || '').split(/[\n;؛]+/).map(function (l) { return l.split('|').map(function (x) { return x.trim(); }); }).filter(function (a) { return a.length >= 2 && a[0]; }).map(function (a) { return { from: Number(digits(a[0]).replace(/[,٬٪%]/g, '')) || 0, rate: Number(digits(a[1]).replace(/[,٬]/g, '')) || 0 }; }).filter(function (a) { return a.from > 0 && a.from < 100 && a.rate > 0; }).sort(function (a, b) { return a.from - b.from; }); }
+  function lumpTiers(p) { var R = String(p.pricing || '').split('\n').map(function (l) { return l.split('|'); }).map(function (a) { return { pct: Number(a[0]) || 0, rate: Number(a[1]) || 0 }; }).filter(function (a) { return a.pct > 0 && a.rate > 0; });
+    if (R.length) { var c = 0; return R.map(function (r) { var t = { from: r6(c), rate: r.rate }; c += r.pct; return t; }); }
+    return [{ from: 0, rate: Number(p.unitRate) || 0 }].concat(parseTiers(p.parts)); }
+  function lumpF(p, x) { var T = lumpTiers(p), s = 0; T.forEach(function (t, i) { var e = i + 1 < T.length ? T[i + 1].from : 100, a = t.from, b = Math.min(e, x); if (b > a) s += (b - a) * t.rate; }); return (Number(p.area) || 0) * s / 100; }
+  function lumpRateAt(p, x) { var T = lumpTiers(p), r = T[0].rate; T.forEach(function (t) { if (x >= t.from) r = t.rate; }); return r; }
+  function lumpBase(p) { return Math.round(lumpF(p, 100)); }
+  function lumpMul(p) { return lumpOf(p).mul.reduce(function (a, c) { return a * ((Number(c.v) > 0) ? Number(c.v) : 1); }, 1); }
+  function lumpTotal(p) { return Math.round(lumpBase(p) * lumpMul(p)); }
+  function wbsTree(p) {
+    var L = lumpOf(p), kids = function (id) { return L.wbs.filter(function (n) { return (n.parent || '') === id; }); }, out = [];
+    var walk = function (pid, path, dep) { kids(pid).forEach(function (n, i) { var no = (path ? path + '.' : '') + (i + 1), leaf = !kids(n.id).length; out.push({ n: n, no: no, leaf: leaf, depth: dep, pid: n.parent || '' }); if (!leaf) walk(n.id, no, dep + 1); }); };
+    walk('', '', 0);
+    var W = {}, wt = function (o) { var ch = out.filter(function (x) { return x.pid === o.n.id; }); return W[o.n.id] = ch.length ? ch.reduce(function (s, c) { return s + wt(c); }, 0) : (Number(o.n.w) || 0); };
+    out.filter(function (o) { return o.depth === 0; }).forEach(wt);
+    out.filter(function (o) { return o.depth === 0 && o.n.blk; }).forEach(function (o) { var raw = W[o.n.id] || 0, f = (Number(o.n.w) || 0) / 100; o.blkRaw = r6(raw); var sc = function (id) { W[id] = (W[id] || 0) * f; out.filter(function (x) { return x.pid === id; }).forEach(function (c) { sc(c.n.id); }); }; if (out.some(function (x) { return x.pid === o.n.id; })) sc(o.n.id); else W[o.n.id] = Number(o.n.w) || 0; });
+    out.forEach(function (o) { o.w = r6(W[o.n.id] || 0); });
+    out.forEach(function (o) { var r = o; while (r.pid) { var q = out.find(function (x) { return x.n.id === r.pid; }); if (!q) break; r = q; } if (r.n.blk) { o.blk = r.n.id; o.blkTitle = r.n.title; } });
+    var tt = lumpTotal(p); out.forEach(function (o) { o.amt = Math.round(tt * o.w / 100); });
+    return out;
+  }
+  function lumpLeaves(p) { var t = wbsTree(p); return t.length ? t.filter(function (x) { return x.leaf; }) : [{ n: { id: 'ALL', title: 'کل پروژه' }, no: '', leaf: true, w: 100, depth: 0 }]; }
+  function lumpWSum(p) { var t = wbsTree(p); return t.length ? r6(t.filter(function (x) { return x.depth === 0; }).reduce(function (s, o) { return s + o.w; }, 0)) : 100; }
+  function lumpPrice(d, p) { var W = function (r) { return ((d.snap[r.code] || {}).w) || 0; }, prev = d.rows.reduce(function (s, r) { return s + W(r) * (r.prevc || 0); }, 0), cum = d.rows.reduce(function (s, r) { return s + W(r) * (r.cum || 0); }, 0), m = lumpMul(p), dl = cum - prev;
+    var avg = Math.abs(dl) > 1e-9 ? (lumpF(p, cum) - lumpF(p, prev)) * m / dl : lumpRateAt(p, prev) * (Number(p.area) || 0) * m / 100;
+    d.rows.forEach(function (r) { var s = d.snap[r.code]; if (s) s.price = r6(avg * W(r) / 100); }); }
+  function lumpSync(d, p, AD) {
+    var before = JSON.stringify([d.rows, d.snap, d.coef, d.lump]), leaves = lumpLeaves(p);
+    var prevDoc = AD.filter(function (x) { return x.type === 'emp' && x.id !== d.id && (x.seq || 0) < (d.seq || 0); }).sort(function (a, b) { return (b.seq || 0) - (a.seq || 0); })[0], pc = {};
+    if (prevDoc) (prevDoc.rows || []).forEach(function (r) { if (r.lump) pc[r.code] = r.cum || 0; });
+    if (!d.lump) { d.lump = true; d.coef = lumpOf(p).add.map(function (c) { return { name: c.name, pct: c.kind === 'amt' ? 0 : (Number(c.val) || 0), amt: c.kind === 'amt' ? (Number(c.val) || 0) : null, base: c.base || 'gross' }; }); }
+    var old = {}; (d.rows || []).forEach(function (r) { old[r.code] = r; });
+    var rows = [], snap = {};
+    leaves.forEach(function (l) { var id = l.n.id, o = old[id], prevc = pc[id] != null ? pc[id] : (o ? o.prevc || 0 : 0), cum = o ? (o.cum || 0) : prevc;
+      rows.push({ id: id, code: id, lump: true, cum: cum, prevc: prevc, count: r6((cum - prevc) * 100), sub: (l.no ? l.no + ' ' : '') + l.n.title, note: o ? o.note : '' });
+      snap[id] = { bank: 'lump', desc: l.n.title, unit: '٪', price: 0, w: l.w, blk: l.blk || '', blkTitle: l.blkTitle || '' }; });
+    d.rows = rows; d.snap = snap; lumpPrice(d, p);
+    return JSON.stringify([d.rows, d.snap, d.coef, d.lump]) !== before;
+  }
+  function lumpSegs(d, p) { var W = function (r) { return ((d.snap[r.code] || {}).w) || 0; }, prev = d.rows.reduce(function (s, r) { return s + W(r) * (r.prevc || 0); }, 0), cum = d.rows.reduce(function (s, r) { return s + W(r) * (r.cum || 0); }, 0), T = lumpTiers(p), m = lumpMul(p), A = Number(p.area) || 0, out = [];
+    var ov = function (a, b, x) { return Math.max(0, Math.min(b, x) - a); };
+    T.forEach(function (t, i) { var e = i + 1 < T.length ? T[i + 1].from : 100, k = A * t.rate / 100 * m, pv = ov(t.from, e, prev), cu = ov(t.from, e, cum), th = Math.max(0, cu - pv);
+      out.push({ from: r6(t.from), to: r6(e), pct: r6(e - t.from), rate: t.rate, tierAmt: Math.round(k * (e - t.from)), prevAmt: Math.round(k * pv), amt: Math.round(k * th), cumAmt: Math.round(k * cu), remAmt: Math.round(k * (e - t.from - cu)), len: r6(th) }); });
+    return out; }
+  function blkStat(d, k) { var g = d.rows.filter(function (x) { return ((d.snap[x.code] || {}).blk || '') === k; }), W = function (x) { return (d.snap[x.code] || {}).w || 0; }, ww = g.reduce(function (a, x) { return a + W(x); }, 0);
+    return { w: ww, prev: ww ? g.reduce(function (a, x) { return a + W(x) * (x.prevc || 0); }, 0) / ww * 100 : 0, cum: ww ? g.reduce(function (a, x) { return a + W(x) * (x.cum || 0); }, 0) / ww * 100 : 0, amt: g.reduce(function (a, x) { return a + Math.round(x.count * ((d.snap[x.code] || {}).price || 0)); }, 0) }; }
+
+  /* ---------- امضاکنندگان و کسورات انبار ---------- */
+  var SIGN_COL = ['#000', '#b3261e', '#2e7d32', '#1a4fb5'];
+  function SIGN_DEF() { return [{ id: nid('sg'), title: 'پیمانکار', name: '' }, { id: nid('sg'), title: 'مشاور', name: '' }, { id: nid('sg'), title: 'کارفرما', name: '' }, { id: nid('sg'), title: 'بهره‌بردار', name: '' }]; }
+  function getSigners(p) { if (!Array.isArray(p.signers) || !p.signers.length) p.signers = SIGN_DEF(); return p.signers; }
+  function signFooter(p) { var sg = getSigners(p);
+    return '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:2.2rem">' + sg.map(function (x, i) { return '<div style="flex:1;min-width:130px;text-align:center;color:' + SIGN_COL[i % 4] + '"><div style="border-top:1px solid #555;padding-top:.35rem;font-size:.82rem"><b>' + E(x.title) + ':</b>' + (x.name ? '<div>' + E(x.name) + '</div>' : '') + '</div></div>'; }).join('') + '</div>'; }
+  function signFooterObj(sg) { return '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:2.2rem">' + (sg || []).map(function (x, i) { return '<div style="flex:1;min-width:130px;text-align:center;color:' + SIGN_COL[i % 4] + '"><div style="border-top:1px solid #555;padding-top:.35rem;font-size:.82rem"><b>' + E(x.title) + ':</b>' + (x.name ? '<div>' + E(x.name) + '</div>' : '') + '</div></div>'; }).join('') + '</div>'; }
+  /* بازسازی خط «کسورات انبار» در روکش مالی از روی whDed (بخش b از whMarks صورت‌یار) + تلاش برای ثبت ارجاع روی تراکنش انبار */
+  function whSyncCoef(d) {
+    var sum = (d.whDed || []).reduce(function (a, y) { return a + (y.amt || 0); }, 0);
+    d.coef = (d.coef || []).filter(function (c) { return !c.wh; });
+    if (sum) d.coef.push({ name: 'کسورات انبار', pct: 0, amt: -sum, base: 'gross', wh: 1 });
+    try {
+      var key = 'wh_stage1_v1_' + CID(), raw = localStorage.getItem(key);
+      if (raw && d.whDed) { var st = JSON.parse(raw), ids = {}; d.whDed.forEach(function (y) { ids[y.tx] = 1; }); var changed = false;
+        (st.tx || []).forEach(function (t) { if (ids[t.id]) { t.ded = { doc: d.id, no: d.no, seq: d.seq, party: d.party, at: Date.now() }; changed = true; } else if (t.ded && t.ded.doc === d.id) { delete t.ded; changed = true; } });
+        if (changed) localStorage.setItem(key, JSON.stringify(st)); }
+    } catch (e) {}
+  }
+
+  /* ---------- یافتن ردیف فهرست‌بها برای snap ---------- */
+  function resolveCode(code) {
+    code = String(code || '').trim(); if (!code) return null;
+    var keys = Object.keys(BANKKEY);
+    for (var i = 0; i < keys.length; i++) { var arr = (typeof db !== 'undefined' && db.mod && db.mod[BANKKEY[keys[i]]]) || [];
+      for (var j = 0; j < arr.length; j++) if (String(arr[j].code).trim() === code) return { bank: keys[i], code: code, desc: arr[j].desc || '', unit: arr[j].unit || '', price: num(arr[j].price) }; }
+    var mb = (typeof db !== 'undefined' && db.mb && CID()) ? db.mb[CID()] : null;
+    if (mb && mb.stars) { var st = mb.stars.find(function (x) { return String(x.code).trim() === code; }); if (st) return { bank: 'abn', code: code, desc: st.desc || '', unit: st.unit || '', price: num(st.price) }; }
+    return null;
+  }
+  function bankListFor(bk) { var arr = (typeof db !== 'undefined' && db.mod && db.mod[BANKKEY[bk]]) || []; return arr.map(function (r) { return { bank: bk, code: String(r.code), desc: r.desc || '', unit: r.unit || '', price: num(r.price) }; }); }
+
+  /* ---------- مهاجرت از صورت‌یار (کپی؛ منبع دست‌نخورده می‌ماند) ---------- */
+  function idbOpen(name) { return new Promise(function (res, rej) { var rq; try { rq = indexedDB.open(name); } catch (e) { rej(e); return; } rq.onsuccess = function () { res(rq.result); }; rq.onerror = function () { rej(rq.error); }; rq.onblocked = function () { rej(new Error('blocked')); }; }); }
+  function idbAll(dbh, store) { return new Promise(function (res) { try { if (!dbh.objectStoreNames.contains(store)) { res([]); return; } var rq = dbh.transaction(store, 'readonly').objectStore(store).getAll(); rq.onsuccess = function () { res(rq.result || []); }; rq.onerror = function () { res([]); }; } catch (e) { res([]); } }); }
+  function linkContract(sp) {
+    var cs = (typeof db !== 'undefined' && db.contracts) || [];
+    if (cs.some(function (c) { return c.id === sp.id; })) return sp.id;
+    if (sp.contractNo) { var m = cs.find(function (c) { return c.contractNo && String(c.contractNo).trim() === String(sp.contractNo).trim(); }); if (m) return m.id; }
+    var t = normTxt(sp.title);
+    if (t) { var m2 = cs.find(function (c) { var pr = null; try { pr = projOf(c.projectId); } catch (e) {} return normTxt(c.name) === t || (pr && normTxt(pr.name) === t); }); if (m2) return m2.id; }
+    return sp.id;
+  }
+  function applySuratData(data, srcName) {
+    var counts = { docs: 0, parties: 0, prices: 0, buckets: 0 };
+    if (typeof db === 'undefined' || !db) return counts;
+    (data.prices || []).forEach(function (pr) {
+      if (!pr || !BANKS[pr.bank]) return;
+      db.mod = db.mod || {}; var arr = db.mod[BANKKEY[pr.bank]] = db.mod[BANKKEY[pr.bank]] || [];
+      var code = String(pr.code == null ? '' : pr.code).replace(/\s+/g, ''); if (!code) return;
+      if (!arr.some(function (x) { return String(x.code).trim() === code; })) { arr.push({ id: nid('bk'), code: code, desc: pr.desc || '', unit: pr.unit || '', price: num(pr.price), year: 1404 }); counts.prices++; }
+    });
+    (data.projects || []).forEach(function (sp) {
+      if (!sp || !sp.id) return;
+      var cid = linkContract(sp), b = bucketFor(cid); if (!b) return;
+      b._migratedFrom = b._migratedFrom || [];
+      if (b._migratedFrom.indexOf(srcName) >= 0) return;
+      b._migratedFrom.push(srcName); counts.buckets++;
+      if (sp.kind === 'lump') b.kind = 'lump'; else if (!b.kind && sp.kind) b.kind = sp.kind;
+      var cfg = b.lumpCfg;
+      if (sp.area) cfg.area = num(sp.area); if (sp.unitRate) cfg.unitRate = num(sp.unitRate);
+      if (sp.pricing) cfg.pricing = sp.pricing; if (sp.parts) cfg.parts = sp.parts;
+      if (sp.blocks && sp.blocks.length) cfg.blocks = sp.blocks;
+      if (sp.lump) {
+        if (sp.lump.wbs && sp.lump.wbs.length && !b.wbs.length) b.wbs = JSON.parse(JSON.stringify(sp.lump.wbs));
+        if (sp.lump.mul && sp.lump.mul.length && !b.coefMul.length) b.coefMul = JSON.parse(JSON.stringify(sp.lump.mul));
+        if (sp.lump.add && sp.lump.add.length && !b.coefAdd.length) b.coefAdd = JSON.parse(JSON.stringify(sp.lump.add));
+        if (sp.lump.seq) b.wbsSeq = Math.max(b.wbsSeq || 0, sp.lump.seq);
+      }
+      if (sp.adj) b.adj = JSON.parse(JSON.stringify(sp.adj));
+      if (sp.signers && sp.signers.length && !b.signers.length) b.signers = JSON.parse(JSON.stringify(sp.signers));
+      (data.parties || []).filter(function (x) { return x.projectId === sp.id; }).forEach(function (pt) {
+        if (!b.parties.some(function (y) { return y.id === pt.id; })) { b.parties.push({ id: pt.id, name: pt.name, created: pt.created || 0, whId: pt.whId }); counts.parties++; }
+      });
+      (data.docs || []).filter(function (x) { return x.projectId === sp.id; }).forEach(function (dc) {
+        if (!b.docs.some(function (y) { return y.id === dc.id; })) { b.docs.push(JSON.parse(JSON.stringify(dc))); counts.docs++; }
+      });
+    });
+    return counts;
+  }
+  var migPromise = null;
+  function migReady() { if (!migPromise) migPromise = runMigration(); return migPromise; }
+  async function runMigration() {
+    var total = { docs: 0, parties: 0, prices: 0, buckets: 0 };
+    try {
+      if (typeof indexedDB === 'undefined' || !indexedDB.databases) { S.migDone = true; return total; }
+      var list = await indexedDB.databases();
+      var names = (list || []).map(function (x) { return x.name; }).filter(function (n) { return n && /^surat-yar($|-)/.test(n); });
+      for (var i = 0; i < names.length; i++) {
+        try {
+          var dbh = await idbOpen(names[i]);
+          var data = { projects: await idbAll(dbh, 'projects'), prices: await idbAll(dbh, 'prices'), docs: await idbAll(dbh, 'docs'), parties: await idbAll(dbh, 'parties') };
+          try { dbh.close(); } catch (e) {}
+          var c = applySuratData(data, names[i]);
+          total.docs += c.docs; total.parties += c.parties; total.prices += c.prices; total.buckets += c.buckets;
+        } catch (e) {}
+      }
+      if (total.docs || total.parties || total.prices) { SV(); T('مهاجرت از صورت‌یار انجام شد: ' + fmtQ(total.docs) + ' سند، ' + fmtQ(total.parties) + ' پیمانکار جزء، ' + fmtQ(total.prices) + ' ردیف قیمت به بانک مرجع افزوده شد.'); }
+    } catch (e) {}
+    S.migDone = true;
+    return total;
+  }
+  G.importBackup = function () {
+    try {
+      pickFile('.json', async function (f) {
+        try {
+          var text = await f.text();
+          var data = JSON.parse(text);
+          if (!data || data.app !== 'surat-yar' || !Array.isArray(data.projects) || !Array.isArray(data.prices)) { T('این فایل، پشتیبان صورت‌یار نیست.', 1); return; }
+          var c = applySuratData(data, 'backup:' + (data.at || f.name || ''));
+          SV();
+          T('بازیابی پشتیبان صورت‌یار: ' + fmtQ(c.docs) + ' سند، ' + fmtQ(c.parties) + ' پیمانکار جزء، ' + fmtQ(c.prices) + ' ردیف قیمت افزوده شد.');
+          dashPage();
+        } catch (e) { T('خواندن فایل پشتیبان ناموفق بود.', 1); }
+      });
+    } catch (e) { T('انتخاب فایل ممکن نشد.', 1); }
+  };
+  G._applySurat = applySuratData;
+  G.migNow = function () { migPromise = null; S.migDone = false; migReady().then(function () { dashPage(); }); };
+
+  /* ---------- صفحه: داشبورد صورت‌وضعیت ---------- */
+  function dashPage() {
+    var b = B(); if (!b) { body('<div class="notice">ابتدا پروژه و پیمان را انتخاب کنید.</div>'); return; }
+    if (!S.migDone) { body(head('داشبورد صورت‌وضعیت', 'در حال بررسی داده‌های صورت‌یار و مهاجرت خودکار…')); migReady().then(function () { dashPage(); }); return; }
+    var p = P();
+    var cnt = { emp: 0, sub: 0, min: 0 }, stc = {}, sumEmp = 0, sumSub = 0;
+    STAT.forEach(function (s) { stc[s] = 0; });
+    b.docs.forEach(function (d) { cnt[d.type] = (cnt[d.type] || 0) + 1; stc[d.status] = (stc[d.status] || 0) + 1; var n = docNet(d).net; if (d.type === 'emp') sumEmp += n; if (d.type === 'sub') sumSub += n; });
+    var migSrc = [];
+    Object.keys(db.sv || {}).forEach(function (k) { (db.sv[k]._migratedFrom || []).forEach(function (x) { migSrc.push(x); }); });
+    body(head('داشبورد صورت‌وضعیت (جدید)', 'همهٔ اسناد این پیمان — داده‌ها روی بانک اصلی برنامه و همگام‌سازی ذخیره می‌شوند') +
+      '<div class="mb-wrap">' +
+      '<div class="mb-kpi">' +
+      '<div class="k">صورت‌وضعیت کارفرما<b>' + fmtQ(cnt.emp) + ' سند</b>جمع خالص: ' + fmtM(sumEmp) + ' ریال</div>' +
+      '<div class="k">صورت‌وضعیت پیمانکار جزء<b>' + fmtQ(cnt.sub) + ' سند</b>جمع خالص: ' + fmtM(sumSub) + ' ریال</div>' +
+      '<div class="k">صورت‌جلسه احجام<b>' + fmtQ(cnt.min) + ' سند</b></div>' +
+      '<div class="k">نوع پیمان<b>' + (isLump(p) ? 'سرجمع' : 'فهرست‌بهایی') + '</b>' + (isLump(p) ? 'مبلغ پیمان: ' + fmtM(lumpTotal(p)) + ' ریال' : '') + '</div>' +
+      '</div>' +
+      '<div class="mb-card"><h4>وضعیت اسناد</h4><div class="mb-tools">' + STAT.map(function (s) { return '<span class="sv-chip" style="background:' + SC[s] + '">' + E(s) + ': ' + fmtQ(stc[s] || 0) + '</span>'; }).join('') + '</div>' +
+      '<div class="mb-tools"><button class="btn primary" onclick="SV12.go(\'sv:docs\')">📄 صورت‌وضعیت و صورت‌جلسه</button>' +
+      (isLump(p) ? '<button class="btn" onclick="SV12.go(\'sv:wbs\')">🌳 ساختار شکست</button>' : '') +
+      '<button class="btn" onclick="SV12.go(\'sv:adj\')">📈 تعدیل</button>' +
+      '<button class="btn" onclick="SV12.go(\'sv:wbs\')">⚙️ تنظیمات سرجمع و ضرایب پروژه</button></div></div>' +
+      '<div class="mb-card" style="margin-top:.7rem"><h4>مهاجرت از صورت‌یار</h4>' +
+      '<p style="font-size:.88rem;line-height:1.9">داده‌های نسخهٔ قدیمی صورت‌یار (داخل همین دستگاه) هنگام اولین ورود به‌صورت خودکار و <b>بدون حذف دادهٔ مبدأ</b> به این بخش منتقل می‌شوند.' +
+      (migSrc.length ? '<br>منابع منتقل‌شده: ' + migSrc.map(function (x) { return E(x); }).join('، ') : '<br>هنوز منبعی منتقل نشده است.') + '</p>' +
+      '<div class="mb-tools"><button class="btn" onclick="SV12.migNow()">🔄 بررسی و مهاجرت از صورت‌یار</button>' +
+      '<button class="btn" onclick="SV12.importBackup()">♻️ بازیابی از فایل پشتیبان صورت‌یار (JSON)</button></div>' +
+      '<p class="muted" style="font-size:.82rem">نسخهٔ قدیمی صورت‌یار فعلاً سر جایش هست و از منوی کناری در دسترس است؛ این بخش جدید در کنار آن کار می‌کند.</p></div>' +
+      '</div>');
+  }
+
+  /* ---------- صفحه: فهرست اسناد ---------- */
+  function docsPage() {
+    var b = B(); if (!b) { body('<div class="notice">ابتدا پروژه و پیمان را انتخاب کنید.</div>'); return; }
+    if (!S.migDone) { body(head('صورت‌وضعیت و صورت‌جلسه', 'در حال بررسی داده‌های صورت‌یار…')); migReady().then(function () { docsPage(); }); return; }
+    var list = b.docs.filter(function (d) { return (S.tf === 'all' || d.type === S.tf) && (!S.sf || d.status === S.sf); });
+    var groups = {}, ord = [];
+    list.forEach(function (d) { var gk = d.type + '|' + (d.partyId || ''); if (!groups[gk]) { groups[gk] = []; ord.push(gk); } groups[gk].push(d); });
+    var tables = ord.map(function (gk) {
+      var arr = groups[gk].slice().sort(function (a, b2) { return (a.seq || 0) - (b2.seq || 0); }), cum = 0;
+      var rows = arr.map(function (d) { var n = docNet(d); cum += n.net;
+        return '<tr><td>' + E(TYPES[d.type]) + '</td><td class="sv-num">' + E(d.no) + '</td><td>' + E(d.date || '') + '</td><td>' + E(d.subject || '') + '</td><td>' + E(d.party || '') + '</td>' +
+          '<td><span class="sv-chip" style="background:' + (SC[d.status] || '#888') + '">' + E(d.status) + '</span></td>' +
+          '<td class="sv-num">' + fmtM(n.net) + '</td><td class="sv-num">' + fmtM(cum) + '</td>' +
+          '<td><button class="btn" onclick="SV12.openDoc(\'' + d.id + '\')">باز کردن</button> ' + (locked(d) ? '' : '<button class="btn danger" onclick="SV12.delDoc(\'' + d.id + '\')">حذف</button>') + '</td></tr>'; }).join('');
+      return '<h4 style="margin:.8rem 0 .3rem">' + E(TYPES[arr[0].type]) + (arr[0].party ? ' — ' + E(arr[0].party) : '') + '</h4>' +
+        '<div class="sv-gridwrap"><table class="mb-grid" style="min-width:0"><thead><tr><th>نوع</th><th>شماره</th><th>تاریخ</th><th>موضوع</th><th>پیمانکار جزء</th><th>وضعیت</th><th>مبلغ خالص (ریال)</th><th>تجمعی (ریال)</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    }).join('');
+    body(head('صورت‌وضعیت و صورت‌جلسه (جدید)', 'اسناد این پیمان') +
+      '<div class="mb-wrap">' +
+      '<div class="mb-tools"><button class="btn primary" onclick="SV12.newDocDlg(\'emp\')">＋ صورت‌وضعیت کارفرما</button>' +
+      '<button class="btn primary" onclick="SV12.newDocDlg(\'sub\')">＋ صورت‌وضعیت پیمانکار جزء</button>' +
+      '<button class="btn primary" onclick="SV12.newDocDlg(\'min\')">＋ صورت‌جلسه احجام</button></div>' +
+      '<div class="mb-tools"><span>نوع:</span>' + [['all', 'همه'], ['emp', 'کارفرما'], ['sub', 'پیمانکار جزء'], ['min', 'صورت‌جلسه احجام']].map(function (x) { return '<button class="btn ' + (S.tf === x[0] ? 'primary' : '') + '" onclick="SV12.setTF(\'' + x[0] + '\')">' + x[1] + '</button>'; }).join('') +
+      '<label>وضعیت <select onchange="SV12.setSF(this.value)"><option value="">همه</option>' + STAT.map(function (s) { return '<option ' + (S.sf === s ? 'selected' : '') + '>' + E(s) + '</option>'; }).join('') + '</select></label></div>' +
+      (tables || '<div class="notice">سندی ثبت نشده است.</div>') +
+      '</div>');
+  }
+  G.setTF = function (v) { S.tf = v; docsPage(); };
+  G.setSF = function (v) { S.sf = v; docsPage(); };
+  G.openDoc = function (id) { S.docId = id; S.ver = 'k'; G.go('sv:doc'); };
+  G.delDoc = function (id) {
+    var b = B(); if (!b) return; var d = findDoc(b, id); if (!d || locked(d)) return;
+    askYN('حذف سند', 'سند «' + (TYPES[d.type] || '') + ' شماره ' + (d.no || '') + '» حذف شود؟').then(function (ok) { if (!ok) return; b.docs = b.docs.filter(function (x) { return x.id !== id; }); SV(); docsPage(); T('سند حذف شد.'); });
+  };
+  G.newDocDlg = function (type) {
+    var b = B(); if (!b) return;
+    var dlg = document.createElement('dialog'); dlg.className = 'mb-d'; document.body.appendChild(dlg);
+    var partyField = type === 'sub' ? '<label>نام پیمانکار جزء <input type="text" id="ndParty" list="ndParties" placeholder="نام پیمانکار جزء"><datalist id="ndParties">' + b.parties.map(function (x) { return '<option value="' + E(x.name) + '">'; }).join('') + '</datalist></label>' : '';
+    dlg.innerHTML = '<h3 style="margin:.1rem 0 .5rem">سند جدید — ' + E(TYPES[type]) + '</h3>' +
+      '<div class="mb-frow">' + partyField +
+      '<label>شماره <input type="text" id="ndNo" value="' + fmtQ(nextSeq(b, type, null)) + '"></label>' +
+      '<label>تاریخ <input type="text" id="ndDate" value="' + E(todayJ()) + '"></label>' +
+      '<label>موضوع <input type="text" id="ndSubject"></label></div>' +
+      '<div class="mb-tools" style="justify-content:flex-end"><button class="btn" id="ndX">انصراف</button><button class="btn primary" id="ndOk">ایجاد سند</button></div>';
+    dlg.addEventListener('close', function () { dlg.remove(); });
+    dlg.querySelector('#ndX').onclick = function () { dlg.close(); };
+    dlg.querySelector('#ndOk').onclick = function () {
+      var partyName = '', partyId = null;
+      if (type === 'sub') {
+        partyName = dlg.querySelector('#ndParty').value.trim();
+        if (!partyName) { T('نام پیمانکار جزء را وارد کنید.', 1); return; }
+        var ex = b.parties.find(function (x) { return normTxt(x.name) === normTxt(partyName); });
+        if (ex) { partyId = ex.id; partyName = ex.name; } else { var np = { id: nid('svp'), name: partyName, created: Date.now() }; b.parties.push(np); partyId = np.id; }
+      }
+      var seq = nextSeq(b, type, partyId);
+      var noV = dlg.querySelector('#ndNo').value.trim();
+      if (type === 'sub' && noV === String(nextSeq(b, type, null))) noV = String(seq);
+      var d = { id: nid('svd'), projectId: CID(), type: type, seq: seq, no: noV || String(seq), date: dlg.querySelector('#ndDate').value.trim(), subject: dlg.querySelector('#ndSubject').value.trim(), status: 'پیش‌نویس', rows: [], snap: {}, coef: [], created: Date.now(), updated: Date.now() };
+      if (type === 'sub') { d.party = partyName; d.partyId = partyId; }
+      var p = P();
+      if (type === 'emp' && isLump(p)) lumpSync(d, p, b.docs);
+      b.docs.push(d); SV(); dlg.close();
+      S.docId = d.id; S.ver = 'k'; G.go('sv:doc');
+    };
+    dlg.showModal();
+  };
+
+  /* ---------- صفحه: ویرایش سند ---------- */
+  function curDoc() { var b = B(); if (!b) return null; return findDoc(b, S.docId); }
+  function totalsHTML(d) {
+    var vd = VD(d), n = docNet(vd);
+    return 'جمع ناخالص: <b>' + fmtM(n.total) + '</b> ریال &nbsp;|&nbsp; خالص قابل پرداخت: <b>' + fmtM(n.net) + '</b> ریال' + (d.type === 'emp' && S.ver !== 'k' ? ' <span class="muted">(نسخهٔ ' + E(VERS[S.ver]) + ')</span>' : '');
+  }
+  function refreshSums(d) {
+    if (!d) return; var vd = VD(d);
+    vd.rows.forEach(function (r) { var q = document.getElementById('svq_' + r.id), a = document.getElementById('sva_' + r.id);
+      if (q) q.textContent = fmtQ(partial(r));
+      if (a) a.textContent = fmtM(Math.round(partial(r) * (((vd.snap || {})[r.code] || {}).price || 0))); });
+    var n = docNet(vd), cvs = coefVals(vd.coef, n.total);
+    document.querySelectorAll('.svc-val').forEach(function (el) { var i = +el.dataset.i; if (cvs[i] != null) el.textContent = fmtM(cvs[i]); });
+    var t = document.getElementById('svTotals'); if (t) t.innerHTML = totalsHTML(d);
+    document.querySelectorAll('.svw-amt').forEach(function (el) { var y = (d.whDed || []).find(function (x) { return x.tx === el.dataset.tx; }); if (y) el.textContent = fmtM(y.amt || 0); });
+  }
+  function docPage() {
+    var b = B(); if (!b) { body('<div class="notice">ابتدا پروژه و پیمان را انتخاب کنید.</div>'); return; }
+    if (!S.migDone) { body(head('سند', 'در حال بررسی داده‌های صورت‌یار…')); migReady().then(function () { docPage(); }); return; }
+    var d = curDoc();
+    if (!d) { docsPage(); return; }
+    var p = P(), lk = locked(d);
+    if (d.type === 'emp' && isLump(p) && S.ver === 'k' && !lk) { if (lumpSync(d, p, b.docs)) SV(); }
+    var vd = VD(d);
+    var dis = lk ? ' disabled' : '';
+    var prev = prevDocOf(b, d), cum = cumNet(b, d);
+    var html = head(TYPES[d.type] + ' شماره ' + (d.no || ''), d.type === 'sub' ? ('پیمانکار جزء: ' + (d.party || '')) : '') + '<div class="mb-wrap">';
+    html += '<div class="mb-tools"><button class="btn" onclick="SV12.go(\'sv:docs\')">← بازگشت به فهرست اسناد</button>' +
+      '<button class="btn" onclick="SV12.printDoc()">🖨 گزارش چاپی</button>' +
+      (d.type !== 'min' && !lk ? '<button class="btn" onclick="SV12.xferDlg()">⇥ انتقال از صورت‌جلسه احجام</button>' : '') +
+      (d.type === 'emp' && !lk ? '<button class="btn" onclick="SV12.applyProjCoef()">اعمال ضرایب پروژه</button>' : '') +
+      '<label>وضعیت <select onchange="SV12.dStatus(this.value)">' + STAT.map(function (s) { return '<option ' + (d.status === s ? 'selected' : '') + '>' + E(s) + '</option>'; }).join('') + '</select></label>' +
+      '<span class="sv-chip" style="background:' + (SC[d.status] || '#888') + '">' + E(d.status) + '</span>' +
+      (lk ? '<span class="muted">سند تأییدشده/بایگانی قفل است و قابل ویرایش نیست.</span>' : '') + '</div>';
+    if (d.type === 'emp') {
+      html += '<div class="mb-tools"><span>نسخه:</span>' + VORD.map(function (v) { return '<button class="btn ' + (S.ver === v ? 'primary' : '') + '" onclick="SV12.setVer(\'' + v + '\')">' + E(VERS[v]) + '</button>'; }).join('') +
+        (S.ver !== 'k' && !lk ? '<label>کپی از نسخهٔ <select id="svCopyFrom">' + VORD.filter(function (v) { return v !== S.ver; }).map(function (v) { return '<option value="' + v + '">' + E(VERS[v]) + '</option>'; }).join('') + '</select></label><button class="btn" onclick="SV12.copyVer()">کپی نسخه</button>' : '') + '</div>';
+    }
+    html += '<div class="mb-frow"><label>تاریخ <input type="text" value="' + E(d.date || '') + '" onchange="SV12.dF(\'date\',this)"' + dis + '></label>' +
+      '<label>موضوع <input type="text" value="' + E(d.subject || '') + '" onchange="SV12.dF(\'subject\',this)"' + dis + '></label>' +
+      '<label>شماره <input type="text" value="' + E(d.no || '') + '" onchange="SV12.dF(\'no\',this)"' + dis + '></label></div>';
+    html += '<div class="mb-info"><span>صورت‌وضعیت قبلی: <b>' + (prev ? 'شماره ' + E(prev.no) + ' — خالص ' + fmtM(docNet(prev).net) + ' ریال' : '—') + '</b></span><span>تجمعی تا این سند: <b>' + fmtM(cum) + ' ریال</b></span><span id="svTotals">' + totalsHTML(d) + '</span></div>';
+    if (d.type === 'emp' && isLump(p)) html += lumpGridHTML(d, p, vd, dis, lk);
+    else html += rowsGridHTML(d, vd, dis);
+    html += snapTableHTML(d, vd, dis);
+    if (d.type !== 'min') html += coefHTML(d, vd, dis, lk);
+    if (d.type === 'sub') html += whHTML(d, dis, lk);
+    if (prev) html += prevCmpHTML(d, prev);
+    html += '</div>';
+    body(html);
+  }
+  function rowsGridHTML(d, vd, dis) {
+    var lk = locked(d);
+    var trs = vd.rows.map(function (r, i) {
+      var sn = (vd.snap || {})[r.code] || {};
+      return '<tr><td>' + fmtQ(i + 1) + '</td>' +
+        '<td><input type="text" class="code-in" value="' + E(r.code || '') + '" onchange="SV12.rCode(\'' + r.id + '\',this)"' + dis + ' placeholder="کد فهرست‌بها">' +
+        (r.from ? '<div class="muted" style="font-size:.72rem">منتقل از صورت‌جلسه احجام ' + E(r.from.docNo || '') + '</div>' : '') +
+        '<div class="muted" style="font-size:.74rem">' + E(sn.desc || '') + '</div></td>' +
+        '<td><input type="text" class="desc-in" value="' + E(r.sub || '') + '" onchange="SV12.rF(\'' + r.id + '\',\'sub\',this)"' + dis + ' placeholder="شرح عملیات / محل اجرا"></td>' +
+        '<td><input type="text" value="' + E(r.floor || '') + '" onchange="SV12.rF(\'' + r.id + '\',\'floor\',this)"' + dis + '></td>' +
+        '<td><input type="text" value="' + E(r.axis || '') + '" onchange="SV12.rF(\'' + r.id + '\',\'axis\',this)"' + dis + '></td>' +
+        NUMK.map(function (k) { return '<td><input type="text" class="num" value="' + (r[k] == null ? '' : E(String(r[k]))) + '" onchange="SV12.rF(\'' + r.id + '\',\'' + k + '\',this)"' + dis + '></td>'; }).join('') +
+        '<td class="res" id="svq_' + r.id + '">' + fmtQ(partial(r)) + '</td>' +
+        '<td class="res" id="sva_' + r.id + '">' + fmtM(Math.round(partial(r) * (sn.price || 0))) + '</td>' +
+        '<td><input type="text" value="' + E(r.note || '') + '" onchange="SV12.rF(\'' + r.id + '\',\'note\',this)"' + dis + '></td>' +
+        '<td>' + (lk ? '' : '<button class="mb-lnk" title="انتخاب از فهرست‌بها" onclick="SV12.rPick(\'' + r.id + '\')">🔍</button><button class="mb-del" title="حذف ردیف" onclick="SV12.rDel(\'' + r.id + '\')">✕</button>') + '</td></tr>';
+    }).join('');
+    return '<h4 style="margin:.7rem 0 .3rem">ریز متره</h4><div class="sv-gridwrap"><table class="mb-grid"><thead><tr><th>ردیف</th><th>کد</th><th>شرح عملیات</th><th>طبقه</th><th>محور</th><th>تعداد</th><th>طول</th><th>عرض</th><th>ارتفاع</th><th>وزن</th><th>جزئی</th><th>مبلغ (ریال)</th><th>ملاحظات</th><th></th></tr></thead><tbody>' + trs + '</tbody></table></div>' +
+      (lk ? '' : '<div class="mb-tools"><button class="btn" onclick="SV12.rAdd()">＋ ردیف جدید</button></div>');
+  }
+  function lumpGridHTML(d, p, vd, dis, lk) {
+    var trs = vd.rows.map(function (r, i) {
+      var sn = (vd.snap || {})[r.code] || {};
+      return '<tr><td>' + fmtQ(i + 1) + '</td><td>' + E(r.sub || sn.desc || '') + (sn.blkTitle ? '<div class="muted" style="font-size:.74rem">بخش: ' + E(sn.blkTitle) + '</div>' : '') + '</td>' +
+        '<td class="res">' + fmtQ(sn.w || 0) + '</td><td class="res">' + fmtQ(r6((r.prevc || 0) * 100)) + '</td>' +
+        '<td><input type="text" class="num" value="' + fmtQ(r6((r.cum || 0) * 100)) + '" onchange="SV12.lumpCum(\'' + r.id + '\',this)"' + dis + '></td>' +
+        '<td class="res">' + fmtQ(r.count || 0) + '</td>' +
+        '<td class="res" id="sva_' + r.id + '">' + fmtM(Math.round((r.count || 0) * (sn.price || 0))) + '</td>' +
+        '<td><input type="text" value="' + E(r.note || '') + '" onchange="SV12.rF(\'' + r.id + '\',\'note\',this)"' + dis + '></td></tr>';
+    }).join('');
+    return '<h4 style="margin:.7rem 0 .3rem">پیشرفت فعالیت‌ها (ساختار شکست)</h4>' +
+      (lk ? '' : '<div class="mb-tools"><button class="btn" onclick="SV12.lumpResync()">🔄 همگام‌سازی با ساختار شکست</button><button class="btn" onclick="SV12.go(\'sv:wbs\')">🌳 ویرایش ساختار شکست</button></div>') +
+      '<div class="sv-gridwrap"><table class="mb-grid"><thead><tr><th>ردیف</th><th>فعالیت</th><th>وزن ٪</th><th>پیشرفت قبلی ٪</th><th>پیشرفت تجمعی ٪</th><th>پیشرفت دوره ٪</th><th>مبلغ دوره (ریال)</th><th>ملاحظات</th></tr></thead><tbody>' + trs + '</tbody></table></div>';
+  }
+  function snapTableHTML(d, vd, dis) {
+    var m = {}; (vd.rows || []).forEach(function (r) { if (r.code) m[r.code] = r6((m[r.code] || 0) + partial(r)); });
+    var codes = Object.keys(m); if (!codes.length) return '';
+    var rows = codes.map(function (code) { var sn = (vd.snap || {})[code] || {};
+      return '<tr><td><b>' + E(code) + '</b></td><td>' + E(sn.desc || '') + '</td><td>' + E(sn.unit || '') + '</td><td class="res">' + fmtQ(m[code]) + '</td>' +
+        '<td><input type="text" class="num" value="' + (sn.price == null ? '' : E(String(sn.price))) + '" onchange="SV12.snapF(\'' + E(code) + '\',this)"' + dis + '></td>' +
+        '<td class="res">' + fmtM(Math.round(m[code] * (sn.price || 0))) + '</td></tr>'; }).join('');
+    return '<h4 style="margin:.7rem 0 .3rem">خلاصه متره — بهای واحد هر ردیف در این سند</h4><div class="sv-gridwrap"><table class="mb-grid" style="min-width:0"><thead><tr><th>کد</th><th>شرح</th><th>واحد</th><th>مقدار کل</th><th>بهای واحد (ریال)</th><th>مبلغ (ریال)</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<p class="muted" style="font-size:.8rem">بهای واحد داخل خود سند ذخیره می‌شود (snap) و تغییر بانک قیمت، اسناد قبلی را تغییر نمی‌دهد.</p>';
+  }
+  function coefHTML(d, vd, dis, lk) {
+    var n = docNet(vd), cvs = coefVals(vd.coef, n.total);
+    var rows = (vd.coef || []).map(function (c, i) {
+      if (c.wh) return '<tr><td colspan="4">🏬 ' + E(c.name) + ' <span class="muted">(خودکار از کسورات انبار)</span></td><td class="res svc-val" data-i="' + i + '">' + fmtM(cvs[i] || 0) + '</td><td></td></tr>';
+      return '<tr><td><input type="text" value="' + E(c.name || '') + '" onchange="SV12.cF(' + i + ',\'name\',this)"' + dis + '></td>' +
+        '<td><input type="text" class="num" value="' + (c.pct == null ? '' : E(String(c.pct))) + '" onchange="SV12.cF(' + i + ',\'pct\',this)"' + dis + '></td>' +
+        '<td><input type="text" class="num" value="' + (c.amt == null ? '' : E(String(c.amt))) + '" placeholder="درصدی" onchange="SV12.cF(' + i + ',\'amt\',this)"' + dis + '></td>' +
+        '<td><select onchange="SV12.cF(' + i + ',\'base\',this)"' + dis + '><option value="gross" ' + (c.base !== 'run' ? 'selected' : '') + '>از مبلغ ناخالص</option><option value="run" ' + (c.base === 'run' ? 'selected' : '') + '>از مبلغ در حال اجرا</option></select></td>' +
+        '<td class="res svc-val" data-i="' + i + '">' + fmtM(cvs[i] || 0) + '</td>' +
+        '<td>' + (lk ? '' : '<button class="mb-del" onclick="SV12.cDel(' + i + ')">✕</button>') + '</td></tr>';
+    }).join('');
+    return '<h4 style="margin:.7rem 0 .3rem">روکش مالی — اضافات و کسورات</h4><div class="sv-gridwrap"><table class="mb-grid" style="min-width:0"><thead><tr><th>عنوان</th><th>درصد</th><th>مبلغ ثابت (ریال)</th><th>مبنا</th><th>مبلغ (ریال)</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      (lk ? '' : '<div class="mb-tools"><button class="btn" onclick="SV12.cAdd()">＋ خط جدید</button></div>');
+  }
+  function whHTML(d, dis, lk) {
+    var rows = (d.whDed || []).map(function (y) {
+      return '<tr><td>' + E(y.date || '') + '</td><td>' + E(y.per || '') + '</td><td>' + E(y.item || '') + '</td><td>' + E(y.code || '') + '</td><td>' + E(y.unit || '') + '</td><td class="res">' + fmtQ(y.qty || 0) + '</td>' +
+        '<td><input type="text" class="num" value="' + (y.price == null ? '' : E(String(y.price))) + '" onchange="SV12.whF(\'' + E(y.tx) + '\',this)"' + dis + '></td>' +
+        '<td class="res svw-amt" data-tx="' + E(y.tx) + '">' + fmtM(y.amt || 0) + '</td>' +
+        '<td>' + (lk ? '' : '<button class="mb-del" onclick="SV12.whDel(\'' + E(y.tx) + '\')">✕</button>') + '</td></tr>';
+    }).join('');
+    return '<h4 style="margin:.7rem 0 .3rem">🏬 کسورات انبار</h4>' +
+      ((d.whDed && d.whDed.length) ? '<div class="sv-gridwrap"><table class="mb-grid" style="min-width:0"><thead><tr><th>تاریخ</th><th>تحویل‌گیرنده</th><th>شرح کالا</th><th>کد</th><th>واحد</th><th>مقدار</th><th>قیمت واحد (ریال)</th><th>مبلغ (ریال)</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+        : '<p class="muted" style="font-size:.85rem">موردی ثبت نشده است. انتخاب تحویل‌های انبار برای این سند با یکپارچه‌سازی ماژول انبار فعال می‌شود؛ ردیف‌های منتقل‌شده از صورت‌یار اینجا نمایش و در روکش مالی اعمال می‌شوند.</p>');
+  }
+  function prevCmpHTML(d, prev) {
+    function agg(dd) { var m = {}; (dd.rows || []).forEach(function (r) { if (r.code) m[r.code] = r6((m[r.code] || 0) + partial(r)); }); return m; }
+    var a = agg(prev), c = agg(d), codes = Array.from(new Set(Object.keys(a).concat(Object.keys(c))));
+    if (!codes.length) return '';
+    var rows = codes.map(function (code) { var sn = (d.snap || {})[code] || (prev.snap || {})[code] || {};
+      return '<tr><td><b>' + E(code) + '</b></td><td>' + E(sn.desc || '') + '</td><td class="res">' + fmtQ(a[code] || 0) + '</td><td class="res">' + fmtQ(c[code] || 0) + '</td><td class="res">' + fmtQ(r6((a[code] || 0) + (c[code] || 0))) + '</td></tr>'; }).join('');
+    return '<h4 style="margin:.7rem 0 .3rem">مقایسه با صورت‌وضعیت قبلی (شماره ' + E(prev.no) + ')</h4><div class="sv-gridwrap"><table class="mb-grid" style="min-width:0"><thead><tr><th>کد</th><th>شرح</th><th>مقدار قبلی</th><th>مقدار این سند</th><th>تجمعی</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+  /* ----- هندلرهای ویرایش سند ----- */
+  G.dF = function (f, el) { var d = curDoc(); if (!d || locked(d)) return; d[f] = el.value; d.updated = Date.now(); SV(); if (f === 'no') docPage(); };
+  G.dStatus = function (v) { var d = curDoc(); if (!d) return; d.status = v; d.updated = Date.now(); SV(); docPage(); };
+  G.setVer = function (v) { S.ver = v; docPage(); };
+  G.copyVer = function () {
+    var d = curDoc(); if (!d || d.type !== 'emp' || locked(d)) return;
+    var sel = document.getElementById('svCopyFrom'); if (!sel) return;
+    var from = sel.value, src = getV(d, from), dst = VD(d);
+    dst.rows = JSON.parse(JSON.stringify(src.rows || [])); dst.snap = JSON.parse(JSON.stringify(src.snap || {})); dst.coef = JSON.parse(JSON.stringify(src.coef || []));
+    d.vlog = d.vlog || []; d.vlog.push({ at: Date.now(), from: from, to: S.ver, count: dst.rows.length });
+    d.updated = Date.now(); SV(); docPage(); T('نسخهٔ ' + VERS[from] + ' روی نسخهٔ ' + VERS[S.ver] + ' کپی شد.');
+  };
+  G.rF = function (id, f, el) { var d = curDoc(); if (!d || locked(d)) return; var vd = VD(d); var r = vd.rows.find(function (x) { return x.id === id; }); if (!r) return;
+    if (NUMK.indexOf(f) >= 0) r[f] = el.value === '' ? null : num(el.value); else r[f] = el.value;
+    d.updated = Date.now(); SV(); refreshSums(d); };
+  G.rCode = function (id, el) { var d = curDoc(); if (!d || locked(d)) return; var vd = VD(d); var r = vd.rows.find(function (x) { return x.id === id; }); if (!r) return;
+    var code = el.value.trim(); r.code = code;
+    if (code) { var f = resolveCode(code); if (f) vd.snap[code] = { bank: f.bank, code: code, desc: f.desc, unit: f.unit, price: f.price }; }
+    d.updated = Date.now(); SV(); docPage(); };
+  G.rAdd = function () { var d = curDoc(); if (!d || locked(d)) return; var vd = VD(d);
+    vd.rows.push({ id: nid('svr'), code: '', sub: '', floor: '', axis: '', count: null, len: null, wid: null, hgt: null, wgt: null, note: '' }); SV(); docPage(); };
+  G.rDel = function (id) { var d = curDoc(); if (!d || locked(d)) return; var vd = VD(d); vd.rows = vd.rows.filter(function (x) { return x.id !== id; }); SV(); docPage(); };
+  G.snapF = function (code, el) { var d = curDoc(); if (!d || locked(d)) return; var vd = VD(d); vd.snap = vd.snap || {}; if (!vd.snap[code]) vd.snap[code] = { bank: 'abn', code: code, desc: '', unit: '', price: 0 }; vd.snap[code].price = num(el.value); SV(); refreshSums(d); docPage(); };
+  G.lumpCum = function (id, el) { var b = B(), d = curDoc(); if (!b || !d || locked(d)) return; var vd = VD(d); var r = vd.rows.find(function (x) { return x.id === id; }); if (!r) return;
+    var v = Math.min(100, Math.max(0, num(el.value))); r.cum = v / 100; r.count = r6((r.cum - (r.prevc || 0)) * 100); lumpPrice(d, P()); d.updated = Date.now(); SV(); docPage(); };
+  G.lumpResync = function () { var b = B(), d = curDoc(); if (!b || !d || locked(d)) return; lumpSync(d, P(), b.docs); SV(); docPage(); T('سند با ساختار شکست همگام شد.'); };
+  G.cAdd = function () { var d = curDoc(); if (!d || locked(d)) return; var vd = VD(d); vd.coef = vd.coef || []; vd.coef.push({ name: '', pct: 0, amt: null, base: 'gross' }); SV(); docPage(); };
+  G.cF = function (i, f, el) { var d = curDoc(); if (!d || locked(d)) return; var vd = VD(d); var c = (vd.coef || [])[i]; if (!c || c.wh) return;
+    if (f === 'amt') c.amt = el.value === '' ? null : num(el.value); else if (f === 'pct') c.pct = num(el.value); else c[f] = el.value;
+    SV(); refreshSums(d); };
+  G.cDel = function (i) { var d = curDoc(); if (!d || locked(d)) return; var vd = VD(d); vd.coef.splice(i, 1); SV(); docPage(); };
+  G.applyProjCoef = function () { var b = B(), d = curDoc(); if (!b || !d || locked(d)) return; var p = P(); var vd = VD(d);
+    var mapped = lumpOf(p).add.map(function (c) { return { name: c.name, pct: c.kind === 'amt' ? 0 : (Number(c.val) || 0), amt: c.kind === 'amt' ? (Number(c.val) || 0) : null, base: c.base || 'gross' }; });
+    var whLines = (vd.coef || []).filter(function (c) { return c.wh; });
+    vd.coef = mapped.concat(whLines); SV(); docPage(); T('ضرایب پروژه اعمال شد.'); };
+  G.whF = function (tx, el) { var d = curDoc(); if (!d || locked(d)) return; var y = (d.whDed || []).find(function (x) { return x.tx === tx; }); if (!y) return;
+    y.price = num(el.value); y.amt = Math.round((y.qty || 0) * y.price); whSyncCoef(d); SV(); docPage(); };
+  G.whDel = function (tx) { var d = curDoc(); if (!d || locked(d)) return; d.whDed = (d.whDed || []).filter(function (x) { return x.tx !== tx; }); whSyncCoef(d); SV(); docPage(); };
+  /* ----- انتخاب ردیف از فهرست‌بها ----- */
+  G.rPick = function (rowId) {
+    var d = curDoc(); if (!d || locked(d)) return;
+    var dlg = document.createElement('dialog'); dlg.className = 'sv-d'; document.body.appendChild(dlg);
+    var bk = 'abn', q = '';
+    function draw() {
+      var L = bankListFor(bk);
+      var mb = (typeof db !== 'undefined' && db.mb && CID()) ? db.mb[CID()] : null;
+      if (bk === 'abn' && mb && mb.stars) mb.stars.forEach(function (s) { L.push({ bank: 'abn', code: String(s.code), desc: (s.desc || '') + ' ⭐', unit: s.unit || '', price: num(s.price) }); });
+      L = L.filter(function (r) { return !q || (r.code + ' ' + (r.desc || '')).toLowerCase().indexOf(q) >= 0; }).slice(0, 80);
+      dlg.querySelector('#svpL').innerHTML = L.length ? '<table class="mb-grid" style="min-width:0"><tbody>' + L.map(function (r) { return '<tr><td style="white-space:nowrap"><b>' + E(r.code) + '</b></td><td>' + E(r.desc || '') + '</td><td>' + E(r.unit || '') + '</td><td>' + fmtM(r.price) + '</td><td><button class="btn" data-code="' + E(r.code) + '">افزودن</button></td></tr>'; }).join('') + '</tbody></table>' : '<div class="muted" style="padding:.6rem">موردی نیست.</div>';
+      dlg.querySelectorAll('[data-code]').forEach(function (btn) { btn.onclick = function () {
+        var code = btn.dataset.code, f = resolveCode(code), vd = VD(d), r = vd.rows.find(function (x) { return x.id === rowId; });
+        if (r && f) { r.code = code; vd.snap[code] = { bank: f.bank, code: code, desc: f.desc, unit: f.unit, price: f.price }; SV(); }
+        dlg.close(); docPage();
+      }; });
+    }
+    dlg.innerHTML = '<h3 style="margin:.1rem 0 .5rem">انتخاب ردیف فهرست‌بها</h3>' +
+      '<div class="mb-tools">' + BORD.map(function (k) { return '<button class="btn" data-bk="' + k + '">' + E(BANKS[k]) + '</button>'; }).join('') +
+      '<input type="text" id="svpQ" placeholder="جستجو: کد یا شرح" style="flex:1;min-width:180px"><button class="btn" id="svpX">بستن</button></div><div id="svpL"></div>';
+    dlg.addEventListener('close', function () { dlg.remove(); });
+    dlg.querySelectorAll('[data-bk]').forEach(function (btn) { btn.onclick = function () { bk = btn.dataset.bk; draw(); }; });
+    dlg.querySelector('#svpQ').oninput = function () { q = this.value.trim().toLowerCase(); draw(); };
+    dlg.querySelector('#svpX').onclick = function () { dlg.close(); };
+    draw(); dlg.showModal();
+  };
+  /* ----- انتقال از صورت‌جلسه احجام ----- */
+  G.xferDlg = function () {
+    var b = B(), d = curDoc(); if (!b || !d || locked(d)) return;
+    var srcs = b.docs.filter(function (x) { return x.type === 'min' && locked(x); });
+    if (!srcs.length) { T('صورت‌جلسه احجامِ تأییدشده‌ای برای انتقال وجود ندارد.', 1); return; }
+    var dlg = document.createElement('dialog'); dlg.className = 'sv-d'; document.body.appendChild(dlg);
+    function drawRows() {
+      var src = findDoc(b, dlg.querySelector('#xfSrc').value); if (!src) { dlg.querySelector('#xfL').innerHTML = ''; return; }
+      dlg.querySelector('#xfL').innerHTML = '<table class="mb-grid" style="min-width:0"><thead><tr><th></th><th>کد</th><th>شرح عملیات</th><th>طبقه/محور</th><th>جزئی</th><th>وضعیت</th></tr></thead><tbody>' +
+        (src.rows || []).map(function (r) { return '<tr><td><input type="checkbox" data-rid="' + r.id + '"' + (r.xfer ? ' disabled' : '') + '></td><td><b>' + E(r.code || '') + '</b></td><td>' + E(r.sub || '') + '</td><td>' + E(((r.floor || '') + ' ' + (r.axis || '')).trim()) + '</td><td class="res">' + fmtQ(partial(r)) + '</td><td>' + (r.xfer ? 'منتقل‌شده به سند ' + E(r.xfer.no || '') : '') + '</td></tr>'; }).join('') + '</tbody></table>';
+    }
+    dlg.innerHTML = '<h3 style="margin:.1rem 0 .5rem">انتقال ردیف از صورت‌جلسه احجام</h3>' +
+      '<label>صورت‌جلسهٔ مبدأ <select id="xfSrc">' + srcs.map(function (x) { return '<option value="' + x.id + '">شماره ' + E(x.no) + ' — ' + E(x.date || '') + ' — ' + E(x.subject || '') + '</option>'; }).join('') + '</select></label>' +
+      '<div id="xfL" style="margin-top:.6rem"></div>' +
+      '<div class="mb-tools" style="justify-content:flex-end"><button class="btn" id="xfX">انصراف</button><button class="btn primary" id="xfOk">انتقال ردیف‌های انتخاب‌شده</button></div>';
+    dlg.addEventListener('close', function () { dlg.remove(); });
+    dlg.querySelector('#xfSrc').onchange = drawRows;
+    dlg.querySelector('#xfX').onclick = function () { dlg.close(); };
+    dlg.querySelector('#xfOk').onclick = function () {
+      var src = findDoc(b, dlg.querySelector('#xfSrc').value); if (!src) return;
+      var vd = VD(d), n = 0;
+      dlg.querySelectorAll('[data-rid]:checked').forEach(function (cb) {
+        var r = (src.rows || []).find(function (x) { return x.id === cb.dataset.rid; }); if (!r || r.xfer) return;
+        var nr = { id: nid('svr'), code: r.code || '', sub: r.sub || '', floor: r.floor || '', axis: r.axis || '', note: r.note || '', from: { doc: src.id, docNo: src.no, rowId: r.id } };
+        NUMK.forEach(function (k) { nr[k] = r[k] != null ? r[k] : null; });
+        vd.rows.push(nr);
+        if (r.code && !vd.snap[r.code] && src.snap && src.snap[r.code]) vd.snap[r.code] = JSON.parse(JSON.stringify(src.snap[r.code]));
+        r.xfer = { to: d.id, no: d.no, at: Date.now() }; n++;
+      });
+      if (n) { src.xlog = src.xlog || []; src.xlog.push({ at: Date.now(), to: d.id, toNo: d.no, count: n }); src.updated = Date.now(); d.updated = Date.now(); SV(); }
+      dlg.close(); docPage(); T(n ? fmtQ(n) + ' ردیف منتقل شد.' : 'ردیفی انتخاب نشده بود.', n ? 0 : 1);
+    };
+    drawRows(); dlg.showModal();
+  };
+
+  /* ---------- صفحه: ساختار شکست و تنظیمات سرجمع ---------- */
+  function wbsPage() {
+    var b = B(); if (!b) { body('<div class="notice">ابتدا پروژه و پیمان را انتخاب کنید.</div>'); return; }
+    if (!S.migDone) { body(head('ساختار شکست', 'در حال بررسی داده‌های صورت‌یار…')); migReady().then(function () { wbsPage(); }); return; }
+    var p = P(), L = lumpOf(p), tree = wbsTree(p), wsum = lumpWSum(p);
+    var cfg = b.lumpCfg;
+    var treeRows = tree.map(function (o) {
+      var n = o.n;
+      return '<tr><td class="sv-num">' + E(o.no) + '</td>' +
+        '<td><span class="sv-ind" style="width:' + (o.depth * 26) + 'px"></span><input type="text" value="' + E(n.title || '') + '" onchange="SV12.wF(\'' + n.id + '\',\'title\',this)" style="min-width:180px"></td>' +
+        '<td>' + (o.depth === 0 ? '<label style="font-size:.8rem"><input type="checkbox" ' + (n.blk ? 'checked' : '') + ' onchange="SV12.wBlk(\'' + n.id + '\',this.checked)"> بخش</label>' : '') + '</td>' +
+        '<td>' + (o.leaf ? '<input type="text" class="num" value="' + (n.w == null ? '' : E(String(n.w))) + '" onchange="SV12.wF(\'' + n.id + '\',\'w\',this)" style="width:80px">' : '<b class="sv-num">' + fmtQ(o.w) + '</b>') + '</td>' +
+        '<td class="res">' + fmtM(o.amt) + '</td>' +
+        '<td style="white-space:nowrap"><button class="btn" title="زیرمجموعه" onclick="SV12.wAdd(\'' + n.id + '\')">＋ زیر</button> <button class="btn" title="هم‌سطح" onclick="SV12.wAddSib(\'' + n.id + '\')">＋ هم‌سطح</button> <button class="btn" title="بالا" onclick="SV12.wMove(\'' + n.id + '\',-1)">↑</button> <button class="btn" title="پایین" onclick="SV12.wMove(\'' + n.id + '\',1)">↓</button> <button class="btn danger" title="حذف" onclick="SV12.wDel(\'' + n.id + '\')">حذف</button></td></tr>';
+    }).join('');
+    var mulRows = L.mul.map(function (c, i) { return '<tr><td><input type="text" value="' + E(c.name || '') + '" onchange="SV12.mulF(' + i + ',\'name\',this)"></td><td><input type="text" class="num" value="' + (c.v == null ? '' : E(String(c.v))) + '" onchange="SV12.mulF(' + i + ',\'v\',this)"></td><td><button class="mb-del" onclick="SV12.mulDel(' + i + ')">✕</button></td></tr>'; }).join('');
+    var addRows = L.add.map(function (c, i) { return '<tr><td><input type="text" value="' + E(c.name || '') + '" onchange="SV12.addF(' + i + ',\'name\',this)"></td>' +
+      '<td><input type="text" class="num" value="' + (c.val == null ? '' : E(String(c.val))) + '" onchange="SV12.addF(' + i + ',\'val\',this)"></td>' +
+      '<td><select onchange="SV12.addF(' + i + ',\'kind\',this)"><option value="pct" ' + (c.kind !== 'amt' ? 'selected' : '') + '>درصد</option><option value="amt" ' + (c.kind === 'amt' ? 'selected' : '') + '>مبلغ ثابت</option></select></td>' +
+      '<td><select onchange="SV12.addF(' + i + ',\'base\',this)"><option value="gross" ' + (c.base !== 'run' ? 'selected' : '') + '>از ناخالص</option><option value="run" ' + (c.base === 'run' ? 'selected' : '') + '>از در حال اجرا</option></select></td>' +
+      '<td><button class="mb-del" onclick="SV12.addDel(' + i + ')">✕</button></td></tr>'; }).join('');
+    body(head('ساختار شکست و تنظیمات سرجمع (جدید)', 'درخت فعالیت‌ها، وزن‌ها و ضرایب پروژه') +
+      '<div class="mb-wrap">' +
+      (!isLump(p) ? '<div class="sv-warn">این پیمان در حال حاضر <b>فهرست‌بهایی</b> است. برای کار با ساختار شکست و صورت‌وضعیت سرجمع، نوع پیمان را سرجمع کنید: <button class="btn primary" onclick="SV12.setLump()">تبدیل به سرجمع</button></div>' : '') +
+      '<div class="mb-card"><h4>مشخصات سرجمع پیمان</h4>' +
+      '<div class="mb-frow"><label>متراژ کل (مترمربع) <input type="text" value="' + (cfg.area || '') + '" onchange="SV12.cfgF(\'area\',this)"></label>' +
+      '<label>قیمت هر مترمربع پایه (ریال) <input type="text" value="' + (cfg.unitRate || '') + '" onchange="SV12.cfgF(\'unitRate\',this)"></label></div>' +
+      '<label style="display:block;font-size:.85rem;margin:.4rem 0">پله‌های قیمتی — هر خط: «درصد طول پله | قیمت هر مترمربع»<textarea rows="3" style="width:100%" onchange="SV12.cfgF(\'pricing\',this)">' + E(cfg.pricing || '') + '</textarea></label>' +
+      '<label style="display:block;font-size:.85rem">پله‌ها به‌صورت «از درصد | قیمت» (جایگزین، وقتی پله‌های بالا خالی است)<textarea rows="2" style="width:100%" onchange="SV12.cfgF(\'parts\',this)">' + E(cfg.parts || '') + '</textarea></label>' +
+      '<div class="mb-kpi"><div class="k">مبلغ پایه پیمان<b>' + fmtM(lumpBase(p)) + ' ریال</b></div><div class="k">ضریب ضربی کل<b>' + fmtQ(lumpMul(p)) + '</b></div><div class="k">مبلغ نهایی پیمان<b>' + fmtM(lumpTotal(p)) + ' ریال</b></div><div class="k">جمع وزن‌های ریشه<b>' + fmtQ(wsum) + '٪</b>' + (Math.abs(wsum - 100) > 0.001 ? ' <span style="color:#c8463c">⚠ باید ۱۰۰ شود</span>' : ' ✅') + '</div></div></div>' +
+      '<div class="mb-card" style="margin-top:.7rem"><h4>🌳 ساختار شکست (WBS)</h4>' +
+      '<div class="mb-tools"><button class="btn primary" onclick="SV12.wAdd(\'\')">＋ ریشهٔ جدید</button>' +
+      ((p.blocks && p.blocks.length) ? '<button class="btn" onclick="SV12.wFromBlocks()">ساخت بخش‌ها از تعریف پیمان</button>' : '') + '</div>' +
+      '<div class="sv-gridwrap"><table class="mb-grid"><thead><tr><th>شماره</th><th>عنوان فعالیت / بخش</th><th>بخش؟</th><th>وزن ٪</th><th>مبلغ (ریال)</th><th></th></tr></thead><tbody>' + (treeRows || '<tr><td colspan="6" class="muted" style="text-align:center;padding:.7rem">هنوز فعالیتی تعریف نشده است.</td></tr>') + '</tbody></table></div>' +
+      '<p class="muted" style="font-size:.82rem">وزن برگ‌ها درصدی از پروژه است؛ اگر ریشه‌ای «بخش» باشد، وزن زیرمجموعه‌هایش درصدی از خود بخش حساب می‌شود و وزن بخش، درصدی از پروژه است. وزن گره‌های پدر از جمع برگ‌ها محاسبه می‌شود.</p></div>' +
+      '<div class="mb-two" style="margin-top:.7rem"><div class="mb-card"><h4>ضرایب ضربی روی قیمت سرجمع</h4>' +
+      '<div class="sv-gridwrap"><table class="mb-grid" style="min-width:0"><thead><tr><th>عنوان</th><th>ضریب</th><th></th></tr></thead><tbody>' + mulRows + '</tbody></table></div>' +
+      '<div class="mb-tools"><button class="btn" onclick="SV12.mulAdd()">＋ ضریب</button></div></div>' +
+      '<div class="mb-card"><h4>اضافات و کسورات پیش‌فرض پروژه (فقط اسناد کارفرما)</h4>' +
+      '<div class="sv-gridwrap"><table class="mb-grid" style="min-width:0"><thead><tr><th>عنوان</th><th>مقدار</th><th>نوع</th><th>مبنا</th><th></th></tr></thead><tbody>' + addRows + '</tbody></table></div>' +
+      '<div class="mb-tools"><button class="btn" onclick="SV12.addAdd()">＋ خط</button></div></div></div>' +
+      '<div class="mb-card" style="margin-top:.7rem"><h4>امضاکنندگان زیر گزارش‌ها</h4><div class="mb-sig">' +
+      getSigners(p).map(function (s, i) { return '<label>' + E(s.title) + '<input type="text" value="' + E(s.name || '') + '" placeholder="نام امضاکننده" onchange="SV12.signF(' + i + ',this)"></label>'; }).join('') + '</div></div>' +
+      '</div>');
+    syncP(p);
+  }
+  function wNode(id) { var b = B(); if (!b) return null; return b.wbs.find(function (x) { return x.id === id; }) || null; }
+  G.setLump = function () { var b = B(); if (!b) return; b.kind = 'lump'; SV(); wbsPage(); };
+  G.cfgF = function (f, el) { var b = B(); if (!b) return; if (f === 'area' || f === 'unitRate') b.lumpCfg[f] = num(el.value); else b.lumpCfg[f] = el.value; SV(); wbsPage(); };
+  G.wF = function (id, f, el) { var n = wNode(id); if (!n) return; if (f === 'w') n.w = num(el.value); else n[f] = el.value; SV(); if (f === 'w') wbsPage(); };
+  G.wBlk = function (id, on) { var n = wNode(id); if (!n) return; if (on) n.blk = true; else delete n.blk; SV(); wbsPage(); };
+  G.wAdd = function (parentId) { var b = B(); if (!b) return; var p = P(), L = lumpOf(p); var id = 'W' + (++L.seq); b.wbs.push({ id: id, parent: parentId || '', title: 'فعالیت جدید', w: 0 }); syncP(p); SV(); wbsPage(); };
+  G.wAddSib = function (id) { var n = wNode(id); if (!n) return; G.wAdd(n.parent || ''); };
+  G.wMove = function (id, dir) { var b = B(); if (!b) return; var n = wNode(id); if (!n) return;
+    var sibIdx = []; b.wbs.forEach(function (x, i) { if ((x.parent || '') === (n.parent || '')) sibIdx.push(i); });
+    var pos = sibIdx.indexOf(b.wbs.indexOf(n)); var other = sibIdx[pos + dir]; if (other == null) return;
+    var myIdx = b.wbs.indexOf(n); var tmp = b.wbs[other]; b.wbs[other] = n; b.wbs[myIdx] = tmp; SV(); wbsPage(); };
+  G.wDel = function (id) { var b = B(); if (!b) return; var n = wNode(id); if (!n) return;
+    askYN('حذف گره', '«' + (n.title || '') + '» و همهٔ زیرمجموعه‌هایش حذف شود؟').then(function (ok) { if (!ok) return;
+      var rm = {}; rm[id] = 1; var grew = true;
+      while (grew) { grew = false; b.wbs.forEach(function (x) { if (rm[x.parent] && !rm[x.id]) { rm[x.id] = 1; grew = true; } }); }
+      b.wbs = b.wbs.filter(function (x) { return !rm[x.id]; }); SV(); wbsPage(); }); };
+  G.wFromBlocks = function () { var b = B(); if (!b) return; var p = P(), L = lumpOf(p); var added = 0;
+    (p.blocks || []).forEach(function (bl) { var key = (bl.kind || '') + '|' + (bl.name || ''); if (L.wbs.some(function (x) { return x.partKey === key; })) return;
+      var id = 'W' + (++L.seq); L.wbs.push({ id: id, parent: '', title: bl.name || bl.kind || 'بخش', w: 0, blk: true, partKey: key }); added++; });
+    syncP(p); SV(); wbsPage(); T(added ? fmtQ(added) + ' بخش ساخته شد.' : 'بخش جدیدی نبود.', added ? 0 : 1); };
+  G.mulAdd = function () { var b = B(); if (!b) return; b.coefMul.push({ name: '', v: 1 }); SV(); wbsPage(); };
+  G.mulF = function (i, f, el) { var b = B(); if (!b) return; var c = b.coefMul[i]; if (!c) return; if (f === 'v') c.v = num(el.value); else c[f] = el.value; SV(); if (f === 'v') wbsPage(); };
+  G.mulDel = function (i) { var b = B(); if (!b) return; b.coefMul.splice(i, 1); SV(); wbsPage(); };
+  G.addAdd = function () { var b = B(); if (!b) return; b.coefAdd.push({ name: '', val: 0, kind: 'pct', base: 'gross' }); SV(); wbsPage(); };
+  G.addF = function (i, f, el) { var b = B(); if (!b) return; var c = b.coefAdd[i]; if (!c) return; if (f === 'val') c.val = num(el.value); else c[f] = el.value; SV(); };
+  G.addDel = function (i) { var b = B(); if (!b) return; b.coefAdd.splice(i, 1); SV(); wbsPage(); };
+  G.signF = function (i, el) { var b = B(); if (!b) return; var p = P(), sg = getSigners(p); if (sg[i]) sg[i].name = el.value; syncP(p); SV(); };
+
+  /* ---------- صفحه: تعدیل ---------- */
+  function empDocs(b) { return b.docs.filter(function (d) { return d.type === 'emp'; }).sort(function (a, b2) { return (a.seq || 0) - (b2.seq || 0); }); }
+  function adjWarnings(p, A, docs) {
+    var out = [];
+    if (typeof A.b !== 'number') out.push('ضریب تعدیل (b) عددی تنظیم نشده است — همهٔ مبالغ تعدیل صفر می‌شوند.');
+    var chapKeys = {};
+    docs.forEach(function (d) { var c = docChap(d); for (var k in c) chapKeys[k] = 1; });
+    Object.keys(chapKeys).forEach(function (k) { var pr = k.split('|'), bank = pr[0], ch = pr[1];
+      var bv = ((A.idx[bank] || {})[ch] || {})[qk(A.baseY, A.baseQ)];
+      if (!(bv > 0)) out.push('شاخص مبنا (' + (A.baseY || '') + '-' + (A.baseQ || '') + ') برای فصل ' + ch + ' رشتهٔ ' + (BN[bank] || bank) + ' وارد نشده است.'); });
+    return out;
+  }
+  function adjPage() {
+    var b = B(); if (!b) { body('<div class="notice">ابتدا پروژه و پیمان را انتخاب کنید.</div>'); return; }
+    if (!S.migDone) { body(head('تعدیل', 'در حال بررسی داده‌های صورت‌یار…')); migReady().then(function () { adjPage(); }); return; }
+    var p = P(), A = ADJ(), docs = empDocs(b);
+    var results = adjAll(p, docs);
+    var warns = adjWarnings(p, A, docs);
+    results.forEach(function (r) { r.groups.forEach(function (g) { if (g.bad) warns.push('شاخص دوره برای فصل ' + g.ch + ' رشتهٔ ' + (BN[g.bank] || g.bank) + ' در تعدیل شماره ' + (r.it.no || '') + ' ناقص است (مبلغ آن فصل صفر حساب شده).'); }); });
+    var bank = S.adjBank, idxB = A.idx[bank] = A.idx[bank] || {};
+    var chapSet = {}; Object.keys(idxB).forEach(function (ch) { chapSet[ch] = 1; });
+    docs.forEach(function (d) { var c = docChap(d); for (var k in c) { var pr = k.split('|'); if (pr[0] === bank) chapSet[pr[1]] = 1; } });
+    var qSet = {}; Object.keys(idxB).forEach(function (ch) { Object.keys(idxB[ch] || {}).forEach(function (q) { qSet[q] = 1; }); });
+    qSet[qk(A.baseY, A.baseQ)] = 1;
+    var quarters = Object.keys(qSet).sort(function (a, b2) { var pa = a.split('-').map(Number), pb = b2.split('-').map(Number); return pa[0] * 4 + pa[1] - (pb[0] * 4 + pb[1]); });
+    var chapters = Object.keys(chapSet).sort();
+    var idxRows = chapters.map(function (ch) {
+      return '<tr><td><b>' + E(ch) + '</b></td>' + quarters.map(function (q) { var v = (idxB[ch] || {})[q]; return '<td><input type="text" class="num" style="width:96px" value="' + (v == null ? '' : E(String(v))) + '" onchange="SV12.idxF(\'' + ch + '\',\'' + q + '\',this)"></td>'; }).join('') + '</tr>';
+    }).join('');
+    var stRows = results.map(function (r) {
+      return '<tr><td class="sv-num">' + E(r.it.no || '') + '</td><td>' + E(r.it.type || 'موقت') + '</td><td>' + E(docsLabel(r.sel)) + '</td><td>' + E(adjStatus(r)) + '</td>' +
+        '<td class="res">' + fmtM(r.total) + '</td><td class="res">' + fmtM(r.cum) + '</td>' +
+        '<td style="white-space:nowrap"><button class="btn" onclick="SV12.adjDetail(\'' + r.it.id + '\')">جزئیات</button> <button class="btn" onclick="SV12.adjPrint(\'' + r.it.id + '\')">🖨 چاپ</button> <button class="btn danger" onclick="SV12.adjDel(\'' + r.it.id + '\')">حذف</button></td></tr>';
+    }).join('');
+    var selR = results.find(function (r) { return r.it.id === S.adjSel; }) || null;
+    body(head('تعدیل (جدید)', 'تعدیل فهرست‌بهایی این پیمان') +
+      '<div class="mb-wrap">' +
+      (warns.length ? '<div class="sv-warn"><b>⚠ هشدار: تعدیل ناقص محاسبه می‌شود</b><br>' + warns.slice(0, 8).map(function (w) { return '• ' + E(w); }).join('<br>') + (warns.length > 8 ? '<br>• و ' + fmtQ(warns.length - 8) + ' مورد دیگر…' : '') + '</div>' : '') +
+      '<div class="mb-card"><h4>تنظیمات تعدیل</h4><div class="mb-frow">' +
+      '<label>ضریب تعدیل (b) <input type="text" value="' + (A.b == null ? '' : E(String(A.b))) + '" onchange="SV12.aSet(\'b\',this)"></label>' +
+      '<label>تعداد اعشار ضریب <input type="text" value="' + (A.kdec == null ? '' : E(String(A.kdec))) + '" onchange="SV12.aSet(\'kdec\',this)"></label>' +
+      '<label>تأخیر شاخص (سه‌ماهه) <input type="text" value="' + (A.lag == null ? '' : E(String(A.lag))) + '" onchange="SV12.aSet(\'lag\',this)"></label>' +
+      '<label>سال مبنا <input type="text" value="' + (A.baseY == null ? '' : E(String(A.baseY))) + '" onchange="SV12.aSet(\'baseY\',this)"></label>' +
+      '<label>سه‌ماههٔ مبنا <select onchange="SV12.aSetQ(this.value)">' + [1, 2, 3, 4].map(function (q) { return '<option value="' + q + '" ' + (A.baseQ === q ? 'selected' : '') + '>' + E(AQ[q - 1]) + '</option>'; }).join('') + '</select></label>' +
+      '<label>سال فهرست‌بها <input type="text" value="' + (A.plYear == null ? '' : E(String(A.plYear))) + '" onchange="SV12.aSet(\'plYear\',this)"></label>' +
+      '<label>تاریخ شروع پیمان <input type="text" value="' + E(A.start || '') + '" onchange="SV12.aSetS(\'start\',this)"></label>' +
+      '<label>مدت پیمان (ماه) <input type="text" value="' + (A.months == null ? '' : E(String(A.months))) + '" onchange="SV12.aSet(\'months\',this)"></label>' +
+      '<label>مدت با تمدید (ماه) <input type="text" value="' + (A.monthsExt == null ? '' : E(String(A.monthsExt))) + '" onchange="SV12.aSet(\'monthsExt\',this)"></label>' +
+      '<label style="align-self:end"><input type="checkbox" ' + (A.fb !== false ? 'checked' : '') + ' onchange="SV12.aSetFb(this.checked)"> تعدیل موقت: استفاده از آخرین شاخص موجود وقتی شاخص دوره اعلام نشده</label>' +
+      '</div></div>' +
+      '<div class="mb-card" style="margin-top:.7rem"><h4>جدول شاخص‌ها</h4>' +
+      '<div class="sv-tabs">' + BORD.map(function (k) { return '<button class="btn ' + (bank === k ? 'on' : '') + '" onclick="SV12.adjBank(\'' + k + '\')">' + E(BN[k]) + '</button>'; }).join('') + '</div>' +
+      '<div class="sv-gridwrap"><table class="mb-grid" style="min-width:0"><thead><tr><th>فصل</th>' + quarters.map(function (q) { return '<th>' + E(q) + '</th>'; }).join('') + '</tr></thead><tbody>' + (idxRows || '<tr><td class="muted" style="padding:.6rem">فصلی نیست — فصل و دوره اضافه کنید.</td></tr>') + '</tbody></table></div>' +
+      '<div class="mb-frow"><label>سال دورهٔ جدید <input type="text" id="svNewQY" value="' + (A.baseY || 1404) + '"></label>' +
+      '<label>سه‌ماهه <select id="svNewQQ">' + [1, 2, 3, 4].map(function (q) { return '<option value="' + q + '">' + E(AQ[q - 1]) + '</option>'; }).join('') + '</select></label>' +
+      '<div style="align-self:end"><button class="btn" onclick="SV12.idxAddQ()">＋ دوره</button></div>' +
+      '<label>فصل جدید (کد) <input type="text" id="svNewCh" placeholder="مثل 01"></label>' +
+      '<div style="align-self:end"><button class="btn" onclick="SV12.idxAddCh()">＋ فصل</button></div></div>' +
+      '<label style="display:block;font-size:.85rem;margin-top:.4rem">چسباندن از اکسل — سطر اول: دوره‌ها (مثل 1404-3)، ستون اول: کد فصل، بقیه: شاخص‌ها<textarea id="svIdxPaste" rows="4" style="width:100%" dir="ltr"></textarea></label>' +
+      '<div class="mb-tools"><button class="btn" onclick="SV12.idxPaste()">اعمال چسباندن</button><button class="btn" onclick="SV12.idxExcel()">📥 خواندن از فایل اکسل</button></div></div>' +
+      '<div class="mb-card" style="margin-top:.7rem"><h4>اسناد تعدیل</h4>' +
+      '<div class="mb-tools"><button class="btn primary" onclick="SV12.adjNew()">＋ تعدیل جدید</button></div>' +
+      '<div class="sv-gridwrap"><table class="mb-grid" style="min-width:0"><thead><tr><th>شماره</th><th>نوع</th><th>صورت‌وضعیت‌ها</th><th>وضعیت</th><th>مبلغ این دوره (ریال)</th><th>تجمعی (ریال)</th><th></th></tr></thead><tbody>' + (stRows || '<tr><td colspan="7" class="muted" style="text-align:center;padding:.6rem">سند تعدیلی ثبت نشده است.</td></tr>') + '</tbody></table></div>' +
+      '<div id="svAdjDetail">' + (selR ? adjDetailHTML(p, A, selR) : '') + '</div></div>' +
+      '</div>');
+  }
+  function adjDetailHTML(p, A, r) {
+    var rows = r.groups.map(function (g) {
+      var head = '<tr style="background:#f7f3ea"><td colspan="8"><b>' + E(BN[g.bank] || g.bank) + ' — فصل ' + E(g.ch) + '</b>' + (g.manual ? ' (مبلغ تجمعی دستی)' : '') + (g.bad ? ' <span style="color:#c8463c">⚠ شاخص ناقص</span>' : '') + ' — فعلی: ' + fmtM(g.cur) + ' | قبلی: ' + fmtM(g.prev) + ' | مابه‌التفاوت: ' + fmtM(g.diff) + ' | جمع تعدیل فصل: <b>' + fmtM(g.sumAdj) + '</b></td></tr>';
+      var qrows = g.rows.map(function (w) {
+        return '<tr><td>' + (w.q ? E(w.q.y + ' — ' + AQ[w.q.q - 1]) : '—') + '</td><td>' + (w.use ? E(w.use.y + '-' + w.use.q) + (w.prov ? ' (موقت)' : '') : '—') + '</td><td>' + E(w.ratio || '') + '</td><td class="res">' + (w.amt == null ? '—' : fmtM(w.amt)) + '</td><td class="res">' + (w.B == null ? '—' : fmtQ(w.B)) + '</td><td class="res">' + (w.A == null ? '—' : fmtQ(w.A)) + '</td><td class="res">' + kTxt(w.kk, A) + '</td><td class="res">' + (w.adj == null ? '—' : fmtM(w.adj)) + '</td></tr>';
+      }).join('');
+      return head + qrows;
+    }).join('');
+    return '<h4 style="margin:.8rem 0 .3rem">جزئیات تعدیل شماره ' + E(r.it.no || '') + ' (' + E(r.it.type || 'موقت') + ') — وضعیت: ' + E(adjStatus(r)) + '</h4>' +
+      '<div class="mb-info"><span>دورهٔ کارکرد: <b>' + E(r.from || '—') + ' تا ' + E(r.to || '—') + '</b></span><span>جمع تعدیل دوره: <b>' + fmtM(r.total) + '</b> ریال</span><span>تجمعی تا این سند: <b>' + fmtM(r.cum) + '</b> ریال</span></div>' +
+      '<div class="sv-gridwrap"><table class="mb-grid" style="min-width:0"><thead><tr><th>دورهٔ کارکرد</th><th>شاخص به‌کاررفته</th><th>نسبت مدت</th><th>کارکرد دوره (ریال)</th><th>شاخص مبنا B</th><th>شاخص دوره A</th><th>ضریب تعدیل</th><th>مبلغ تعدیل (ریال)</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="mb-frow"><label>جمع تعدیل تا صورت‌وضعیت قبلی (دستی؛ خالی = خودکار) <input type="text" value="' + (typeof r.it.prev === 'number' ? E(String(r.it.prev)) : '') + '" onchange="SV12.adjPrev(\'' + r.it.id + '\',this)"></label></div>';
+  }
+  G.adjBank = function (k) { S.adjBank = k; adjPage(); };
+  G.aSet = function (f, el) { var A = ADJ(); if (!A) return; A[f] = el.value === '' ? '' : num(el.value); SV(); adjPage(); };
+  G.aSetS = function (f, el) { var A = ADJ(); if (!A) return; A[f] = el.value; SV(); };
+  G.aSetQ = function (v) { var A = ADJ(); if (!A) return; A.baseQ = +v; SV(); adjPage(); };
+  G.aSetFb = function (on) { var A = ADJ(); if (!A) return; A.fb = !!on; SV(); adjPage(); };
+  G.idxF = function (ch, q, el) { var A = ADJ(); if (!A) return; var bank = S.adjBank; A.idx[bank] = A.idx[bank] || {}; A.idx[bank][ch] = A.idx[bank][ch] || {}; if (el.value === '') delete A.idx[bank][ch][q]; else A.idx[bank][ch][q] = num(el.value); SV(); };
+  G.idxAddQ = function () { var A = ADJ(); if (!A) return; var y = num(document.getElementById('svNewQY').value), q = document.getElementById('svNewQQ').value; if (!y) return;
+    var bank = S.adjBank; A.idx[bank] = A.idx[bank] || {}; Object.keys(A.idx[bank]).forEach(function (ch) { if (A.idx[bank][ch][qk(y, q)] == null) A.idx[bank][ch][qk(y, q)] = ''; }); SV(); adjPage(); };
+  G.idxAddCh = function () { var A = ADJ(); if (!A) return; var ch = document.getElementById('svNewCh').value.trim(); if (!ch) return;
+    var bank = S.adjBank; A.idx[bank] = A.idx[bank] || {}; if (!A.idx[bank][ch]) A.idx[bank][ch] = {}; SV(); adjPage(); };
+  function idxApplyAOA(aoa) {
+    var A = ADJ(); if (!A || !aoa || !aoa.length) return 0;
+    var bank = S.adjBank; A.idx[bank] = A.idx[bank] || {};
+    var hdr = aoa[0].map(function (c) { return digits(String(c == null ? '' : c)).replace(/\//g, '-').trim(); });
+    var n = 0;
+    for (var i = 1; i < aoa.length; i++) { var row = aoa[i]; if (!row) continue; var ch = digits(String(row[0] == null ? '' : row[0])).trim(); if (!ch) continue;
+      A.idx[bank][ch] = A.idx[bank][ch] || {};
+      for (var j = 1; j < hdr.length; j++) { if (!/^\d{4}-[1-4]$/.test(hdr[j])) continue; var v = row[j]; if (v === '' || v == null) continue; A.idx[bank][ch][hdr[j]] = num(v); n++; } }
+    return n;
+  }
+  G.idxPaste = function () { var ta = document.getElementById('svIdxPaste'); if (!ta) return;
+    var aoa = ta.value.split(/\r?\n/).filter(function (l) { return l.trim(); }).map(function (l) { return l.split('\t'); });
+    var n = idxApplyAOA(aoa); SV(); adjPage(); T(n ? fmtQ(n) + ' شاخص وارد شد.' : 'داده‌ای خوانده نشد — قالب سطر اول دوره‌ها و ستون اول کد فصل است.', n ? 0 : 1); };
+  G.idxExcel = function () { try { pickFile('.xlsx', async function (f) { try { var rows = await readXlsx(f); var n = idxApplyAOA(rows); SV(); adjPage(); T(n ? fmtQ(n) + ' شاخص از اکسل وارد شد.' : 'داده‌ای خوانده نشد.', n ? 0 : 1); } catch (e) { T('خواندن اکسل ناموفق بود.', 1); } }); } catch (e) { T('انتخاب فایل ممکن نشد.', 1); } };
+  G.adjNew = function () {
+    var b = B(); if (!b) return; var A = ADJ(); if (!A) return; var docs = empDocs(b);
+    if (!docs.length) { T('هنوز صورت‌وضعیت کارفرما ثبت نشده است.', 1); return; }
+    var dlg = document.createElement('dialog'); dlg.className = 'mb-d'; document.body.appendChild(dlg);
+    var no = (A.list.reduce(function (m, x) { return Math.max(m, Number(x.no) || 0); }, 0) + 1);
+    dlg.innerHTML = '<h3 style="margin:.1rem 0 .5rem">سند تعدیل جدید</h3>' +
+      '<div class="mb-frow"><label>شماره <input type="text" id="ajNo" value="' + fmtQ(no) + '"></label>' +
+      '<label>نوع <select id="ajType"><option>موقت</option><option>قطعی</option></select></label>' +
+      '<label>نسخهٔ اسناد <select id="ajVer">' + VORD.map(function (v) { return '<option value="' + v + '"' + (v === 'k' ? ' selected' : '') + '>' + E(VERS[v]) + '</option>'; }).join('') + '</select></label>' +
+      '<label>نسخهٔ اسناد قبلی <select id="ajPver">' + VORD.map(function (v) { return '<option value="' + v + '"' + (v === 'k' ? ' selected' : '') + '>' + E(VERS[v]) + '</option>'; }).join('') + '</select></label>' +
+      '<label>از تاریخ (اختیاری) <input type="text" id="ajFrom" placeholder="1404/01/01"></label>' +
+      '<label>تا تاریخ (اختیاری) <input type="text" id="ajTo" placeholder="1404/03/31"></label></div>' +
+      '<h4 style="margin:.5rem 0 .3rem">صورت‌وضعیت‌های مشمول</h4><div class="mb-scope">' +
+      docs.map(function (d) { return '<label><input type="checkbox" data-did="' + d.id + '"> صورت‌وضعیت شماره ' + E(d.no) + ' — ' + E(d.date || '') + ' — خالص ' + fmtM(docNet(d).net) + ' ریال</label>'; }).join('') + '</div>' +
+      '<div class="mb-tools" style="justify-content:flex-end"><button class="btn" id="ajX">انصراف</button><button class="btn primary" id="ajOk">ایجاد</button></div>';
+    dlg.addEventListener('close', function () { dlg.remove(); });
+    dlg.querySelector('#ajX').onclick = function () { dlg.close(); };
+    dlg.querySelector('#ajOk').onclick = function () {
+      var ids = []; dlg.querySelectorAll('[data-did]:checked').forEach(function (c) { ids.push(c.dataset.did); });
+      if (!ids.length) { T('دست‌کم یک صورت‌وضعیت را انتخاب کنید.', 1); return; }
+      var it = { id: nid('sva'), no: dlg.querySelector('#ajNo').value.trim() || String(no), type: dlg.querySelector('#ajType').value, docIds: ids, ver: dlg.querySelector('#ajVer').value, pver: dlg.querySelector('#ajPver').value, from: dlg.querySelector('#ajFrom').value.trim(), to: dlg.querySelector('#ajTo').value.trim(), prev: null, man: {} };
+      A.list.push(it); SV(); dlg.close(); S.adjSel = it.id; adjPage();
+    };
+    dlg.showModal();
+  };
+  G.adjDetail = function (id) { S.adjSel = id; adjPage(); };
+  G.adjDel = function (id) { var A = ADJ(); if (!A) return; askYN('حذف سند تعدیل', 'این سند تعدیل حذف شود؟').then(function (ok) { if (!ok) return; A.list = A.list.filter(function (x) { return x.id !== id; }); if (S.adjSel === id) S.adjSel = ''; SV(); adjPage(); }); };
+  G.adjPrev = function (id, el) { var A = ADJ(); if (!A) return; var it = A.list.find(function (x) { return x.id === id; }); if (!it) return; it.prev = el.value === '' ? null : num(el.value); SV(); adjPage(); };
+
+  /* ---------- چاپ: گزارش صورت‌وضعیت (ریز متره ← خلاصه متره ← روکش مالی ← پیوست انبار) ---------- */
+  function repHeader(p, d, title, sub) {
+    return '<div style="text-align:center;font-weight:700;font-size:1.08rem">« ' + E(title) + ' »</div>' +
+      (sub ? '<div style="text-align:center;font-size:.84rem;margin:.2rem 0">' + E(sub) + '</div>' : '') +
+      '<div style="display:flex;gap:1rem;flex-wrap:wrap;font-size:.84rem;border-bottom:2px solid #333;padding-bottom:.35rem;margin-bottom:.5rem">' +
+      '<span><b>کارفرما:</b> ' + E(p.employer) + '</span><span><b>مشاور:</b> ' + E(p.consultant) + '</span><span><b>پیمانکار:</b> ' + E(p.contractor) + '</span></div>' +
+      '<div style="font-size:.84rem;margin-bottom:.3rem"><b>عنوان پروژه:</b> ' + E(p.title) + '</div>' +
+      '<div style="display:flex;gap:1rem;flex-wrap:wrap;font-size:.84rem;margin-bottom:.5rem">' +
+      '<span><b>شماره قرارداد:</b> ' + E(p.contractNo || '') + '</span><span><b>شماره ' + (d.type === 'min' ? 'صورت‌جلسه' : 'صورت‌وضعیت') + ':</b> ' + E(d.no || '') + '</span>' +
+      '<span><b>تاریخ قرارداد:</b> ' + E(p.contractDate || '') + '</span><span><b>تاریخ:</b> ' + E(d.date || '') + '</span></div>' +
+      (d.subject ? '<div style="font-size:.84rem;margin-bottom:.5rem"><b>موضوع:</b> ' + E(d.subject) + '</div>' : '');
+  }
+  function repSection(p, d, title, sub, inner) {
+    var b = B();
+    return '<section class="page" style="font-family:inherit;padding:12mm 10mm;page-break-after:always">' + repHeader(p, d, title, sub) + inner + signFooterObj(b && b.signers && b.signers.length ? b.signers : SIGN_DEF()) + '</section>';
+  }
+  G.printDoc = function () {
+    var b = B(), d = curDoc(); if (!b || !d) return;
+    var p = P();
+    var dd = (d.type === 'emp' && S.ver !== 'k') ? vOf(d, S.ver) : d;
+    var banksUsed = Array.from(new Set(Object.keys(dd.snap || {}).map(function (c) { return BANKS[(dd.snap[c] || {}).bank]; }).filter(Boolean)));
+    var sub = (banksUsed.length ? 'فهرست بهای ' + banksUsed.join(' و ') + ' سال ۱۴۰۴' : '') + (d.party ? (banksUsed.length ? ' — ' : '') + d.party + ' — صورت‌وضعیت شماره ' + (d.no || '') : '') + (d.type === 'emp' && S.ver !== 'k' ? ' — نسخهٔ ' + VERS[S.ver] : '');
+    var T = TYPES[d.type] + (d.type === 'emp' && S.ver !== 'k' ? ' — نسخه ' + VERS[S.ver] : '');
+    var secs = [];
+    if (dd.lump) {
+      var lr = (dd.rows || []).map(function (r, i) { var sn = (dd.snap || {})[r.code] || {};
+        return '<tr>' + td(fmtQ(i + 1), 1) + td(E(r.sub || sn.desc || '')) + td(fmtQ(sn.w || 0), 1) + td(fmtQ(r6((r.prevc || 0) * 100)), 1) + td(fmtQ(r6((r.cum || 0) * 100)), 1) + td(fmtQ(r.count || 0), 1) + td(fmtM(Math.round((r.count || 0) * (sn.price || 0))), 1) + '</tr>'; }).join('');
+      secs.push(repSection(p, d, 'ریز متره — پیشرفت فعالیت‌ها', sub, tblHtml(['ردیف', 'فعالیت', 'وزن ٪', 'پیشرفت قبلی ٪', 'پیشرفت تجمعی ٪', 'پیشرفت دوره ٪', 'مبلغ دوره (ریال)'], lr)));
+    } else {
+      var rr = (dd.rows || []).filter(function (r) { return r.code; }).map(function (r, i) { var sn = (dd.snap || {})[r.code] || {};
+        var loc = [r.sub, r.floor, r.axis].filter(Boolean).join(' · ');
+        return '<tr>' + td(fmtQ(i + 1), 1) + td(E(r.code)) + td(E(sn.desc || '')) + td(E(loc)) + td(r.count == null ? '' : fmtQ(r.count), 1) + td(r.len == null ? '' : fmtQ(r.len), 1) + td(r.wid == null ? '' : fmtQ(r.wid), 1) + td(r.hgt == null ? '' : fmtQ(r.hgt), 1) + td(r.wgt == null ? '' : fmtQ(r.wgt), 1) + td(fmtQ(partial(r)), 1) + td(E(r.note || '')) + '</tr>'; }).join('');
+      secs.push(repSection(p, d, 'ریز متره', sub, tblHtml(['ردیف', 'کد', 'شرح', 'شرح عملیات / محل', 'تعداد', 'طول', 'عرض', 'ارتفاع', 'وزن', 'جزئی', 'ملاحظات'], rr)));
+    }
+    var m = {}; (dd.rows || []).forEach(function (r) { if (r.code) m[r.code] = r6((m[r.code] || 0) + partial(r)); });
+    var tot = 0;
+    var sr = Object.keys(m).map(function (code, i) { var sn = (dd.snap || {})[code] || {}, amt = Math.round(m[code] * (sn.price || 0)); tot += amt;
+      return '<tr>' + td(fmtQ(i + 1), 1) + td(E(BANKS[sn.bank] || ''), 1) + td(E(code)) + td(E(sn.desc || '')) + td(fmtQ(m[code]), 1) + td(fmtM(sn.price || 0), 1) + td(fmtM(amt), 1) + '</tr>'; }).join('') +
+      '<tr>' + td('', 1) + td('', 1) + td('<b>جمع</b>') + td('') + td('', 1) + td('', 1) + td('<b>' + fmtM(tot) + '</b>', 1) + '</tr>';
+    var khol = tblHtml(['ردیف', 'رشته', 'کد', 'شرح', 'مقدار کل', 'بهای واحد (ریال)', 'مبلغ (ریال)'], sr);
+    if (dd.lump) {
+      var segs = lumpSegs(dd, p), SS = function (k) { return segs.reduce(function (s, x) { return s + x[k]; }, 0); };
+      khol += '<h4 style="margin:.8rem 0 .3rem">روکش مالی به تفکیک پله‌های قیمتی قرارداد</h4>' + tblHtml(['پله (از ٪ تا ٪)', 'قیمت واحد (ریال)', 'مبلغ پله', 'تا صورت‌وضعیت قبل', 'پیشرفت این دوره ٪', 'مبلغ این صورت‌وضعیت', 'تجمعی', 'مانده'],
+        segs.map(function (x) { return '<tr>' + td(fmtQ(x.from) + ' تا ' + fmtQ(x.to), 1) + td(fmtM(x.rate), 1) + td(fmtM(x.tierAmt), 1) + td(fmtM(x.prevAmt), 1) + td(x.len ? fmtQ(x.len) : '—', 1) + td(fmtM(x.amt), 1) + td(fmtM(x.cumAmt), 1) + td(fmtM(x.remAmt), 1) + '</tr>'; }).join('') +
+        '<tr>' + td('<b>جمع قرارداد</b>', 1) + td('', 1) + td('<b>' + fmtM(SS('tierAmt')) + '</b>', 1) + td('<b>' + fmtM(SS('prevAmt')) + '</b>', 1) + td('', 1) + td('<b>' + fmtM(SS('amt')) + '</b>', 1) + td('<b>' + fmtM(SS('cumAmt')) + '</b>', 1) + td('<b>' + fmtM(SS('remAmt')) + '</b>', 1) + '</tr>');
+    }
+    secs.push(repSection(p, d, 'خلاصه متره', sub, khol));
+    if (d.type !== 'min') {
+      var n = docNet(dd), cvs = coefVals(dd.coef, n.total);
+      var fr = '<tr>' + td('مبلغ ناخالص صورت‌وضعیت') + td(fmtM(n.total), 1) + '</tr>' +
+        (dd.coef || []).map(function (c, i) { return '<tr>' + td(E(c.name || '')) + td(fmtM(cvs[i] || 0), 1) + '</tr>'; }).join('') +
+        '<tr>' + td('<b>مبلغ قابل پرداخت</b>') + td('<b>' + fmtM(n.net) + '</b>', 1) + '</tr>';
+      secs.push(repSection(p, d, 'روکش مالی', sub, tblHtml(['شرح', 'مبلغ (ریال)'], fr)));
+    }
+    if (d.whDed && d.whDed.length) {
+      var wsum = 0;
+      var wr = d.whDed.map(function (y, i) { wsum += y.amt || 0; return '<tr>' + td(fmtQ(i + 1), 1) + td(E(y.date || '')) + td(E(y.per || '')) + td(E(y.item || '')) + td(E(y.code || '')) + td(E(y.unit || ''), 1) + td(fmtQ(y.qty || 0), 1) + td(fmtM(y.price || 0), 1) + td(fmtM(y.amt || 0), 1) + '</tr>'; }).join('') +
+        '<tr>' + td('', 1) + td('') + td('<b>جمع کسورات انبار</b>') + td('') + td('', 1) + td('', 1) + td('', 1) + td('<b>' + fmtM(wsum) + '</b>', 1) + '</tr>';
+      secs.push(repSection(p, d, 'پیوست کسورات انبار', sub, tblHtml(['ردیف', 'تاریخ', 'تحویل‌گیرنده', 'شرح کالا', 'کد', 'واحد', 'مقدار', 'قیمت واحد (ریال)', 'مبلغ (ریال)'], wr)));
+    }
+    try { showPreview('<div style="font-family:inherit">' + secs.join('') + '</div>', T); } catch (e) { T('پیش‌نمایش چاپ آماده نشد.', 1); }
+  };
+
+  /* ---------- چاپ: گزارش تعدیل (روکش ← خلاصه ← ریز به تفکیک رشته) ---------- */
+  G.adjPrint = function (id) {
+    var b = B(); if (!b) return; var p = P(), A = ADJ(); if (!A) return;
+    var docs = empDocs(b), results = adjAll(p, docs), r = results.find(function (x) { return x.it.id === id; });
+    if (!r) { T('سند تعدیل پیدا نشد.', 1); return; }
+    var it = r.it, tp = it.type || 'موقت', N = docsLabel(r.sel), pd = r.prevDoc;
+    var im = function (k, fb) { return A.img[k] ? '<img src="' + A.img[k] + '" alt="" style="max-width:100%;max-height:100%">' : '<span style="font-weight:700">' + E(fb || '') + '</span>'; };
+    var cover = '<section class="page" style="font-family:inherit;padding:16mm 12mm;text-align:center;page-break-after:always">' +
+      '<div style="font-size:26px;font-weight:700;margin-top:6mm">پروژه:</div><div style="font-size:24px;font-weight:700;line-height:2.1;margin-top:4mm">' + E(p.title) + '</div>' +
+      '<div style="font-size:20px;font-weight:700;margin-top:10mm">قرارداد شماره ' + E(p.contractNo || '') + '</div>' +
+      '<div style="font-size:20px;font-weight:700;margin-top:3mm">تاریخ قرارداد ' + E(p.contractDate || '') + '</div>' +
+      '<div style="font-size:30px;font-weight:700;margin-top:14mm"><span style="border-bottom:3px solid #000;padding:0 6mm">صورت وضعیت تعدیل ' + E(tp) + ' شماره ' + E(it.no || '') + '</span></div>' +
+      '<div style="font-size:18px;font-weight:700;margin-top:8mm">مربوط به کارکرد از مورخ ' + E(r.from || '') + ' تا ' + E(r.to || '') + '</div>' +
+      '<div style="display:flex;gap:10mm;margin-top:12mm;align-items:center;direction:rtl"><div style="flex:1;min-height:60mm;display:flex;align-items:center;justify-content:center">' + im('photo', '') + '</div>' +
+      '<div style="width:62mm;display:flex;flex-direction:column;gap:8mm;text-align:right">' + [['employer', 'کارفرما'], ['consultant', 'مشاور'], ['contractor', 'پیمانکار']].map(function (x) { return '<div style="display:flex;gap:4mm;align-items:center"><b>' + x[1] + ':</b><div style="width:42mm;height:28mm;display:flex;align-items:center;justify-content:center">' + im(x[0], p[x[0]]) + '</div></div>'; }).join('') + '</div></div></section>';
+    var row = function (n, h) { return '<tr>' + td(n, 1) + td(h) + '</tr>'; };
+    var blk = function (h, rowsHtml) { return '<div style="margin-bottom:.7rem"><div style="font-weight:700;background:#f0ead9;border:1px solid #999;padding:.3rem .5rem">' + E(h) + '</div><table style="width:100%;border-collapse:collapse;font-size:.82rem"><tbody>' + rowsHtml + '</tbody></table></div>'; };
+    var qrows = r.sp ? r.sp.quarters.map(function (q) { return row('', '(' + E(VERS[r.ver]) + ') سال ' + fmtQ(q.y) + ' ' + E(AQ[q.q - 1]) + ' &nbsp; ' + fmtQ(q.days) + ' روز &nbsp; ' + fmtQ(q.days) + ':' + fmtQ(r.sp.T)); }).join('') : row('', '—');
+    var sumB = BORD.map(function (bk) { return '<tr>' + td(E(BN[bk])) + td(r.byBank[bk] != null ? fmtM(r.byBank[bk]) : '—', 1) + '</tr>'; }).join('');
+    var summary = '<section class="page ls" style="font-family:inherit;padding:10mm 8mm;page-break-after:always">' +
+      '<div style="display:flex;justify-content:space-between;padding:6px 12px;font-weight:700"><span>جدول یک</span><span style="font-size:14px">خلاصه اطلاعات تعدیل صورت وضعیت شماره ' + E(N) + '</span><span>تاریخ: ' + E(todayJ()) + '</span></div>' +
+      blk('مشخصات پیمان', row('۱-۱', 'موضوع پیمان: ' + E(p.title)) + row('۲-۱', 'نام کارفرما: ' + E(p.employer)) + row('۳-۱', 'نام مشاور: ' + E(p.consultant)) + row('۴-۱', 'نام پیمانکار: ' + E(p.contractor)) + row('۵-۱', 'شماره پیمان: ' + E(p.contractNo || '') + ' &nbsp; مدت مندرج در پیمان: ' + (A.months ? fmtQ(A.months) + ' ماه' : '—')) + row('۶-۱', 'مدت پیمان (مدت مندرج در پیمان و مدت‌های تمدیدشده): ' + ((A.monthsExt || A.months) ? fmtQ(A.monthsExt || A.months) + ' ماه' : '—')) + row('۷-۱', 'دوره مبنای پیمان: سه ماهه ' + E(AQ[(A.baseQ || 1) - 1]) + ' ' + fmtQ(A.baseY || '')) + row('۸-۱', 'تاریخ شروع بکار: ' + E(A.start || p.start || ''))) +
+      blk('مشخصات صورت وضعیت و دوره ها', row('۱-۲', 'تاریخ صورت وضعیت فعلی ' + E(tp) + ' شماره ' + E(N) + ' : ' + E(r.to || '')) + row('۲-۲', pd ? 'تاریخ صورت وضعیت قبلی ' + E(tp) + ' شماره ' + E(pd.no) + ' : ' + E(pd.date || '') : 'صورت وضعیت قبلی وجود ندارد') + row('۳-۲', '<b>مدت کارکرد در دوره های سه ماهه مربوط به صورت وضعیت</b>') + qrows + row('۴-۲', '<b>مدت کارکرد</b> (' + E(VERS[r.ver]) + ') &nbsp; ' + (r.sp ? fmtQ(r.sp.T) + ' روز' : '—'))) +
+      blk('۳. خلاصه محاسبات تعدیل', '<tr><th style="border:1px solid #999;padding:.3rem;background:#f0ead9">فهرست بهای منضم به پیمان</th><th style="border:1px solid #999;padding:.3rem;background:#f0ead9">مبلغ تعدیل به ریال</th></tr>' + sumB + '<tr>' + td('<b>جمع (' + E(VERS[r.ver]) + ')</b>') + td('<b>' + fmtM(r.total) + '</b>', 1) + '</tr>') +
+      blk('۴. وضعیت تعدیل قرارداد تا این صورت وضعیت', '<tr><th style="border:1px solid #999;padding:.3rem;background:#f0ead9">شرح</th><th style="border:1px solid #999;padding:.3rem;background:#f0ead9">مبلغ به ریال</th></tr>' +
+        '<tr>' + td('جمع مبالغ تعدیل لغایت صورت وضعیت قبلی' + (pd ? ' شماره ' + E(pd.no) : '')) + td(fmtM(r.prevCum), 1) + '</tr>' +
+        '<tr>' + td('تعدیل ما به التفاوت صورت وضعیت ' + E(tp) + ' و صورت وضعیت قبل از آن (نقل از جمع جدول ۳)') + td(fmtM(r.total), 1) + '</tr>' +
+        '<tr>' + td('<b>جمع مبالغ تعدیل تا صورت وضعیت ' + E(tp) + ' شماره ' + E(N) + ' (حاصل جمع دو ردیف فوق)</b>') + td('<b>' + fmtM(r.cum) + '</b>', 1) + '</tr>') +
+      signFooterObj(b.signers && b.signers.length ? b.signers : SIGN_DEF()) + '</section>';
+    var details = BORD.filter(function (bk) { return r.groups.some(function (g) { return g.bank === bk; }); }).map(function (bk) {
+      var rows = '';
+      r.groups.filter(function (g) { return g.bank === bk; }).forEach(function (g) {
+        g.rows.forEach(function (w) {
+          rows += '<tr>' + td(w.q ? fmtQ(w.q.y) : '—', 1) + td(w.q ? E(AQ[w.q.q - 1]) : '—', 1) + td(w.use ? E(w.use.y + '-' + w.use.q) + (w.prov ? ' (موقت)' : '') : '—', 1) + td(E(g.ch), 1) +
+            td(fmtM(g.cur), 1) + td(fmtM(g.prev), 1) + td(fmtM(g.diff), 1) + td(E(w.ratio || ''), 1) + td(w.amt == null ? '—' : fmtM(w.amt), 1) +
+            td(w.B == null ? '—' : fmtQ(w.B), 1) + td(w.A == null ? '—' : fmtQ(w.A), 1) + td(kTxt(w.kk, A), 1) + td(w.adj == null ? '—' : fmtM(w.adj), 1) + '</tr>';
+        });
+      });
+      return '<section class="page ls" style="font-family:inherit;padding:10mm 8mm;page-break-after:always">' +
+        '<div style="text-align:center;font-weight:700">« تعدیل - فصلی صورت وضعیت شماره ' + E(N) + ' از تاریخ ' + E(r.fromExcl || '') + ' تا تاریخ ' + E(r.to || '') + ' - ' + E(VERS[r.ver]) + ' »</div>' +
+        '<div style="text-align:center;font-size:.85rem">فهرست بهای واحد پایه رشته ' + E(BN[bk]) + ' سال ' + fmtQ(A.plYear || '') + '</div>' +
+        '<div style="display:flex;gap:1rem;flex-wrap:wrap;font-size:.82rem;margin:.4rem 0"><span><b>شماره پیمان:</b> ' + E(p.contractNo || '') + '</span><span><b>نام پروژه:</b> ' + E(p.title) + '</span><span><b>نام دستگاه اجرایی:</b> ' + E(p.employer) + '</span><span><b>نام مهندس مشاور:</b> ' + E(p.consultant) + '</span><span><b>نام پیمانکار:</b> ' + E(p.contractor) + '</span><span><b>دوره مبنای پیمان:</b> سه ماهه ' + E(AQ[(A.baseQ || 1) - 1]) + ' سال ' + fmtQ(A.baseY || '') + '</span><span><b>تاریخ:</b> ' + E(todayJ()) + '</span></div>' +
+        tblHtml(['سال', 'سه‌ماهه', 'ملاک شاخص', 'فصل', 'مبلغ صورت وضعیت فعلی', 'مبلغ صورت وضعیت قبلی', 'مبلغ مابه‌التفاوت', 'نسبت مدت کارکرد', 'مبلغ کارکرد در هر دوره', 'شاخص مبنا B', 'شاخص دوره A', 'ضریب تعدیل', 'مبلغ تعدیل (ریال)'], rows) +
+        signFooterObj(b.signers && b.signers.length ? b.signers : SIGN_DEF()) + '</section>';
+    }).join('');
+    try { showPreview('<div style="font-family:inherit">' + cover + summary + details + '</div>', 'تعدیل'); } catch (e) { T('پیش‌نمایش چاپ آماده نشد.', 1); }
+  };
+
+  /* ================= ثبت در ناوبری و بوت ================= */
+  G.go = function (k) { try { if (String(k).indexOf('sv:') === 0 && typeof techShow === 'function') techShow(k); else engGo(k); } catch (e) {} };
+  function patch() {
+    try {
+      if (typeof db === 'undefined' || typeof ENG_NAV === 'undefined' || typeof TABS === 'undefined') return false;
+      if (window.__sv12done) return true; window.__sv12done = true;
+      TABS['sv:dash'] = function () { dashPage(); };
+      TABS['sv:docs'] = function () { docsPage(); };
+      TABS['sv:doc'] = function () { docPage(); };
+      TABS['sv:wbs'] = function () { wbsPage(); };
+      TABS['sv:adj'] = function () { adjPage(); };
+      migReady();
+      return true;
+    } catch (e) { return false; }
+  }
+  var T0 = Date.now();
+  function navPatch() {
+    try {
+      if (typeof ENG_NAV === 'undefined') return false;
+      if (window.__sv12nav) return true;
+      if (!window.__mb10done && (Date.now() - T0) < 6000) return false;
+      window.__sv12nav = true;
+      ENG_NAV.forEach(function (g) {
+        if (g.t === 'داشبورد و ابزارها' && !g.i.some(function (x) { return x[0] === 'sv:dash'; })) g.i.splice(1, 0, ['sv:dash', 'داشبورد صورت‌وضعیت (جدید)']);
+        if (g.t === 'صورت وضعیت' && !g.i.some(function (x) { return x[0] === 'sv:docs'; })) g.i.push(['sv:docs', 'صورت‌وضعیت و صورت‌جلسه (جدید)']);
+        if (g.t === 'تعدیل' && !g.i.some(function (x) { return x[0] === 'sv:adj'; })) g.i.push(['sv:adj', 'تعدیل (جدید)']);
+        if ((g.t === 'متره و برآورد' || g.t === 'برآورد') && !g.i.some(function (x) { return x[0] === 'sv:wbs'; })) g.i.push(['sv:wbs', 'ساختار شکست (جدید)']);
+      });
+      return true;
+    } catch (e) { return false; }
+  }
+  var _iv = setInterval(function () { var a = patch(), b2 = navPatch(); if (a && b2) clearInterval(_iv); }, 150);
+  setTimeout(function () { clearInterval(_iv); }, 30000);
+})();
+</script>
 
 
 </body></html>
