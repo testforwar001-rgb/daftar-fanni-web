@@ -3838,7 +3838,7 @@ dialog.mb-d::backdrop{background:rgba(30,25,15,.45)}
     }).join('');
     var codes = {}; d.rows.forEach(function (r) { codes[String(r.code || '').trim()] = 1; });
     var tot = rows.reduce(function (s, r) { return s + evalRow(r); }, 0);
-    body(head('متره', 'ریزمتره فهرست‌بهایی — هر آیتم می‌تواند چند بار تکرار شود؛ برآورد از همین‌جا تجمیع می‌شود') +
+    body(head('متره برآورد فهرست بهایی', 'ریزمتره فهرست‌بهایی — هر آیتم می‌تواند چند بار تکرار شود؛ برآورد از همین‌جا تجمیع می‌شود') +
       '<div class="mb-wrap">' +
       '<div class="mb-tools">' +
       '<input type="text" id="mbQCode" placeholder="کد ردیف را بنویسید و Enter بزنید…" style="min-width:210px" onkeydown="if(event.key===\'Enter\')MB10.mQuick()">' +
@@ -3850,6 +3850,8 @@ dialog.mb-d::backdrop{background:rgba(30,25,15,.45)}
       '<button class="btn" onclick="MB10.mExcelOut()">ارسال به Excel</button>' +
       '<button class="btn" onclick="MB10.mExcelIn()">خواندن از Excel</button>' +
       '<button class="btn" onclick="MB10.go(\'mb:rpt\')">گزارش</button>' +
+      '<button class="btn" onclick="engGo(\'an:items\')">میانبر: آنالیز بها</button>' +
+      '<button class="btn" onclick="engGo(\'v14:wbs\')">میانبر: ساختار شکست</button>' +
       '<button class="btn" onclick="MB10.mDelSel()">حذف انتخاب‌شده‌ها</button>' +
       '</div>' +
       '<div class="mb-tools">' +
@@ -3994,10 +3996,13 @@ dialog.mb-d::backdrop{background:rgba(30,25,15,.45)}
         '<td class="res">' + (isFinite(n.pct) ? fmtQ(Math.round(n.pct * 100) / 100) + '٪' : '—') + '</td>' +
         '<td><button class="btn" onclick="MB10.openFac(\'' + r.key + '\')">آنالیز/حمل</button></td></tr>';
     }).join('');
-    body(head('برآورد', 'خلاصه متره — هر آیتم فقط یک بار؛ مقدارها از متره تجمیع شده‌اند') +
+    body(head('برآورد فهرست بهایی', 'خلاصه متره — هر آیتم فقط یک بار؛ مقدارها از متره تجمیع شده‌اند') +
       '<div class="mb-wrap"><div class="mb-tools">' +
       '<input type="text" placeholder="جستجو در کد یا شرح…" value="' + E(MB.estQ) + '" style="min-width:180px" oninput="MB10.eSetQ(this.value)">' +
       '<button class="btn" onclick="MB10.go(\'mb:coef\')">ضرایب</button>' +
+      '<button class="btn" onclick="MB10.go(\'mb:star\')">ستاره‌دار</button>' +
+      '<button class="btn" onclick="engGo(\'an:items\')">آنالیز بها</button>' +
+      '<button class="btn" onclick="engGo(\'v14:wbs\')">ساختار شکست</button>' +
       '<button class="btn" onclick="MB10.facAll()">فهرست عوامل مؤثر در پروژه</button>' +
       '<button class="btn" onclick="MB10.eExcel()">ارسال به Excel</button>' +
       '<button class="btn" onclick="MB10.eReports()">گزارشات برآورد</button>' +
@@ -4420,12 +4425,11 @@ dialog.mb-d::backdrop{background:rgba(30,25,15,.45)}
       ENG_NAV.forEach(function (g) {
         if (g.t === 'داشبورد و ابزارها') {
           g.i = g.i.filter(function (x) { return x[0] !== 'v14:coef' && x[0] !== 'v14:prices' && x[0] !== 'v14:backup'; });
-          g.i.splice(1, 0, ['mb:coef', 'ضرایب']);
           g.i.push(['est', 'برآورد و متره‌ی پیمان (ساده)']);
         }
         if (g.t === 'برآورد') {
-          var keep = g.i.filter(function (x) { return x[0] === 'an:items' || x[0] === 'v14:wbs'; });
-          g.i = [['mb:metre', 'متره'], ['mb:est', 'برآورد'], ['mb:star', 'ستاره‌دار / قیمت جدید'], ['mb:rpt', 'گزارش‌های متره']].concat(keep);
+          g.t = 'متره و برآورد';
+          g.i = [['mb:metre', 'متره برآورد فهرست بهایی'], ['mb:est', 'برآورد فهرست بهایی']];
         }
       });
       return true;
