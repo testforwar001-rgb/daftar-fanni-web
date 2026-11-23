@@ -3710,6 +3710,7 @@ dialog.mb-d::backdrop{background:rgba(30,25,15,.45)}
 .mb-entry input[type=text],.mb-entry select{padding:.5rem .55rem;border:1px solid #c4d6ae;border-radius:8px;font:inherit;background:#fff}
 .mb-qwrap{position:relative;flex:1;min-width:230px}
 .mb-qwrap input{width:100%}
+.mb-sug.up{top:auto;bottom:calc(100% + 4px)}
 .mb-sug{position:absolute;top:calc(100% + 4px);right:0;left:0;background:#fff;border:1px solid #ddd2c0;border-radius:10px;box-shadow:0 10px 30px rgba(60,45,20,.2);z-index:70;max-height:300px;overflow:auto}
 .mb-sug-i{display:flex;gap:.6rem;align-items:baseline;padding:.5rem .65rem;cursor:pointer;font-size:.87rem;border-bottom:1px solid #f3eee2}
 .mb-sug-i:hover{background:#fdf3e0}
@@ -3827,12 +3828,21 @@ table.mb-grid .op-in{min-width:150px}
       if (MB.sec && r.sec !== MB.sec) return false;
       if (MB.fj && (r.fj || 'ف') !== MB.fj) return false;
       if (MB.starOnly && !isStar(r.code)) return false;
-      if (MB.q) { var q = MB.q.toLowerCase(); if ((String(r.code) + ' ' + (r.desc || '') + ' ' + (r.op || '')).toLowerCase().indexOf(q) < 0) return false; }
+      if (MB.q && !rowSmart(r, MB.q)) return false;
       return true;
     });
   }
   function selMetreRow() { var d = D(); if (!d) return null; return d.rows.find(function (x) { return x.id === MB.selId; }) || null; }
   function normQ(s) { return String(s || '').replace(/[۰-۹]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c); }).replace(/\s+/g, '').toLowerCase(); }
+  function strip0(x) { return String(x || '').replace(/^0+/, ''); }
+  function smartHit(code, text, qRaw) {
+    var qn = normQ(qRaw); if (!qn) return true;
+    var cn = normQ(code);
+    if (cn.indexOf(qn) >= 0) return true;
+    var q0 = strip0(qn); if (q0 && strip0(cn).indexOf(q0) >= 0) return true;
+    return normQ(text || '').indexOf(qn) >= 0;
+  }
+  function rowSmart(r, qRaw) { return smartHit(r.code, (r.desc || '') + ' ' + (r.op || ''), qRaw); }
   function aggQtyFor(code, fj, sec, useSec) {
     var d = D(); if (!d) return 0; var s = 0;
     d.rows.forEach(function (r) { if (String(r.code || '').trim() === String(code || '').trim() && (r.fj || 'ف') === (fj || 'ف') && (!useSec || (r.sec || '') === (sec || ''))) s += evalRow(r); });
@@ -3948,13 +3958,14 @@ table.mb-grid .op-in{min-width:150px}
       '<span>مقدار ردیف در برآورد: <b id="mbStEst">' + fmtQ(selR ? aggQtyFor(selR.code, selR.fj, '', false) : 0) + '</b></span>' +
       '<span>مقدار ردیف در بخش برآورد: <b id="mbStSec">' + fmtQ(selR ? aggQtyFor(selR.code, selR.fj, selR.sec, true) : 0) + '</b></span>' +
       '<span style="flex:1"></span>' +
-      '<label>متن جستجو <input type="text" placeholder="کد یا شرح…" value="' + E(MB.q) + '" style="min-width:150px" oninput="MB10.mSetQ(this.value)"></label>' +
+      '<label>متن جستجو</label><div class="mb-qwrap" style="min-width:200px;flex:0 1 260px"><input type="text" id="mbSearchIn" placeholder="جستجوی هوشمند: کد یا شرح…" value="' + E(MB.q) + '" style="width:100%" autocomplete="off" oninput="MB10.mSetQ(this.value);MB10.sSug(this,\'m\')" onkeydown="MB10.sKey(event,\'m\')" onblur="MB10.sBlur()"><div class="mb-sug up" id="mbQSug" style="display:none"></div></div>' +
       '<button class="btn" onclick="MB10.mCancel()">انصراف</button>' +
       '<button class="btn primary" onclick="MB10.mSave()">ثبت</button>' +
       '</div>' +
       '</div>');
     if (MB.pendingCode) { var pc = MB.pendingCode; MB.pendingCode = ''; mAddByCode(pc, true); }
     if (MB.focusOp) { MB.focusOp = false; var tr = document.querySelector('tr[data-rid="' + MB.selId + '"] .op-in'); if (tr) { tr.focus(); } }
+    if (MB.qFocus) { MB.qFocus = false; var si = document.getElementById('mbSearchIn'); if (si) { si.focus(); try { si.setSelectionRange(si.value.length, si.value.length); } catch (e) {} } }
   }
   function mAddByCode(code, silent, op, fj) {
     var d = D(); if (!d) return;
@@ -3990,7 +4001,7 @@ table.mb-grid .op-in{min-width:150px}
   };
   G.mSetF = function (k, v) { MB[k] = v; metrePage(); };
   var _qT = null;
-  G.mSetQ = function (v) { MB.q = v; clearTimeout(_qT); _qT = setTimeout(metrePage, 350); };
+  G.mSetQ = function (v) { MB.q = v; MB.qFocus = true; clearTimeout(_qT); _qT = setTimeout(metrePage, 350); };
   G.mToEst = function (code) { MB.estQ = code; G.go('mb:est'); };
   G.mPick = function () {
     var d = D(); if (!d) return;
@@ -4077,7 +4088,7 @@ table.mb-grid .op-in{min-width:150px}
   function estPage() {
     var d = D(); if (!d) { body('<div class="notice">ابتدا پروژه و پیمان را انتخاب کنید.</div>'); return; }
     var rows = aggEst();
-    if (MB.estQ) rows = rows.filter(function (r) { return (r.code + ' ' + r.desc).toLowerCase().indexOf(MB.estQ.toLowerCase()) >= 0; });
+    if (MB.estQ) rows = rows.filter(function (r) { return smartHit(r.code, r.desc || '', MB.estQ); });
     if (!rows.some(function (r) { return r.key === MB.estSel; }) && rows.length) MB.estSel = rows[0].key;
     var selR = rows.find(function (r) { return r.key === MB.estSel; }) || null;
     var gB = 0, gP = 0;
@@ -4127,14 +4138,15 @@ table.mb-grid .op-in{min-width:150px}
       '<span>اختلاف: <b>' + (gB ? fmtQ(Math.round(((gP / gB) - 1) * 10000) / 100) + '٪' : '—') + '</b></span>' +
       '<span>تعداد آیتم: <b>' + fmtQ(rows.length) + '</b></span>' +
       '<span style="flex:1"></span>' +
-      '<label>متن جستجو <input type="text" placeholder="کد یا شرح…" value="' + E(MB.estQ) + '" style="min-width:150px" oninput="MB10.eSetQ(this.value)"></label>' +
+      '<label>متن جستجو</label><div class="mb-qwrap" style="min-width:200px;flex:0 1 260px"><input type="text" id="estSearchIn" placeholder="جستجوی هوشمند: کد یا شرح…" value="' + E(MB.estQ) + '" style="width:100%" autocomplete="off" oninput="MB10.eSetQ(this.value);MB10.sSug(this,\'e\')" onkeydown="MB10.sKey(event,\'e\')" onblur="MB10.sBlur()"><div class="mb-sug up" id="estQSug" style="display:none"></div></div>' +
       '<button class="btn" onclick="MB10.eCancel()">انصراف</button>' +
       '<button class="btn primary" onclick="MB10.mSave()">ثبت</button>' +
       '</div>' +
       '<p class="muted" style="font-size:.8rem">خانه‌های خالیِ بها و ضریب یعنی «پیش‌فرض»: بها از فهرست‌بها/ستاره‌دار و ضریب از ضرایب اعمال‌شده خوانده می‌شود. عدد بنویسید تا برای همین ردیف ثابت شود.</p></div>');
+    if (MB.eFocus) { MB.eFocus = false; var ei = document.getElementById('estSearchIn'); if (ei) { ei.focus(); try { ei.setSelectionRange(ei.value.length, ei.value.length); } catch (e) {} } }
   }
   var _eT = null;
-  G.eSetQ = function (v) { MB.estQ = v; clearTimeout(_eT); _eT = setTimeout(estPage, 350); };
+  G.eSetQ = function (v) { MB.estQ = v; MB.eFocus = true; clearTimeout(_eT); _eT = setTimeout(estPage, 350); };
   G.eF = function (key, f, el) { var d = D(); if (!d) return; d.price[key] = d.price[key] || {}; if (el.value === '') delete d.price[key][f]; else d.price[key][f] = el.value; SV(); estPage(); };
   G.eToMetre = function (code) { MB.q = code; MB.fasl = ''; MB.sec = ''; MB.fj = ''; G.go('mb:metre'); };
   G.eExcel = function () {
@@ -4611,6 +4623,52 @@ table.mb-grid .op-in{min-width:150px}
   };
   G.eFacSel = function () { if (MB.estSel) G.openFac(MB.estSel); else T('اول یک ردیف را انتخاب کنید.', 1); };
   G.eCancel = function () { estPage(); };
+
+
+  /* ---------- جستجوی هوشمند شماره ردیف (پیشنهاد زنده در جستجو) ---------- */
+  function searchSugList(which, qRaw) {
+    var qn = normQ(qRaw); if (!qn) return [];
+    var seen = {}, out = [];
+    function consider(code, desc, extra) {
+      var key = String(code || '').trim(); if (!key || seen[key]) return;
+      if (!smartHit(key, desc || '', qRaw)) return;
+      seen[key] = 1; out.push({ code: key, desc: desc || '', extra: extra || '' });
+    }
+    if (which === 'm') {
+      var d = D(); if (!d) return [];
+      var cnt = {}; d.rows.forEach(function (r) { var k = String(r.code || '').trim(); cnt[k] = (cnt[k] || 0) + 1; });
+      d.rows.forEach(function (r) { var it = resolveItem(r.code); consider(r.code, r.desc || (it ? it.desc : '') || '', '×' + fmtQ(cnt[String(r.code || '').trim()] || 0)); });
+    } else {
+      aggEst().forEach(function (r) { consider(r.code, r.desc, 'مقدار: ' + fmtQ(r.qty)); });
+    }
+    out.sort(function (a, b) { var pa = normQ(a.code).indexOf(qn) === 0 ? 0 : 1, pb = normQ(b.code).indexOf(qn) === 0 ? 0 : 1; return pa - pb || (a.code < b.code ? -1 : 1); });
+    return out.slice(0, 10);
+  }
+  G.sSug = function (el, which) {
+    var box = document.getElementById(which === 'm' ? 'mbQSug' : 'estQSug'); if (!box) return;
+    var L = searchSugList(which, el.value);
+    MB['sugFirst' + which] = L.length ? L[0].code : '';
+    if (!L.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.innerHTML = L.map(function (r) { return '<div class="mb-sug-i" onmousedown="MB10.sPick(\'' + E(r.code) + '\',\'' + which + '\')"><b>' + E(r.code) + '</b><span class="d">' + E(r.desc) + '</span><span class="u">' + E(r.extra) + '</span></div>'; }).join('');
+    box.style.display = 'block';
+  };
+  G.sPick = function (code, which) {
+    if (which === 'm') {
+      MB.q = code;
+      var d = D(); if (d) { var fr = d.rows.find(function (r) { return String(r.code || '').trim() === code; }); if (fr) MB.selId = fr.id; }
+      metrePage();
+    } else {
+      MB.estQ = code;
+      var fr2 = aggEst().find(function (r) { return r.code === code; }); if (fr2) MB.estSel = fr2.key;
+      estPage();
+    }
+  };
+  G.sKey = function (ev, which) {
+    var box = document.getElementById(which === 'm' ? 'mbQSug' : 'estQSug');
+    if (ev.key === 'Enter') { ev.preventDefault(); var f = MB['sugFirst' + which]; if (f && box && box.style.display !== 'none') G.sPick(f, which); }
+    else if (ev.key === 'Escape') { if (box) box.style.display = 'none'; }
+  };
+  G.sBlur = function () { setTimeout(function () { ['mbQSug', 'estQSug'].forEach(function (id) { var b = document.getElementById(id); if (b) b.style.display = 'none'; }); }, 180); };
 
   /* ================= ثبت در ناوبری و بوت ================= */
   G.go = function (k) { try { engGo(k); } catch (e) {} };
