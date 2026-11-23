@@ -4515,19 +4515,68 @@ table.mb-grid .op-in{min-width:150px}
     if (s.date) lines.push('تاریخ: ' + today);
     return '<h2 style="text-align:center;margin:.2rem 0">' + E(title) + '</h2><div style="display:flex;gap:1rem;flex-wrap:wrap;font-size:.84rem;border-bottom:2px solid #333;padding-bottom:.4rem;margin-bottom:.6rem">' + lines.map(function (x) { return '<span>' + x + '</span>'; }).join('') + '</div>';
   }
+  function faD(x) { return String(x == null ? '' : x).replace(/\d/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[+d]; }); }
+  function sigRiz(s) {
+    var items = [['sigCon', 'sigConN', 'پیمانکار'], ['sigSup', 'sigSupN', 'ناظر'], ['sigCons', 'sigConsN', 'مشاور'], ['sigEmp', 'sigEmpN', 'کارفرما'], ['sigMgmt', 'sigMgmtN', 'مدیریت طرح']];
+    var on = items.filter(function (x) { return s[x[0]]; });
+    if (!on.length) return '';
+    return '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:3.4rem">' + on.map(function (x) { return '<div style="flex:1;min-width:120px;text-align:center"><b>' + x[2] + '</b>' + (s[x[1]] ? '<div style="margin-top:.2rem">' + E(s[x[1]]) + '</div>' : '') + '</div>'; }).join('') + '</div>';
+  }
   G.rShowRiz = function () {
     var d = D(); if (!d) return; var s = R('riz');
     var rows = d.rows.slice();
     if (s.order === 'code') rows.sort(function (a, b) { return String(a.code).localeCompare(String(b.code), 'fa', { numeric: true }); });
-    var cols = ['ردیف', 'شماره ردیف']; if (s.symbols) cols.push('ف/ج'); cols.push('شرح عملیات'); if (s.formula) cols.push('فرمول'); cols.push('حاصل', 'واحد'); if (s.secNames) cols.push('بخش');
-    var no = 0, lastCode = null;
-    var rh = rows.map(function (r) {
-      if (s.numMode === 'restart') { if (r.code !== lastCode) { no = 0; lastCode = r.code; } }
-      no++;
-      var tds = td(no, 1) + td(E(r.code)) + (s.symbols ? td(E(r.fj || 'ف'), 1) : '') + td(E(r.op || '')) + (s.formula ? td(E(r.formula || 'N*X*Y*Z+W') + ' = ' + [r.N, r.X, r.Y, r.Z, r.W].filter(function (v) { return v !== '' && v != null; }).join('×'), 1) : '') + td(fmtQ(evalRow(r)), 1) + td(E(r.unit || ''), 1) + (s.secNames ? td(E(secName(r.sec))) : '');
-      return '<tr>' + tds + '</tr>';
+    var groups = [], gmap = {};
+    rows.forEach(function (r) {
+      var key = String(r.code || '') + '|' + (r.fj || 'ف') + (s.bySec ? '|' + (r.sec || '') : '');
+      if (!gmap[key]) { gmap[key] = { code: r.code || '', fj: r.fj || 'ف', desc: r.desc || '', unit: r.unit || '', sec: r.sec || '', rows: [] }; groups.push(gmap[key]); }
+      gmap[key].rows.push(r);
+    });
+    var proj = '', emp = '', cons = '', today = '';
+    try { var c = curContract(); if (c) { var pr = projOf(c.projectId) || {}; proj = pr.name || ''; emp = c.employer || pr.employer || ''; cons = c.consultant || pr.consultant || ''; } today = new Date().toLocaleDateString('fa-IR'); } catch (e) {}
+    var headLines = [];
+    if (s.nameCo) headLines.push('شرکت: ' + E(s.co || 'گروه فنی و مهندسی پشتیبان'));
+    if (s.nameProj && proj) headLines.push('پروژه: ' + E(proj));
+    if (s.nameEmp && emp) headLines.push('کارفرما: ' + E(emp));
+    if (s.nameCons && cons) headLines.push('مشاور: ' + E(cons));
+    var css = '<style>' +
+      '.rz-frame{border:3px double #000;padding:12px 14px;color:#000}' +
+      '.rz-head{border:1.6px solid #000;border-radius:12px;padding:10px 16px 12px;margin-bottom:12px}' +
+      '.rz-t{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:.86rem}' +
+      '.rz-t th,.rz-t td{border:1px solid #000;padding:3px 6px;vertical-align:top}' +
+      '.rz-t .gh td{font-weight:700;background:#fff}' +
+      '.rz-t .ch th{background:#dcdcdc;font-weight:700;text-align:center}' +
+      '.rz-t .ft td{font-weight:700;text-align:center}' +
+      '.rz-b{display:inline-block;border:1px solid #000;padding:0 5px;margin-left:6px;font-weight:700}' +
+      '.rz-c{text-align:center}' +
+      '</style>';
+    var ncol = 9 + (s.formula ? 1 : 0);
+    var runNo = 0;
+    var gh = groups.map(function (g) {
+      var base = runNo; runNo += g.rows.length;
+      var no = 0, tot = 0;
+      var body = g.rows.map(function (r) {
+        no++; var q = evalRow(r); tot += q;
+        var dims = [r.N, r.X, r.Y, r.Z, r.W].map(function (v) { return '<td class="rz-c">' + (v === '' || v == null ? '' : fmtQ(Number(v))) + '</td>'; }).join('');
+        var fx = '';
+        if (s.formula) {
+          var parts = [r.N, r.X, r.Y, r.Z].filter(function (v) { return v !== '' && v != null; }).map(function (v) { return fmtQ(Number(v)); });
+          var expr = parts.join('×');
+          if (r.W !== '' && r.W != null) expr = expr ? expr + '+' + fmtQ(Number(r.W)) : fmtQ(Number(r.W));
+          fx = '<td class="rz-c">' + E(expr) + '</td>';
+        }
+        var op = (s.symbols && s.symB && r.sec ? '<span class="rz-b">ب</span>' : '') + E(r.op || '');
+        return '<tr><td class="rz-c">' + faD(s.numMode === 'restart' ? no : base + no) + '</td><td>' + op + '</td>' + dims + fx + '<td class="rz-c">' + fmtQ(q) + '</td><td>' + E(r.note || '') + '</td></tr>';
+      }).join('');
+      var band = '<tr class="gh"><td colspan="3">ردیف فهرست بها ' + E(g.fj) + (g.code ? ' ' + faD(g.code) : '') + '</td><td colspan="2">واحد ' + E(g.unit) + '</td><td colspan="' + (ncol - 5) + '">' + E(g.desc) + (s.bySec && g.sec ? ' — بخش: ' + E(secName(g.sec)) : '') + '</td></tr>';
+      var colh = '<tr class="ch"><th>ردیف</th><th>شرح عملیات</th><th>تعداد</th><th>طول</th><th>عرض</th><th>ارتفاع</th><th>وزن طول</th>' + (s.formula ? '<th>فرمول</th>' : '') + '<th>حاصل</th><th>ملاحظات</th></tr>';
+      var foot = '<tr class="ft"><td colspan="' + ncol + '">جمع کارکرد ردیف: ' + E(g.fj) + (g.code ? ' ' + faD(g.code) : '') + ' ب ' + fmtQ(tot) + '</td></tr>';
+      return '<table class="rz-t">' + band + colh + body + foot + '</table>';
     }).join('');
-    var html = '<div class="page" style="font-family:inherit;padding:14mm 12mm">' + rptHead(s, 'ریز متره') + tblHtml(cols, rh) + sigHtml(s) + '</div>';
+    var html = '<div class="page" style="font-family:inherit;padding:10mm">' + css + '<div class="rz-frame">' +
+      '<div class="rz-head"><div style="display:flex;justify-content:space-between;align-items:flex-start"><span style="min-width:120px">' + (s.date ? 'تاریخ گزارش: ' + today : '') + '</span><b style="font-size:1.3rem">گزارش ریزمتره</b><span style="min-width:120px"></span></div>' +
+      (headLines.length ? '<div style="margin-top:.4rem;line-height:1.9;font-weight:600">' + headLines.map(function (x) { return '<div>' + x + '</div>'; }).join('') + '</div>' : '') + '</div>' +
+      gh + sigRiz(s) + '</div></div>';
     try { showPreview(html, 'ریز متره'); } catch (e) { T('پیش‌نمایش آماده نشد.', 1); }
   };
   G.rShowKhol = function () {
