@@ -5477,31 +5477,61 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
     var srcs = b.docs.filter(function (x) { return x.type === 'min' && locked(x); });
     if (!srcs.length) { T('صورت‌جلسه احجامِ تأییدشده‌ای برای انتقال وجود ندارد.', 1); return; }
     var dlg = document.createElement('dialog'); dlg.className = 'sv-d'; document.body.appendChild(dlg);
+    function mode() { var r = dlg.querySelector('input[name=xfMode]:checked'); return r ? r.value : 'sum'; }
+    function sumGroups(src) {
+      var m = {}, ord = [];
+      (src.rows || []).forEach(function (r) { var c = r.code || ''; if (!m[c]) { m[c] = { code: c, rows: [], tot: 0, allX: true }; ord.push(c); } m[c].rows.push(r); m[c].tot += partial(r); if (!r.xfer) m[c].allX = false; });
+      return ord.map(function (c) { return m[c]; });
+    }
     function drawRows() {
       var src = findDoc(b, dlg.querySelector('#xfSrc').value); if (!src) { dlg.querySelector('#xfL').innerHTML = ''; return; }
-      dlg.querySelector('#xfL').innerHTML = '<table class="mb-grid" style="min-width:0"><thead><tr><th></th><th>کد</th><th>شرح عملیات</th><th>طبقه/محور</th><th>جزئی</th><th>وضعیت</th></tr></thead><tbody>' +
-        (src.rows || []).map(function (r) { return '<tr><td><input type="checkbox" data-rid="' + r.id + '"' + (r.xfer ? ' disabled' : '') + '></td><td><b>' + E(r.code || '') + '</b></td><td>' + E(r.sub || '') + '</td><td>' + E(((r.floor || '') + ' ' + (r.axis || '')).trim()) + '</td><td class="res">' + fmtQ(partial(r)) + '</td><td>' + (r.xfer ? 'منتقل‌شده به سند ' + E(r.xfer.no || '') : '') + '</td></tr>'; }).join('') + '</tbody></table>';
+      if (mode() === 'sum') {
+        dlg.querySelector('#xfL').innerHTML = '<table class="mb-grid" style="min-width:0"><thead><tr><th></th><th>کد</th><th>شرح آیتم</th><th>جمع مقدار (خلاصه)</th><th>واحد</th><th>وضعیت</th></tr></thead><tbody>' +
+          sumGroups(src).map(function (g) { var sn = (src.snap || {})[g.code] || {}; return '<tr><td><input type="checkbox" data-code="' + E(g.code) + '"' + (g.allX ? ' disabled' : '') + '></td><td><b>' + E(g.code) + '</b></td><td>' + E(sn.desc || '') + '</td><td class="res">' + fmtQ(r6(g.tot)) + '</td><td>' + E(sn.unit || '') + '</td><td>' + (g.allX ? 'منتقل‌شده' : '') + '</td></tr>'; }).join('') + '</tbody></table>' +
+          '<p class="muted" style="margin:.4rem 0 0">برای هر آیتم یک ردیف با جمع مقدار صورت‌جلسه ساخته می‌شود و در شرح آن نوشته می‌شود: «نقل از صورت جلسه شماره ' + E(src.no || '') + '»</p>';
+      } else {
+        dlg.querySelector('#xfL').innerHTML = '<table class="mb-grid" style="min-width:0"><thead><tr><th></th><th>کد</th><th>شرح عملیات</th><th>طبقه/محور</th><th>جزئی</th><th>وضعیت</th></tr></thead><tbody>' +
+          (src.rows || []).map(function (r) { return '<tr><td><input type="checkbox" data-rid="' + r.id + '"' + (r.xfer ? ' disabled' : '') + '></td><td><b>' + E(r.code || '') + '</b></td><td>' + E(r.sub || '') + '</td><td>' + E(((r.floor || '') + ' ' + (r.axis || '')).trim()) + '</td><td class="res">' + fmtQ(partial(r)) + '</td><td>' + (r.xfer ? 'منتقل‌شده به سند ' + E(r.xfer.no || '') : '') + '</td></tr>'; }).join('') + '</tbody></table>';
+      }
     }
-    dlg.innerHTML = '<h3 style="margin:.1rem 0 .5rem">انتقال ردیف از صورت‌جلسه احجام</h3>' +
-      '<label>صورت‌جلسهٔ مبدأ <select id="xfSrc">' + srcs.map(function (x) { return '<option value="' + x.id + '">شماره ' + E(x.no) + ' — ' + E(x.date || '') + ' — ' + E(x.subject || '') + '</option>'; }).join('') + '</select></label>' +
+    dlg.innerHTML = '<h3 style="margin:.1rem 0 .5rem">انتقال از صورت‌جلسه احجام</h3>' +
+      '<label>صورت‌جلسهٔ مبدأ <select id="xfSrc">' + srcs.map(function (x) { return '<option value="' + x.id + '">صورت جلسه شماره ' + E(x.no) + ' — ' + E(x.date || '') + ' — ' + E(x.subject || '') + '</option>'; }).join('') + '</select></label>' +
+      '<div style="margin-top:.55rem;display:flex;gap:1.2rem;flex-wrap:wrap"><label><input type="radio" name="xfMode" value="sum" checked style="width:auto"> خلاصهٔ هر آیتم (یک ردیف با جمع مقدار)</label>' +
+      '<label><input type="radio" name="xfMode" value="det" style="width:auto"> ردیف‌های جزئی (ریز متره)</label></div>' +
       '<div id="xfL" style="margin-top:.6rem"></div>' +
-      '<div class="mb-tools" style="justify-content:flex-end"><button class="btn" id="xfX">انصراف</button><button class="btn primary" id="xfOk">انتقال ردیف‌های انتخاب‌شده</button></div>';
+      '<div class="mb-tools" style="justify-content:flex-end"><button class="btn" id="xfX">انصراف</button><button class="btn primary" id="xfOk">انتقال انتخاب‌شده‌ها</button></div>';
     dlg.addEventListener('close', function () { dlg.remove(); });
     dlg.querySelector('#xfSrc').onchange = drawRows;
+    dlg.querySelectorAll('input[name=xfMode]').forEach(function (r) { r.onchange = drawRows; });
     dlg.querySelector('#xfX').onclick = function () { dlg.close(); };
     dlg.querySelector('#xfOk').onclick = function () {
       var src = findDoc(b, dlg.querySelector('#xfSrc').value); if (!src) return;
       var vd = VD(d), n = 0;
-      dlg.querySelectorAll('[data-rid]:checked').forEach(function (cb) {
-        var r = (src.rows || []).find(function (x) { return x.id === cb.dataset.rid; }); if (!r || r.xfer) return;
-        var nr = { id: nid('svr'), code: r.code || '', sub: r.sub || '', floor: r.floor || '', axis: r.axis || '', note: r.note || '', from: { doc: src.id, docNo: src.no, rowId: r.id } };
-        NUMK.forEach(function (k) { nr[k] = r[k] != null ? r[k] : null; });
-        vd.rows.push(nr);
-        if (r.code && !vd.snap[r.code] && src.snap && src.snap[r.code]) vd.snap[r.code] = JSON.parse(JSON.stringify(src.snap[r.code]));
-        r.xfer = { to: d.id, no: d.no, at: Date.now() }; n++;
-      });
-      if (n) { src.xlog = src.xlog || []; src.xlog.push({ at: Date.now(), to: d.id, toNo: d.no, count: n }); src.updated = Date.now(); d.updated = Date.now(); SV(); }
-      dlg.close(); docPage(); T(n ? fmtQ(n) + ' ردیف منتقل شد.' : 'ردیفی انتخاب نشده بود.', n ? 0 : 1);
+      if (mode() === 'sum') {
+        var groups = {}; sumGroups(src).forEach(function (g) { groups[g.code] = g; });
+        dlg.querySelectorAll('[data-code]:checked').forEach(function (cb) {
+          var g = groups[cb.dataset.code]; if (!g || g.allX) return;
+          var tot = 0; g.rows.forEach(function (r) { if (!r.xfer) tot += partial(r); });
+          var nr = { id: nid('svr'), code: g.code, sub: 'نقل از صورت جلسه شماره ' + (src.no || ''), floor: '', axis: '', note: '', from: { doc: src.id, docNo: src.no, sum: 1 }, count: r6(tot), len: null, wid: null, hgt: null, wgt: null };
+          vd.rows.push(nr);
+          if (g.code && !vd.snap[g.code] && src.snap && src.snap[g.code]) vd.snap[g.code] = JSON.parse(JSON.stringify(src.snap[g.code]));
+          g.rows.forEach(function (r) { if (!r.xfer) r.xfer = { to: d.id, no: d.no, at: Date.now() }; });
+          n++;
+        });
+        if (n) { src.xlog = src.xlog || []; src.xlog.push({ at: Date.now(), to: d.id, toNo: d.no, count: n, sum: 1 }); src.updated = Date.now(); d.updated = Date.now(); SV(); }
+        dlg.close(); docPage(); T(n ? fmtQ(n) + ' آیتم به‌صورت خلاصه منتقل شد.' : 'آیتمی انتخاب نشده بود.', n ? 0 : 1);
+      } else {
+        dlg.querySelectorAll('[data-rid]:checked').forEach(function (cb) {
+          var r = (src.rows || []).find(function (x) { return x.id === cb.dataset.rid; }); if (!r || r.xfer) return;
+          var nr = { id: nid('svr'), code: r.code || '', sub: r.sub || '', floor: r.floor || '', axis: r.axis || '', note: r.note || '', from: { doc: src.id, docNo: src.no, rowId: r.id } };
+          NUMK.forEach(function (k) { nr[k] = r[k] != null ? r[k] : null; });
+          vd.rows.push(nr);
+          if (r.code && !vd.snap[r.code] && src.snap && src.snap[r.code]) vd.snap[r.code] = JSON.parse(JSON.stringify(src.snap[r.code]));
+          r.xfer = { to: d.id, no: d.no, at: Date.now() }; n++;
+        });
+        if (n) { src.xlog = src.xlog || []; src.xlog.push({ at: Date.now(), to: d.id, toNo: d.no, count: n }); src.updated = Date.now(); d.updated = Date.now(); SV(); }
+        dlg.close(); docPage(); T(n ? fmtQ(n) + ' ردیف منتقل شد.' : 'ردیفی انتخاب نشده بود.', n ? 0 : 1);
+      }
     };
     drawRows(); dlg.showModal();
   };
@@ -9662,26 +9692,30 @@ input,select,textarea{max-width:100%}
 .app.min .side{width:auto!important;justify-self:stretch!important;transition:none!important}
 </style>
 <script id="df-fix39">
-/* df-fix39 (final43): Enter moves to the next cell in the متره grid
-   (his words 2026-11-25: «قسمت متره وقتی اینتر میزنم بره سل بعدی»).
-   A capture-phase keydown handler scoped to the متره page only
-   (the page is identified by its #mbQCode entry input): Enter on a
-   grid input/select focuses the next editable field in DOM order —
-   code → ف/ج → شرح عملیات → N → X → Y → Z → W → فرمول → بخش →
-   ملاحظات → next row's code. Shift+Enter goes back. The entry row
-   (#mbQCode) and the search boxes keep their own Enter behaviour
-   (suggestion pick / add) — they live outside the grid table, so
-   they are never hijacked. Dialogs (.mb-d) are untouched. */
+/* df-fix39 (final43, generalized in final44): Enter moves to the
+   next cell in every data-entry grid of the app — متره، برآورد،
+   صورت‌وضعیت (ریز متره و سرجمع) و تعدیل (جدول شاخص‌ها) — his words
+   2026-11-25: «قسمت متره وقتی اینتر میزنم بره سل بعدی» + «قسمت
+   متره و صورت وضعیت هم همین فرمت براورد را داشته باشند» + «در مورد
+   تعدیل هم باید کار کنیم». All these grids are table.mb-grid inside
+   #moduleBody, so one capture-phase handler serves them all: Enter
+   on a grid input/select focuses the next editable field in DOM
+   order (wrapping into the next row), Shift+Enter goes back. The
+   entry/search inputs (e.g. #mbQCode) live OUTSIDE the grid tables
+   and keep their own Enter behaviour (suggestion pick / add);
+   dialogs (.mb-d) are untouched. */
 (function () {
-  function gridFields() {
-    if (!document.getElementById('mbQCode')) return null;
-    var t = document.querySelector('#moduleBody table.mb-grid');
+  function gridFields(el) {
+    if (!el || !el.closest) return null;
+    var t = el.closest('table.mb-grid');
     if (!t) return null;
-    return Array.prototype.filter.call(t.querySelectorAll('input,select'), function (el) {
-      if (el.disabled) return false;
-      var ty = (el.type || '').toLowerCase();
+    var mb = document.getElementById('moduleBody');
+    if (!mb || !mb.contains(t)) return null;
+    return Array.prototype.filter.call(t.querySelectorAll('input,select'), function (x) {
+      if (x.disabled) return false;
+      var ty = (x.type || '').toLowerCase();
       if (ty === 'hidden' || ty === 'checkbox' || ty === 'radio' || ty === 'button' || ty === 'submit') return false;
-      if (!el.getClientRects().length) return false;
+      if (!x.getClientRects().length) return false;
       return true;
     });
   }
@@ -9692,7 +9726,7 @@ input,select,textarea{max-width:100%}
     if (el.closest && el.closest('.mb-d')) return;
     var sug = document.querySelector('.mb-sug');
     if (sug && sug.style.display !== 'none' && sug.getClientRects().length) return;
-    var F = gridFields();
+    var F = gridFields(el);
     if (!F) return;
     var i = F.indexOf(el);
     if (i < 0) return;
@@ -9704,6 +9738,190 @@ input,select,textarea{max-width:100%}
     }
   }, true);
   window.AN39 = { gridFields: gridFields };
+})();
+</script>
+<script id="df-fix41">
+/* df-fix41 — «گزارشات صورت وضعیت» for the native صورت‌وضعیت module (df-fix12):
+   تدکار's 12 statement reports in a radio dialog (same format as گزارشات برآورد),
+   opened from the اسناد page / doc editor of صورت‌وضعیت و صورت‌جلسه (جدید).
+   Data: db.sv[contractId] employer docs (cumulative over the seq chain);
+   برآورد side aggregated from db.mb[contractId]. */
+(function () {
+  'use strict';
+  var REPORTS = ['صورت وضعیت', 'خلاصه مالی رشته', 'خلاصه مالی کل', 'گزارش خلاصه مالی بخش ها', 'خلاصه مالی فصول صورت وضعیت', 'خلاصه مالی تفصیلی رشته ها', 'گزارش مقایسه صورت وضعیت و برآورد', 'گزارش مقایسه فصلی صورت وضعیت و برآورد', 'گزارش مقایسه کلی صورت وضعیت و برآورد', 'گزارش مقایسه ضرایب صورت وضعیت و برآورد', 'گزارش مقایسه صورت وضعیت و برآورد جدید', 'گزارش فرم مالی(نفت و گاز)'];
+  var RESH = { abn: 'ابنیه', mech: 'تأسیسات مکانیکی', elec: 'تأسیسات برقی' };
+  var W = { sel: 1 };
+  window.SV41 = W;
+  function E(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function N(x) { var n = parseFloat(String(x == null ? '' : x).replace(/,/g, '')); return isNaN(n) ? 0 : n; }
+  function F(x) { return (Math.round(N(x))).toLocaleString('fa-IR'); }
+  function Q(x) { var n = N(x); return (Math.round(n * 1000) / 1000).toLocaleString('fa-IR'); }
+  function PC(a, b) { return b ? (Math.round(a / b * 10000) / 100).toLocaleString('fa-IR') + '٪' : '—'; }
+  function B() { return (typeof db !== 'undefined' && db && activeProject && db.sv) ? db.sv[activeProject] : null; }
+  function MB() { return (typeof db !== 'undefined' && db && activeProject && db.mb) ? db.mb[activeProject] : null; }
+  function partial(r) { var p = 1, any = false; ['count', 'len', 'wid', 'hgt', 'wgt'].forEach(function (k) { var v = N(r[k]); if (v) { p *= v; any = true; } }); return any ? Math.round(p * 1e6) / 1e6 : 0; }
+  function docRowsAmt(d) {
+    var tot = 0, byCode = {};
+    (d.rows || []).forEach(function (r) { var sn = (d.snap || {})[r.code] || {}; var q = partial(r); var a = Math.round(q * N(sn.price)); tot += a; if (!byCode[r.code]) byCode[r.code] = { code: r.code, desc: sn.desc || '', unit: sn.unit || '', bank: sn.bank || '', price: N(sn.price), qty: 0, amt: 0 }; byCode[r.code].qty += q; byCode[r.code].amt += a; });
+    return { total: tot, byCode: byCode };
+  }
+  function coefVals(d, total) {
+    var run = total, out = [];
+    (d.coef || []).forEach(function (c) { var base = c.base === 'run' ? run : total; var amt = c.amt != null && c.amt !== '' ? N(c.amt) : Math.round(base * N(c.pct) / 100); out.push({ name: c.name || '', pct: c.pct, amt: amt }); run += amt; });
+    return out;
+  }
+  function docNet(d) { var t = docRowsAmt(d).total; var cvs = coefVals(d, t); var s = 0; cvs.forEach(function (c) { s += c.amt; }); return { total: t, coefs: cvs, net: t + s }; }
+  function empDocs() { var b = B(); if (!b) return []; return (b.docs || []).filter(function (d) { return d.type === 'emp'; }).slice().sort(function (a, b2) { return (a.seq || 0) - (b2.seq || 0); }); }
+  function cumModel(uptoSeq) {
+    var docs = empDocs().filter(function (d) { return uptoSeq == null || (d.seq || 0) <= uptoSeq; });
+    var byCode = {}, totRows = 0, totNet = 0, lastDoc = null;
+    docs.forEach(function (d) { var m = docRowsAmt(d); var nd = docNet(d); totNet += nd.net; lastDoc = d;
+      Object.keys(m.byCode).forEach(function (c) { var s = m.byCode[c]; if (!byCode[c]) byCode[c] = { code: c, desc: s.desc, unit: s.unit, bank: s.bank, price: s.price, qty: 0, amt: 0 }; byCode[c].qty += s.qty; byCode[c].amt += s.amt; if (s.price) byCode[c].price = s.price; if (s.desc) byCode[c].desc = s.desc; if (s.bank) byCode[c].bank = s.bank; });
+    });
+    Object.keys(byCode).forEach(function (c) { totRows += byCode[c].amt; });
+    return { byCode: byCode, totRows: totRows, totNet: totNet, docs: docs, lastDoc: lastDoc };
+  }
+  function chapOf(code, bank) { code = String(code || ''); return bank === 'abn' ? code.slice(0, 2) : code.slice(2, 4); }
+  function bankPrice(code) {
+    var keys = ['bk_abn', 'bk_mech', 'bk_elec'];
+    for (var i = 0; i < keys.length; i++) { var arr = (db.mod && db.mod[keys[i]]) || []; for (var j = 0; j < arr.length; j++) if (String(arr[j].code) === String(code)) return { price: N(arr[j].price), bank: keys[i].slice(3), desc: arr[j].desc, unit: arr[j].unit }; }
+    return null;
+  }
+  function evalMbRow(r) {
+    var f = String(r.formula || 'N*X*Y*Z+W').toUpperCase(); if (!/^[-+*/().\d\sNXYZW]+$/.test(f)) f = 'N*X*Y*Z+W';
+    function dv(v, dflt) { var n = parseFloat(v); return isNaN(n) ? dflt : n; }
+    try { return new Function('N', 'X', 'Y', 'Z', 'W', 'return (' + f + ')')(dv(r.N, 1), dv(r.X, 1), dv(r.Y, 1), dv(r.Z, 1), dv(r.W, 0)) || 0; } catch (e) { return 0; }
+  }
+  function estModel() {
+    var d = MB(); var out = {};
+    if (!d) return out;
+    (d.rows || []).forEach(function (r) { if (!r.code) return; var key = r.code + '|' + (r.fj || ''); if (!out[r.code]) out[r.code] = { code: r.code, qty: 0, amt: 0, sec: '' }; out[r.code].qty += evalMbRow(r); if (r.sec) out[r.code].sec = r.sec; });
+    Object.keys(out).forEach(function (c) { var bp = bankPrice(c); var pr = 0; var d2 = MB();
+      Object.keys((d2 && d2.price) || {}).forEach(function (k) { if (k.split('|')[0] === c) { var o = d2.price[k]; pr = (o.b != null ? N(o.b) : (bp ? bp.price : 0)); } });
+      if (!pr && bp) pr = bp.price; out[c].price = pr; out[c].amt = Math.round(out[c].qty * pr); out[c].bank = bp ? bp.bank : ''; out[c].desc = bp ? bp.desc : ''; out[c].unit = bp ? bp.unit : ''; });
+    return out;
+  }
+  function head(title) {
+    var ct = (typeof curContract === 'function') ? curContract() : null;
+    var pr = (typeof current === 'function') ? current() : null;
+    return '<div class="sv41-hd"><div><b>' + E(title) + '</b></div><div class="muted">پروژه: ' + E(pr ? (pr.name || '') : '') + ' — پیمان: ' + E(ct ? (ct.name || '') : '') + '</div></div>';
+  }
+  var CSS = '<style>.sv41{font-family:\'B Nazanin\',\'B Mitra\',Vazirmatn,Tahoma,serif;color:#000}.sv41 table{border-collapse:collapse;width:100%;border:2.2px solid #000;font-size:.86rem}.sv41 th,.sv41 td{border:1px solid #000;padding:.28rem .45rem}.sv41 th{background:#eee;border-bottom:3.5px double #000}.sv41 .band td{background:#ddd;font-weight:700}.sv41 .tot td{font-weight:700;background:#f4f4f4}.sv41-hd{margin-bottom:.5rem}.sv41 .page{background:#fff;padding:8mm}.sv41 h3{margin:.2rem 0 .5rem}</style>';
+  function tbl(cols, rowsHtml) { return '<table><thead><tr>' + cols.map(function (c) { return '<th>' + E(c) + '</th>'; }).join('') + '</tr></thead><tbody>' + rowsHtml + '</tbody></table>'; }
+  function build(n, uptoSeq) {
+    var cm = cumModel(uptoSeq); var last = cm.lastDoc;
+    if (!last && n !== 10) return '<div dir="rtl" class="sv41"><section class="page">' + CSS + head(REPORTS[n - 1]) + '<p>صورت‌وضعیت کارفرمایی ثبت نشده است.</p></section></div>';
+    var codes = Object.keys(cm.byCode);
+    if (n === 1) {
+      var d = last; var m = docRowsAmt(d); var nd = docNet(d);
+      var prevNet = 0; empDocs().forEach(function (x) { if ((x.seq || 0) < (d.seq || 0)) prevNet += docNet(x).net; });
+      var rows = (d.rows || []).map(function (r, i) { var sn = (d.snap || {})[r.code] || {}; var q = partial(r); return '<tr><td>' + (i + 1) + '</td><td>' + E(r.code || '') + '</td><td>' + E(r.sub || sn.desc || '') + '</td><td>' + E(sn.unit || '') + '</td><td>' + Q(q) + '</td><td>' + F(sn.price) + '</td><td>' + F(Math.round(q * N(sn.price))) + '</td></tr>'; }).join('');
+      var cf = nd.coefs.map(function (c) { return '<tr><td colspan="6">' + E(c.name) + (c.pct != null && c.pct !== '' ? ' (' + E(c.pct) + '٪)' : '') + '</td><td>' + F(c.amt) + '</td></tr>'; }).join('');
+      return '<div dir="rtl" class="sv41"><section class="page">' + CSS + head('صورت وضعیت کارفرما شماره ' + (d.no || '')) + tbl(['ردیف', 'کد', 'شرح', 'واحد', 'مقدار', 'بهای واحد', 'مبلغ'], rows + cf + '<tr class="tot"><td colspan="6">جمع این صورت‌وضعیت</td><td>' + F(nd.net) + '</td></tr><tr><td colspan="6">تجمعی قبلی</td><td>' + F(prevNet) + '</td></tr><tr class="tot"><td colspan="6">تجمعی تا این صورت‌وضعیت</td><td>' + F(prevNet + nd.net) + '</td></tr>') + '</section></div>';
+    }
+    if (n === 2 || n === 6) {
+      var byR = {}; codes.forEach(function (c) { var s = cm.byCode[c]; var rk = RESH[s.bank] || s.bank || '—'; byR[rk] = byR[rk] || []; byR[rk].push(s); });
+      var html = '';
+      Object.keys(byR).forEach(function (rk) { var sum = 0; var rs = '';
+        if (n === 6) rs = byR[rk].map(function (s, i) { sum += s.amt; return '<tr><td>' + (i + 1) + '</td><td>' + E(s.code) + '</td><td>' + E(s.desc) + '</td><td>' + E(s.unit) + '</td><td>' + Q(s.qty) + '</td><td>' + F(s.price) + '</td><td>' + F(s.amt) + '</td></tr>'; }).join('');
+        else { byR[rk].forEach(function (s) { sum += s.amt; }); rs = '<tr><td>' + E(rk) + '</td><td>' + F(sum) + '</td><td>' + PC(sum, cm.totRows) + '</td></tr>'; }
+        html += (n === 6 ? '<h3>' + E(rk) + '</h3>' + tbl(['ردیف', 'کد', 'شرح', 'واحد', 'مقدار تجمعی', 'بهای واحد', 'مبلغ تجمعی'], rs + '<tr class="tot"><td colspan="6">جمع رشته</td><td>' + F(sum) + '</td></tr>') : '');
+        if (n === 2) html += rs;
+      });
+      if (n === 2) html = tbl(['رشته', 'مبلغ تجمعی', 'درصد از کل'], html + '<tr class="tot"><td>جمع کل</td><td>' + F(cm.totRows) + '</td><td>۱۰۰٪</td></tr>');
+      return '<div dir="rtl" class="sv41"><section class="page">' + CSS + head(REPORTS[n - 1]) + html + '</section></div>';
+    }
+    if (n === 3) {
+      var nd2 = docNet(last); var prev2 = 0; empDocs().forEach(function (x) { if ((x.seq || 0) < (last.seq || 0)) prev2 += docNet(x).net; });
+      var rows3 = '<tr><td>جمع ردیف‌های این صورت‌وضعیت</td><td>' + F(nd2.total) + '</td></tr>' + nd2.coefs.map(function (c) { return '<tr><td>' + E(c.name) + '</td><td>' + F(c.amt) + '</td></tr>'; }).join('') +
+        '<tr class="tot"><td>خالص این صورت‌وضعیت</td><td>' + F(nd2.net) + '</td></tr><tr><td>تجمعی قبلی</td><td>' + F(prev2) + '</td></tr><tr class="tot"><td>تجمعی کل تا این صورت‌وضعیت</td><td>' + F(prev2 + nd2.net) + '</td></tr><tr><td>تجمعی ردیف‌ها (همه اسناد)</td><td>' + F(cm.totRows) + '</td></tr>';
+      return '<div dir="rtl" class="sv41"><section class="page">' + CSS + head(REPORTS[n - 1]) + tbl(['شرح', 'مبلغ (ریال)'], rows3) + '</section></div>';
+    }
+    if (n === 4) {
+      var est = estModel(); var bySec = {};
+      codes.forEach(function (c) { var s = cm.byCode[c]; var sec = (est[c] && est[c].sec) || 'بدون بخش'; bySec[sec] = (bySec[sec] || 0) + s.amt; });
+      var rows4 = Object.keys(bySec).map(function (k) { return '<tr><td>' + E(k) + '</td><td>' + F(bySec[k]) + '</td><td>' + PC(bySec[k], cm.totRows) + '</td></tr>'; }).join('');
+      return '<div dir="rtl" class="sv41"><section class="page">' + CSS + head(REPORTS[n - 1]) + tbl(['بخش', 'مبلغ تجمعی', 'درصد از کل'], rows4 + '<tr class="tot"><td>جمع کل</td><td>' + F(cm.totRows) + '</td><td>۱۰۰٪</td></tr>') + '</section></div>';
+    }
+    if (n === 5) {
+      var byCh = {}; codes.forEach(function (c) { var s = cm.byCode[c]; var k = (RESH[s.bank] || s.bank || '—') + ' — فصل ' + chapOf(c, s.bank); byCh[k] = (byCh[k] || 0) + s.amt; });
+      var rows5 = Object.keys(byCh).sort().map(function (k) { return '<tr><td>' + E(k) + '</td><td>' + F(byCh[k]) + '</td><td>' + PC(byCh[k], cm.totRows) + '</td></tr>'; }).join('');
+      return '<div dir="rtl" class="sv41"><section class="page">' + CSS + head(REPORTS[n - 1]) + tbl(['رشته — فصل', 'مبلغ تجمعی', 'درصد از کل'], rows5 + '<tr class="tot"><td>جمع کل</td><td>' + F(cm.totRows) + '</td><td>۱۰۰٪</td></tr>') + '</section></div>';
+    }
+    if (n === 7 || n === 11) {
+      var est2 = estModel(); var all = {};
+      codes.forEach(function (c) { all[c] = 1; }); Object.keys(est2).forEach(function (c) { all[c] = 1; });
+      var tE = 0, tS = 0;
+      var rows7 = Object.keys(all).sort().map(function (c, i) { var e = est2[c] || { qty: 0, amt: 0, desc: '', unit: '' }; var s = cm.byCode[c] || { qty: 0, amt: 0 }; tE += e.amt; tS += s.amt;
+        var base = '<td>' + (i + 1) + '</td><td>' + E(c) + '</td><td>' + E((s && s.desc) || e.desc || '') + '</td><td>' + E((s && s.unit) || e.unit || '') + '</td><td>' + Q(e.qty) + '</td><td>' + Q(s.qty) + '</td><td>' + Q(s.qty - e.qty) + '</td><td>' + F(e.amt) + '</td><td>' + F(s.amt) + '</td><td>' + F(s.amt - e.amt) + '</td>';
+        return '<tr>' + base + (n === 11 ? '<td>' + PC(s.qty, e.qty) + '</td><td>' + (e.qty === 0 ? '—' : (s.qty >= e.qty ? 'تکمیل' : (s.qty > 0 ? 'در حال انجام' : 'شروع‌نشده'))) + '</td>' : '') + '</tr>'; }).join('');
+      var cols = ['ردیف', 'کد', 'شرح', 'واحد', 'مقدار برآورد', 'مقدار صورت‌وضعیت', 'اختلاف مقدار', 'مبلغ برآورد', 'مبلغ صورت‌وضعیت', 'اختلاف مبلغ']; if (n === 11) cols.push('درصد انجام', 'وضعیت');
+      return '<div dir="rtl" class="sv41"><section class="page">' + CSS + head(REPORTS[n - 1]) + tbl(cols, rows7 + '<tr class="tot"><td colspan="7">جمع کل</td><td>' + F(tE) + '</td><td>' + F(tS) + '</td><td>' + F(tS - tE) + '</td>' + (n === 11 ? '<td colspan="2"></td>' : '') + '</tr>') + '</section></div>';
+    }
+    if (n === 8) {
+      var est3 = estModel(); var byCh2 = {};
+      function acc(map, c, e, s) { var sBank = (s && s.bank) || (e && e.bank) || ''; var k = (RESH[sBank] || sBank || '—') + ' — فصل ' + chapOf(c, sBank); map[k] = map[k] || { e: 0, s: 0 }; map[k].e += e ? e.amt : 0; map[k].s += s ? s.amt : 0; }
+      codes.forEach(function (c) { acc(byCh2, c, est3[c], cm.byCode[c]); }); Object.keys(est3).forEach(function (c) { if (!cm.byCode[c]) acc(byCh2, c, est3[c], null); });
+      var rows8 = Object.keys(byCh2).sort().map(function (k) { var v = byCh2[k]; return '<tr><td>' + E(k) + '</td><td>' + F(v.e) + '</td><td>' + F(v.s) + '</td><td>' + F(v.s - v.e) + '</td></tr>'; }).join('');
+      return '<div dir="rtl" class="sv41"><section class="page">' + CSS + head(REPORTS[n - 1]) + tbl(['رشته — فصل', 'مبلغ برآورد', 'مبلغ صورت‌وضعیت', 'اختلاف'], rows8) + '</section></div>';
+    }
+    if (n === 9) {
+      var est4 = estModel(); var tE2 = 0, tS2 = cm.totRows; Object.keys(est4).forEach(function (c) { tE2 += est4[c].amt; });
+      var rows9 = '<tr><td>جمع برآورد</td><td>' + F(tE2) + '</td></tr><tr><td>جمع صورت‌وضعیت (تجمعی ردیف‌ها)</td><td>' + F(tS2) + '</td></tr><tr><td>اختلاف</td><td>' + F(tS2 - tE2) + '</td></tr><tr class="tot"><td>درصد پیشرفت مالی نسبت به برآورد</td><td>' + PC(tS2, tE2) + '</td></tr>';
+      return '<div dir="rtl" class="sv41"><section class="page">' + CSS + head(REPORTS[n - 1]) + tbl(['شرح', 'مبلغ (ریال)'], rows9) + '</section></div>';
+    }
+    if (n === 10) {
+      var d10 = MB(); var svC = last ? docNet(last).coefs : [];
+      var rows10 = svC.map(function (c) { return '<tr><td>صورت‌وضعیت</td><td>' + E(c.name) + '</td><td>' + E(c.pct == null ? '' : c.pct) + '</td><td>' + F(c.amt) + '</td></tr>'; }).join('') +
+        ((d10 && d10.coefs) || []).map(function (c) { return '<tr><td>برآورد</td><td>' + E(c.title || '') + '</td><td>' + E(c.val == null ? '' : c.val) + '</td><td>' + (c.applied ? 'اعمال‌شده' : 'اعمال‌نشده') + '</td></tr>'; }).join('');
+      return '<div dir="rtl" class="sv41"><section class="page">' + CSS + head(REPORTS[n - 1]) + tbl(['منبع', 'عنوان ضریب', 'مقدار', 'مبلغ / وضعیت'], rows10 || '<tr><td colspan="4">ضریبی ثبت نشده است.</td></tr>') + '</section></div>';
+    }
+    if (n === 12) {
+      var byR2 = {}; codes.forEach(function (c) { var s = cm.byCode[c]; var rk = RESH[s.bank] || s.bank || '—'; byR2[rk] = (byR2[rk] || 0) + s.amt; });
+      var est5 = estModel(); var byRE = {}; Object.keys(est5).forEach(function (c) { var rk = RESH[est5[c].bank] || est5[c].bank || '—'; byRE[rk] = (byRE[rk] || 0) + est5[c].amt; });
+      var allR = {}; Object.keys(byR2).forEach(function (k) { allR[k] = 1; }); Object.keys(byRE).forEach(function (k) { allR[k] = 1; });
+      var rows12 = Object.keys(allR).map(function (k, i) { return '<tr><td>' + (i + 1) + '</td><td>' + E(k) + '</td><td>' + F(byRE[k] || 0) + '</td><td>' + F(byR2[k] || 0) + '</td><td>' + PC(byR2[k] || 0, byRE[k] || 0) + '</td></tr>'; }).join('');
+      return '<div dir="rtl" class="sv41"><section class="page">' + CSS + head('فرم مالی — ' + REPORTS[11]) + tbl(['ردیف', 'رشته', 'مبلغ برآورد', 'مبلغ صورت‌وضعیت تجمعی', 'درصد انجام'], rows12 + '<tr class="tot"><td colspan="2">جمع کل</td><td>' + F(Object.keys(byRE).reduce(function (a, k) { return a + byRE[k]; }, 0)) + '</td><td>' + F(cm.totRows) + '</td><td></td></tr>') + '</section></div>';
+    }
+    return '<div dir="rtl" class="sv41"><section class="page">' + CSS + head(REPORTS[n - 1]) + '<p>—</p></section></div>';
+  }
+  function aoa(n, uptoSeq) {
+    var tmp = document.createElement('div'); tmp.innerHTML = build(n, uptoSeq);
+    var out = [];
+    tmp.querySelectorAll('table').forEach(function (t) { t.querySelectorAll('tr').forEach(function (tr) { out.push(Array.from(tr.children).map(function (td) { return td.textContent.trim(); })); }); out.push([]); });
+    return out.length ? out : [[REPORTS[n - 1]]];
+  }
+  W.open = function () {
+    if (!B()) { try { toast('ابتدا پروژه و پیمان را انتخاب کنید.'); } catch (e) {} return; }
+    var old = document.getElementById('sv41Dlg'); if (old) old.remove();
+    var docs = empDocs();
+    var dlg = document.createElement('dialog'); dlg.id = 'sv41Dlg'; dlg.className = 'mb-d'; dlg.style.cssText = 'max-width:min(560px,94vw);width:100%';
+    dlg.innerHTML = '<h3 style="margin:.1rem 0 .6rem">گزارشات صورت وضعیت</h3>' +
+      '<label style="display:block;margin-bottom:.6rem">مبنای گزارش — صورت‌وضعیت کارفرما تا شماره <select id="sv41Doc">' + docs.map(function (d) { return '<option value="' + (d.seq || 0) + '"' + (d === docs[docs.length - 1] ? ' selected' : '') + '>' + E(d.no || '') + ' — ' + E(d.date || '') + '</option>'; }).join('') + '</select></label>' +
+      '<div>' + REPORTS.map(function (t, i) { return '<label style="display:flex;gap:.5rem;align-items:center;padding:.32rem 0;cursor:pointer"><input type="radio" name="sv41r" value="' + (i + 1) + '"' + (W.sel === i + 1 ? ' checked' : '') + ' style="width:auto"> ' + (i + 1) + '. ' + E(t) + '</label>'; }).join('') + '</div>' +
+      '<div class="mb-tools" style="justify-content:flex-end;margin-top:.7rem"><button class="btn" id="sv41X">بستن</button><button class="btn" id="sv41Xls">📗 اکسل</button><button class="btn primary" id="sv41Show">نمایش</button></div>';
+    document.body.appendChild(dlg);
+    dlg.addEventListener('close', function () { dlg.remove(); });
+    function cur() { var r = dlg.querySelector('input[name=sv41r]:checked'); W.sel = r ? +r.value : 1; var s = dlg.querySelector('#sv41Doc'); return { n: W.sel, seq: s ? +s.value : null }; }
+    dlg.querySelector('#sv41X').onclick = function () { dlg.close(); };
+    dlg.querySelector('#sv41Show').onclick = function () { var c = cur(); dlg.close(); showPreview(build(c.n, c.seq), REPORTS[c.n - 1]); };
+    dlg.querySelector('#sv41Xls').onclick = function () { var c = cur(); dlg.close(); dl(REPORTS[c.n - 1] + '.xlsx', makeXlsx([{ name: 'گزارش', aoa: aoa(c.n, c.seq) }]), XLSX_T); };
+    dlg.showModal();
+  };
+  W.build = build;
+  function inject() {
+    var mb = document.getElementById('moduleBody'); if (!mb || document.getElementById('sv41Btn')) return;
+    var tools = mb.querySelector('.mb-tools'); if (!tools) return;
+    if (mb.textContent.indexOf('صورت‌وضعیت') < 0 && mb.textContent.indexOf('صورت وضعیت') < 0) return;
+    var b = document.createElement('button'); b.className = 'btn'; b.id = 'sv41Btn'; b.textContent = '📋 گزارشات صورت‌وضعیت'; b.onclick = function () { W.open(); };
+    tools.insertBefore(b, tools.firstChild);
+  }
+  setInterval(function () {
+    try {
+      if (window.SV12 && SV12.go && !SV12.__sv41) { var orig = SV12.go; SV12.go = function (k) { var r = orig.apply(this, arguments); if (String(k).indexOf('sv:') === 0) setTimeout(inject, 400); return r; }; SV12.__sv41 = 1; }
+      if (window.SV12 && document.getElementById('moduleBody')) inject();
+    } catch (e) {}
+  }, 800);
 })();
 </script>
 
