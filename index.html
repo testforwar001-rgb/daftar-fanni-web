@@ -9995,6 +9995,47 @@ input,select,textarea{max-width:100%}
   }, 700);
 })();
 </script>
+<script id="df-fix44">
+/* df-fix44 — subcontractor picker in صورت‌وضعیت (جدید) must see the main
+   contractors bank (بانک جامع پیمانکاران, db.contractors). df-fix12's
+   newDocDlg only listed parties migrated from the old صورت‌یار (db.sv[cid].parties),
+   so bank contractors never appeared. Fix: whenever a صورت‌وضعیت page opens,
+   merge every bank contractor into the contract's parties (deduped by
+   normalised name, tagged fromBank) so the datalist offers them all and the
+   created doc links back to the bank record. */
+(function () {
+  'use strict';
+  function norm(s) { return String(s == null ? '' : s).replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/\s+/g, ' ').trim().toLowerCase(); }
+  function seedParties() {
+    try {
+      if (typeof db === 'undefined' || !db || !activeProject || !db.sv) return;
+      var b = db.sv[activeProject]; if (!b) return;
+      b.parties = b.parties || [];
+      var have = {}; b.parties.forEach(function (p) { have[norm(p.name)] = 1; });
+      var added = 0;
+      (db.contractors || []).forEach(function (c) {
+        var nm = c.name || c.title || ''; if (!nm) return;
+        var k = norm(nm); if (have[k]) return;
+        b.parties.push({ id: 'ctn_' + c.id, name: nm, fromBank: c.id, created: Date.now() });
+        have[k] = 1; added++;
+      });
+      if (added && typeof save === 'function') save();
+      return added;
+    } catch (e) { return 0; }
+  }
+  window.SV44 = { seedParties: seedParties };
+  setInterval(function () {
+    try {
+      if (window.SV12 && SV12.go && !SV12.__sv44) {
+        var orig = SV12.go;
+        SV12.go = function (k) { var r = orig.apply(this, arguments); if (String(k).indexOf('sv:') === 0) setTimeout(seedParties, 60); return r; };
+        SV12.__sv44 = 1;
+      }
+      if (window.SV12) seedParties();
+    } catch (e) {}
+  }, 900);
+})();
+</script>
 
 
 </body></html>
