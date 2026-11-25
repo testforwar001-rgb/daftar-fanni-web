@@ -8185,8 +8185,20 @@ input,select,textarea{max-width:100%}
     if (n === 12 || n === 13) {
       var its = items(d);
       var pages = '';
+      if (n === 12 && !window.__an30pkg && !its.some(function (r) { return (d.fac[r.key] || []).length; }) && window.AN16 && AN16.analyzeAll) {
+        try { AN16.analyzeAll(); } catch (e) {}
+        T('در حال آماده‌سازی آنالیزها…');
+        var tries12 = 0;
+        var iv12 = setInterval(function () {
+          tries12++;
+          var dd = D();
+          var ready12 = dd && items(dd).some(function (r) { return (dd.fac[r.key] || []).length; });
+          if (ready12 || tries12 > 40) { clearInterval(iv12); if (ready12) setTimeout(function () { W.show(12); }, 0); else T('ردیفی با آنالیز نیست.', 1); }
+        }, 150);
+        return;
+      }
       if (n === 13) pages = t5Page(d, A.key, true);
-      else if (A.key) pages = t5Page(d, A.key, false);
+      else if (A.key && !window.__an30pkg) pages = t5Page(d, A.key, false);
       else pages = its.filter(function (r) { return (d.fac[r.key] || []).length; }).map(function (r) { return t5Page(d, r.key, false); }).join('');
       if (!pages) { T('ردیفی با آنالیز نیست.', 1); return; }
       try { showPreview('<div dir="rtl">' + T5CSS + pages + '</div>', title); } catch (e) {}
@@ -8491,7 +8503,7 @@ input,select,textarea{max-width:100%}
     '.an27 th{font-weight:700;font-size:12.5px;border-bottom:3.5px double #000}' +
     '.an27 .band td{font-weight:700;text-align:right;background:#e4e4e4}' +
     '.an27 .sum td{font-weight:700;border-top:2px solid #000}' +
-    '.an27 .hd{display:flex;justify-content:space-between;font-size:12.5px;line-height:2}' +
+    '.an27 .hd{display:flex;justify-content:space-between;gap:6mm;border:1.8px solid #000;padding:2mm 3.5mm;font-size:12.5px;line-height:1.9}.an27 .hd>div:last-child{text-align:left}' +
     '.an27 .tt{font-weight:700;font-size:15px}' +
     '.an27 .rule{border-top:4.5px double #000;margin:4px 0 7px}' +
     '.an27 .sig{display:flex;justify-content:space-between;margin-top:16px;font-size:12.5px;font-weight:700}' +
@@ -9014,13 +9026,31 @@ input,select,textarea{max-width:100%}
     var d = D(); if (!d) return;
     var list = pkg(d);
     if (!list.length) { try { toast('بسته خالی است؛ اول گزارش‌ها را انتخاب کنید.', 1); } catch (e) { } return; }
+    var needs12 = list.indexOf(12) >= 0 && !(d.fac && Object.keys(d.fac).some(function (k) { return (d.fac[k] || []).length; }));
+    if (needs12 && window.AN16 && AN16.analyzeAll) {
+      try { AN16.analyzeAll(); } catch (e) { }
+      try { toast('در حال آماده‌سازی آنالیزها…'); } catch (e) { }
+      var tw = 0;
+      var ivw = setInterval(function () {
+        tw++;
+        var dd = D();
+        var ready = dd && dd.fac && Object.keys(dd.fac).some(function (k) { return (dd.fac[k] || []).length; });
+        if (ready || tw > 50) { clearInterval(ivw); W.__pkgCapture(list); }
+      }, 150);
+      return;
+    }
+    W.__pkgCapture(list);
+  };
+  W.__pkgCapture = function (list) {
+    var d = D(); if (!d) return;
     var dlg = document.getElementById('an30Dlg'); if (dlg) { dlg.close(); dlg.remove(); }
     var captured = [];
     var orig = window.showPreview;
     window.showPreview = function (html) { captured.push(html); };
+    window.__an30pkg = 1;
     try {
       list.forEach(function (n) { if (window.AN23) AN23.show(n); });
-    } finally { window.showPreview = orig; }
+    } finally { window.showPreview = orig; delete window.__an30pkg; }
     if (!captured.length) { try { toast('گزارشی تهیه نشد.', 1); } catch (e) { } return; }
     orig.call(window, captured.join(''), 'بسته گزارش');
   };
@@ -10083,6 +10113,108 @@ input,select,textarea{max-width:100%}
         var dead = function () { route('sv:dash'); };
         dead.__sv45 = 1;
         window._v14Go = dead;
+      }
+    } catch (e) {}
+  }, 700);
+})();
+</script>
+<script id="df-fix46">
+/* df-fix46 — print finisher for report fragments (his package-print batch, 2026-11-25):
+   (1) header/footer bands FIXED on every printed page — the flow footer that used
+       to land right under the content is removed;
+   (2) only شرح / ملاحظات (and band/label) cells may wrap — numbers, units, codes
+       and every other cell stay on ONE line;
+   (3) Latin digits inside tables become Persian, like the rest of the app;
+   (4) the older r23 reports are normalised to the official scale (font, padding,
+       signature boxes) so every sheet in a package looks uniform;
+   (5) package pagination is chosen up front: هر گزارش صفحه جدا / پشت سر هم. */
+(function () {
+  'use strict';
+  var FA = '۰۱۲۳۴۵۶۷۸۹';
+  function faDigits(s) { return s.replace(/[0-9]/g, function (c) { return FA[+c]; }); }
+  function escH(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  var CSS = '<style id="df46css">' +
+    '.dffx-h,.dffx-f{position:fixed;left:0;right:0;display:flex;justify-content:space-between;align-items:center;font-family:\'B Nazanin\',\'B Mitra\',Vazirmatn,Tahoma,serif;font-size:11px;color:#000;z-index:5}' +
+    '.dffx-h{top:0;border-bottom:1.4px solid #000;padding:0 1mm 1mm}' +
+    '.dffx-f{bottom:0;border-top:1.4px solid #000;padding:1mm 1mm 0}' +
+    'td.nw,th.nw{white-space:nowrap!important}td.wp,th.wp{white-space:normal!important}' +
+    'table.r23{font-family:\'B Nazanin\',\'B Mitra\',Vazirmatn,Tahoma,serif!important}' +
+    'table.r23 td,table.r23 th{font-size:12.5px!important;padding:5px 7px!important;line-height:1.7!important}' +
+    'table.r23-sig td{height:22mm!important;max-height:22mm!important;padding:2mm!important}' +
+    '.pkg-cont .page,.page.pkg-cont{page-break-after:auto!important}' +
+    '@page{margin-top:11mm!important;margin-bottom:11mm!important}' +
+    '@page{@bottom-left{content:"صفحه: " counter(page);font-size:10px}}' +
+    '@page ls{@bottom-left{content:"صفحه: " counter(page);font-size:10px}}' +
+    '</style>';
+  var T5_MARGIN = '@page{margin-top:11mm!important;margin-bottom:11mm!important}';
+  function transform(html) {
+    if (!html || html.indexOf('<table') < 0) return html;
+    try {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var body = doc.body; if (!body) return html;
+      /* (3) Persian digits in text nodes (never inside style/script) */
+      var walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT, { acceptNode: function (n) { var p = n.parentNode; while (p && p !== body) { if (p.tagName === 'STYLE' || p.tagName === 'SCRIPT') return NodeFilter.FILTER_REJECT; p = p.parentNode; } return /[0-9]/.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP; } });
+      var nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach(function (n) { n.nodeValue = faDigits(n.nodeValue); });
+      /* (2) wrap policy per column */
+      body.querySelectorAll('table').forEach(function (tb) {
+        var rows = tb.querySelectorAll('tr'); if (!rows.length) return;
+        var wrapCols = {};
+        Array.prototype.forEach.call(rows[0].children, function (c, i) { if (/شرح|ملاحظات|توضیحات/.test(c.textContent)) wrapCols[i] = 1; });
+        rows.forEach(function (tr, ri) {
+          Array.prototype.forEach.call(tr.children, function (c, i) {
+            if (c.tagName !== 'TD' && c.tagName !== 'TH') return;
+            if (wrapCols[i] || (ri > 0 && c.colSpan && c.colSpan > 1)) c.classList.add('wp'); else c.classList.add('nw');
+          });
+        });
+      });
+      /* (1) flow footers out, fixed bands in */
+      body.querySelectorAll('.foot').forEach(function (el) { el.remove(); });
+      var proj = '';
+      try { var pr = (db.projects || []).find(function (x) { return x.id === activeId; }); proj = pr ? pr.name : ''; } catch (e) {}
+      /* (5) pagination: separate mode forces a break after each report root;
+             continuous mode lets sections flow */
+      var tops = Array.prototype.filter.call(body.children, function (el) { return el.tagName !== 'STYLE'; });
+      if (window.__pgMode === 'cont') tops.forEach(function (el) { if (el.classList) el.classList.add('pkg-cont'); });
+      else tops.forEach(function (el, i) { if (i < tops.length - 1) el.style.pageBreakAfter = 'always'; });
+      var bands = '<div class="dffx-h"><span>گروه فنی و مهندسی پشتیبان</span><span>' + escH(proj) + '</span></div>' +
+        '<div class="dffx-f"><span>گروه فنی و مهندسی پشتیبان</span><span>دفتر فنی</span></div>';
+      var css = CSS; if (html.indexOf('t5p') >= 0) css = css.split(T5_MARGIN).join('');
+      body.insertAdjacentHTML('beforeend', bands + css);
+      return body.innerHTML;
+    } catch (e) { return html; }
+  }
+  window.__df46 = { transform: transform };
+  /* pagination choice (persisted) */
+  try { window.__pgMode = localStorage.getItem('df_pgmode') || 'sep'; } catch (e) { window.__pgMode = 'sep'; }
+  window.__df46pg = function (v) { window.__pgMode = v; try { localStorage.setItem('df_pgmode', v); } catch (e) {} };
+  function pgRow(name) {
+    return '<div class="mb-tools df46-pg" style="gap:10px;align-items:center"><span>صفحه‌بندی:</span>' +
+      '<label style="display:flex;gap:4px;align-items:center"><input type="radio" name="' + name + '" value="sep" style="width:auto" ' + (window.__pgMode === 'sep' ? 'checked' : '') + ' onchange="window.__df46pg(\'sep\')"> هر گزارش صفحه جدا</label>' +
+      '<label style="display:flex;gap:4px;align-items:center"><input type="radio" name="' + name + '" value="cont" style="width:auto" ' + (window.__pgMode === 'cont' ? 'checked' : '') + ' onchange="window.__df46pg(\'cont\')"> پشت سر هم</label></div>';
+  }
+  function addPgRow(dlg, name) {
+    if (!dlg || dlg.querySelector('.df46-pg')) return;
+    var btns = null;
+    dlg.querySelectorAll('button').forEach(function (b) { if (/نمایش|چاپ بسته/.test(b.textContent)) btns = b.parentElement; });
+    if (btns) btns.insertAdjacentHTML('beforebegin', pgRow(name));
+  }
+  setInterval(function () {
+    try {
+      if (typeof window.showPreview === 'function' && !window.showPreview.__df46) {
+        var orig = window.showPreview;
+        var w = function (html, title) { return orig.call(window, transform(html), title); };
+        w.__df46 = 1; window.showPreview = w;
+      }
+      if (window.AN23 && AN23.open && !AN23.__df46ui) {
+        var oo = AN23.open;
+        AN23.open = function () { var r = oo.apply(this, arguments); setTimeout(function () { addPgRow(document.getElementById('an23Dlg'), 'df46pgA'); }, 60); return r; };
+        AN23.__df46ui = 1;
+      }
+      if (window.AN30 && AN30.openPkg && !AN30.__df46ui) {
+        var op = AN30.openPkg;
+        AN30.openPkg = function () { var r = op.apply(this, arguments); setTimeout(function () { addPgRow(document.getElementById('an30Dlg'), 'df46pgP'); }, 60); return r; };
+        AN30.__df46ui = 1;
       }
     } catch (e) {}
   }, 700);
