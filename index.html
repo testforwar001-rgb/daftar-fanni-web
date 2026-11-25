@@ -8226,6 +8226,120 @@ input,select,textarea{max-width:100%}
   setTimeout(function () { clearInterval(iv); }, 30000);
 })();
 </script>
+<script id="df-fix26">
+/* df-fix26 (final32): «بالاسری» tab inside the ضرایب section (his request
+   2026-11-25). He enters the overhead items with their percentages; the
+   unit coefficient is the CASCADING product he chose: each percentage
+   applies on the amount already increased by the previous ones —
+   ضریب واحد = Π(1 + p/100)  (e.g. 10% then 20% → 1.10 × 1.20 = 1.32).
+   Data: db.mb[contractId].overhead = {items:[{id,name,pct}]}.
+   «ثبت در فهرست ضرایب» registers/updates ONE coefficient titled «بالاسری»
+   (type کلی, side پیشنهاد) in d.coefs — applying it stays with the
+   ضرایب page's own ثبت flow («آیا اعمال شود؟»). */
+(function () {
+  'use strict';
+  var W = { tab: 'coef' };
+  window.AN26 = W;
+  function D() { try { return (typeof db !== 'undefined' && db && db.mb && activeProject) ? (db.mb[activeProject] || null) : null; } catch (e) { return null; } }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function faNum(x, dec) {
+    var s = (Math.round(x * Math.pow(10, dec)) / Math.pow(10, dec)).toFixed(dec);
+    return s.replace(/[0-9]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'[+c]; }).replace('.', '٫');
+  }
+  function num(v) { var n = parseFloat(String(v == null ? '' : v).replace(/[۰-۹]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c); }).replace(/٫/g, '.').replace(/,/g, '')); return isNaN(n) ? 0 : n; }
+  function oh(d) {
+    if (!d.overhead) d.overhead = { items: ['سود', 'هزینه‌های دفتر مرکزی', 'بیمان', 'بیمه', 'مالیات و عوارض', 'هزینه‌های بانکی و تضامین', 'هزینه‌های پیش‌بینی‌نشده'].map(function (n, i) { return { id: 'oh' + i, name: n, pct: 0 }; }) };
+    if (!Array.isArray(d.overhead.items)) d.overhead.items = [];
+    return d.overhead;
+  }
+  function product(d) { return oh(d).items.reduce(function (p, it) { return p * (1 + num(it.pct) / 100); }, 1); }
+  function tabsHtml() {
+    return '<div class="an26-tabs" style="display:flex;gap:.4rem;margin-bottom:.7rem">' +
+      '<button class="btn' + (W.tab === 'coef' ? ' primary' : '') + '" onclick="AN26.showCoef()">فهرست ضرایب پروژه</button>' +
+      '<button class="btn' + (W.tab === 'oh' ? ' primary' : '') + '" onclick="AN26.showOH()">بالاسری</button></div>';
+  }
+  W.showCoef = function () { W.tab = 'coef'; if (W._orig) W._orig(); injectTabs(); };
+  W.showOH = function () { W.tab = 'oh'; page(); };
+  function injectTabs() {
+    var mb = document.querySelector('#moduleBody');
+    if (!mb || mb.querySelector('.an26-tabs')) return;
+    var div = document.createElement('div');
+    div.innerHTML = tabsHtml();
+    mb.insertBefore(div.firstChild, mb.firstChild);
+  }
+  function page() {
+    var mb = document.querySelector('#moduleBody'); if (!mb) return;
+    var d = D();
+    if (!d) { mb.innerHTML = tabsHtml() + '<div class="notice">ابتدا پروژه و پیمان را انتخاب کنید.</div>'; return; }
+    var o = oh(d);
+    var run = 1, sumPct = 0;
+    var rows = o.items.map(function (it, i) {
+      var p = num(it.pct); sumPct += p; run *= (1 + p / 100);
+      return '<tr><td>' + (i + 1) + '</td>' +
+        '<td><input value="' + esc(it.name) + '" oninput="AN26.f(' + i + ',\'name\',this.value)" style="width:100%"></td>' +
+        '<td><input type="number" step="0.01" class="an26-pct" value="' + (it.pct == null ? '' : it.pct) + '" oninput="AN26.f(' + i + ',\'pct\',this.value)" style="width:90px"></td>' +
+        '<td class="an26-part">' + faNum(1 + p / 100, 4) + '</td>' +
+        '<td class="an26-run">' + faNum(run, 4) + '</td>' +
+        '<td><button class="btn danger" onclick="AN26.del(' + i + ')">✕</button></td></tr>';
+    }).join('');
+    mb.innerHTML = tabsHtml() +
+      '<div style="font-weight:700;font-size:1.05rem;margin-bottom:.2rem">آنالیز ضریب بالاسری</div>' +
+      '<p class="muted" style="margin:.1rem 0 .6rem">هر درصد روی مبلغِ افزایش‌یافته با درصدهای قبلی حساب می‌شود (ضرب متوالی). ضریب واحد = حاصل‌ضرب (۱ + درصد) همه آیتم‌ها.</p>' +
+      '<div class="mb-wrap"><table class="mb-grid"><thead><tr><th>ردیف</th><th>شرح آیتم بالاسری</th><th>درصد</th><th>ضریب جزئی</th><th>ضریب تجمعی</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="mb-tools" style="margin-top:.6rem"><button class="btn" onclick="AN26.add()">＋ آیتم تازه</button></div>' +
+      '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:.8rem">' +
+      '<div class="k" style="border:1px solid var(--hatch-widget-border,#ccc);border-radius:10px;padding:.6rem 1rem">مجموع ساده درصدها<b id="an26Sum" style="display:block;font-size:1.1rem">' + faNum(sumPct, 2) + '٪</b></div>' +
+      '<div class="k" style="border:2px solid #2e7d32;border-radius:10px;padding:.6rem 1rem">ضریب واحد بالاسری<b id="an26Coef" style="display:block;font-size:1.3rem">' + faNum(run, 4) + '</b></div></div>' +
+      '<div class="mb-tools" style="margin-top:.8rem"><button class="btn primary" onclick="AN26.register()">✔ ثبت ضریب بالاسری در فهرست ضرایب</button>' +
+      '<span class="muted">اعمال روی ردیف‌ها از همان صفحه ضرایب با دکمه ثبت انجام می‌شود.</span></div>';
+  }
+  W.f = function (i, f, v) {
+    var d = D(); if (!d) return;
+    var it = oh(d).items[i]; if (!it) return;
+    it[f] = (f === 'pct') ? v : v;
+    save();
+    if (f === 'pct') W.calc();
+  };
+  W.calc = function () {
+    var d = D(); if (!d) return;
+    var inputs = document.querySelectorAll('.an26-pct');
+    var run = 1, sum = 0;
+    var parts = document.querySelectorAll('.an26-part'), runs = document.querySelectorAll('.an26-run');
+    inputs.forEach(function (inp, i) {
+      var p = num(inp.value); sum += p; run *= (1 + p / 100);
+      if (parts[i]) parts[i].textContent = faNum(1 + p / 100, 4);
+      if (runs[i]) runs[i].textContent = faNum(run, 4);
+    });
+    var c = document.getElementById('an26Coef'); if (c) c.textContent = faNum(run, 4);
+    var s = document.getElementById('an26Sum'); if (s) s.textContent = faNum(sum, 2) + '٪';
+  };
+  W.add = function () { var d = D(); if (!d) return; oh(d).items.push({ id: 'oh' + Date.now().toString(36), name: '', pct: 0 }); save(); page(); };
+  W.del = function (i) { var d = D(); if (!d) return; oh(d).items.splice(i, 1); save(); page(); };
+  W.register = function () {
+    var d = D(); if (!d) return;
+    var val = Math.round(product(d) * 10000) / 10000;
+    d.coefs = d.coefs || [];
+    var c = d.coefs.find(function (x) { return x.title === 'بالاسری'; });
+    if (!c) {
+      c = { id: 'cf' + Date.now().toString(36), title: 'بالاسری', val: val, type: 'کلی', kk: ['ف', 'ج', '*'], pk: [], rowsKind: 'همه', bp: ['پیشنهاد'], noSec: true, scope: { raste: [], reshte: [], fasl: [], sec: [] }, applied: false };
+      d.coefs.push(c);
+    } else { c.val = val; c.applied = false; }
+    d.overhead.coef = val;
+    save();
+    toast('ضریب بالاسری ' + faNum(val, 4) + ' در فهرست ضرایب ثبت شد.');
+  };
+  /* wrap the ضرایب page tab + keep the tab bar after in-page re-renders */
+  var iv = setInterval(function () {
+    if (typeof TABS !== 'undefined' && TABS['mb:coef'] && !W._orig) {
+      W._orig = TABS['mb:coef'];
+      TABS['mb:coef'] = function () { W.tab = 'coef'; var r = W._orig.apply(this, arguments); injectTabs(); return r; };
+    }
+    var mb = document.querySelector('#moduleBody');
+    if (mb && W.tab === 'coef' && !mb.querySelector('.an26-tabs') && mb.querySelector('[onclick*="cAdd"]')) injectTabs();
+  }, 700);
+  setTimeout(function () { /* keep the injector for the session */ }, 0);
+})();
+</script>
 
 
 </body></html>
