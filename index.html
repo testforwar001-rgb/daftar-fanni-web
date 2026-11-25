@@ -7900,6 +7900,311 @@ input,select,textarea{max-width:100%}
   }
 })();
 </script>
+<script id="df-fix23">
+/* df-fix23 (final27): «گزارشات برآورد» — the analysis reports section, the
+   تدکار 17-item radio dialog (his words 2026-11-25: «بریم قسمت گزارش
+   آنالیز»): دفترچه فهرست مقادیر، خلاصه‌های مالی (رشته‌ها/کل/بخش‌ها)، جداول
+   الف/ب/پ (بخشنامه ۱۰۰/۷۶۵۷۴)، جداول ۱ تا ۶ (بخشنامه ۹۶/۱۲۳۲۵۷۹) + فرم‌های
+   خام، و مقایسه‌های برآورد و پیشنهاد. Every report prints (A4, dir=rtl,
+   shared signature selection) and exports to Excel. */
+(function () {
+  'use strict';
+  function num(v) { try { return pn(v); } catch (e) { var n = parseFloat(String(v == null ? '' : v).replace(/[۰-۹]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c); }).replace(/,/g, '')); return isFinite(n) ? n : 0; } }
+  function E(s) { try { return esc(s == null ? '' : s); } catch (e) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); } }
+  function fmtM(n) { try { return faR(n); } catch (e) { return String(Math.round(Number(n) || 0)); } }
+  function fmtQ(n) { return (Number(n) || 0).toLocaleString('fa-IR', { maximumFractionDigits: 4 }); }
+  function fmtP(n) { return (Number(n) || 0).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function T(m, err) { try { toast(m, err); } catch (e) {} }
+  function D() {
+    if (typeof db === 'undefined' || typeof activeProject === 'undefined' || !activeProject) return null;
+    db.mb = db.mb || {};
+    var d = db.mb[activeProject];
+    if (!d) return null;
+    d.fac = d.fac || {}; d.price = d.price || {};
+    return d;
+  }
+  var A = window.AN16;
+  if (!A) return;
+  var W = { sel: 1 };
+  window.AN23 = W;
+  var GROUPS = ['نیروی انسانی', 'ماشین‌آلات', 'مصالح', 'حمل'];
+  var BANK_RESH = { bk_abn: 'ابنیه', bk_mech: 'تأسیسات مکانیکی', bk_elec: 'تأسیسات برقی' };
+  var REPORTS = ['دفترچه فهرست مقادیر', 'خلاصه مالی رشته‌ها', 'خلاصه مالی کل', 'خلاصه مالی کلی بخش‌ها',
+    'جدول الف (بخشنامه ۱۰۰/۷۶۵۷۴)', 'جدول ب (بخشنامه ۱۰۰/۷۶۵۷۴)', 'جدول پ (بخشنامه ۱۰۰/۷۶۵۷۴)',
+    'جدول ۱ (بخشنامه ۹۶/۱۲۳۲۵۷۹)', 'جدول ۲ (بخشنامه ۹۶/۱۲۳۲۵۷۹)', 'جدول ۳ (بخشنامه ۹۶/۱۲۳۲۵۷۹)', 'جدول ۴ (بخشنامه ۹۶/۱۲۳۲۵۷۹)',
+    'جدول ۵ (بخشنامه ۹۶/۱۲۳۲۵۷۹)', 'جدول ۵ (فرم خام)', 'جدول ۶ (بخشنامه ۹۶/۱۲۳۲۵۷۹)', 'جدول ۶ (فرم خام)',
+    'مقایسه بهای واحد برآورد و پیشنهاد', 'مقایسه کلی برآورد و پیشنهاد'];
+  function bankItem(code) {
+    var m = db.mod || {};
+    for (var k in BANK_RESH) { var l = m[k] || []; for (var i = 0; i < l.length; i++) if (String(l[i].code).trim() === String(code).trim()) return { desc: l[i].desc || '', unit: l[i].unit || '', price: num(l[i].price), bank: k }; }
+    return null;
+  }
+  function evalRowLite(r) {
+    var f = String(r.formula || 'N*X*Y*Z+W').toUpperCase().replace(/\s+/g, '');
+    if (!/^[NXYZW0-9.+\-*/() ]+$/.test(f)) return 0;
+    var ex = f.replace(/[NXZWY]/g, function (L) { var v = r[L]; var n = (v === '' || v == null) ? (L === 'W' ? 0 : 1) : num(v); return '(' + (isFinite(n) ? n : 0) + ')'; });
+    try { var o = Function('return (' + ex + ')')(); return isFinite(o) ? o : 0; } catch (e) { return 0; }
+  }
+  function items(d) {
+    var map = {}, order = [];
+    (d.rows || []).forEach(function (r) {
+      var code = String(r.code || '').trim(); if (!code) return;
+      var key = code + '|' + (r.fj || 'ف');
+      if (!map[key]) { map[key] = { key: key, code: code, fj: r.fj || 'ف', qty: 0, secs: {} }; order.push(map[key]); }
+      map[key].qty += evalRowLite(r);
+      if (r.sec) map[key].secs[r.sec] = 1;
+    });
+    order.forEach(function (o) {
+      var bi = bankItem(o.code);
+      var st = (d.stars || []).find(function (s) { return String(s.code).trim() === o.code; });
+      o.desc = bi ? bi.desc : (st ? (st.desc || '') : '');
+      o.unit = bi ? bi.unit : (st ? (st.unit || '') : '');
+      o.reshte = bi ? BANK_RESH[bi.bank] : 'ستاره‌دار';
+      o.bank = bi ? bi.bank : null;
+      o.listPrice = bi ? bi.price : (st ? num(st.price) : 0);
+      var pr = d.price[o.key] || {};
+      o.b = pr.b != null ? num(pr.b) : o.listPrice;
+      o.p = pr.p != null ? num(pr.p) : o.b;
+      o.coefB = pr.coefB != null ? num(pr.coefB) : 1;
+      o.coefP = pr.coefP != null ? num(pr.coefP) : 1;
+      o.amtB = o.qty * o.b * o.coefB;
+      o.amtP = o.qty * o.p * o.coefP;
+      o.chapter = o.bank === 'bk_abn' ? o.code.slice(0, 2) : (o.bank ? o.code.slice(2, 4) : '');
+    });
+    return order;
+  }
+  function projName() {
+    var p = (db.projects || []).find(function (x) { return x.id === (typeof activeId !== 'undefined' ? activeId : null); });
+    return p ? (p.name || '') : '';
+  }
+  function todayFa() { try { return new Date().toLocaleDateString('fa-IR'); } catch (e) { return ''; } }
+  var SIGROLES = [['sigCon', 'sigConN', 'پیمانکار'], ['sigSup', 'sigSupN', 'ناظر'], ['sigCons', 'sigConsN', 'مشاور'], ['sigEmp', 'sigEmpN', 'کارفرما'], ['sigMgmt', 'sigMgmtN', 'مدیریت طرح']];
+  function sigSel(d) {
+    var s = (d.rpt && d.rpt.riz) || {};
+    return SIGROLES.filter(function (x) { return s[x[0]] == null ? true : !!s[x[0]]; }).map(function (x) { return { t: x[2], n: s[x[1]] || '' }; });
+  }
+  function sigTable(d) {
+    var sigs = sigSel(d);
+    if (!sigs.length) return '';
+    return '<table class="r23 r23-sig"><tr>' + sigs.map(function (sg) { return '<td><div>' + E(sg.t) + '</div>' + (sg.n ? '<div class="sgn">' + E(sg.n) + '</div>' : '') + '</td>'; }).join('') + '</tr></table>';
+  }
+  var CSS = '<style>table.r23{width:100%;border-collapse:collapse;font-family:Tahoma,sans-serif;font-size:11.5px;color:#000}table.r23 td,table.r23 th{border:1px solid #666;padding:3.5px 5px;text-align:center}table.r23 th{background:#bfbfbf}table.r23 .band td{background:#d9d9d9;font-weight:bold;text-align:right}table.r23 .tot td{background:#dde7ea;font-weight:bold}table.r23 .rt{text-align:right}.r23-h{font-family:Tahoma,sans-serif;color:#000;display:flex;justify-content:space-between;align-items:center;border:1.6px solid #000;border-radius:9px;padding:3mm 4mm;margin-bottom:3mm}.r23-h .t{font-size:15px;font-weight:bold}table.r23-sig{margin-top:8mm}table.r23-sig td{height:22mm;vertical-align:bottom}.sgn{font-size:10.5px;margin-top:1mm}</style>';
+  function frame(d, title, inner) {
+    return '<div dir="rtl" style="background:#fff;padding:6mm;font-family:Tahoma,sans-serif">' + CSS +
+      '<div class="r23-h"><div>موضوع کار: ' + E(projName()) + '</div><div class="t">' + E(title) + '</div><div>تاریخ گزارش: ' + E(todayFa()) + '</div></div>' +
+      inner + sigTable(d) + '</div>';
+  }
+  function tbl(headers, rowsHtml) {
+    return '<table class="r23"><thead><tr>' + headers.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>' + rowsHtml + '</tbody></table>';
+  }
+  function totRow(label, b, p, cols) {
+    var pct = b ? ((p / b) - 1) * 100 : 0;
+    return '<tr class="tot"><td colspan="' + (cols || 1) + '">' + label + '</td><td>' + fmtM(b) + '</td><td>' + fmtM(p) + '</td><td>' + fmtP(pct) + '٪</td></tr>';
+  }
+  /* ---------- report builders: return {title, headers, rows:[[..]], html} ---------- */
+  function groupBy(list, fn) { var m = {}, o = []; list.forEach(function (x) { var k = fn(x); if (!m[k]) { m[k] = []; o.push(k); } m[k].push(x); }); return o.map(function (k) { return { k: k, rows: m[k] }; }); }
+  function build(n, d) {
+    var its = items(d);
+    var TB = its.reduce(function (s, r) { return s + r.amtB; }, 0);
+    var TP = its.reduce(function (s, r) { return s + r.amtP; }, 0);
+    if (n === 1 || n === 10) {
+      var rows = [], i = 0;
+      groupBy(its, function (r) { return r.reshte; }).forEach(function (g) {
+        rows.push(['—', 'رشته: ' + g.k, '', '', '', '', '', '', '']);
+        g.rows.forEach(function (r) { i++; rows.push([i, r.code, r.desc, r.unit, fmtQ(r.qty), fmtM(r.b), fmtM(r.amtB), fmtM(r.p), fmtM(r.amtP)]); });
+        var gb = g.rows.reduce(function (s, r) { return s + r.amtB; }, 0), gp = g.rows.reduce(function (s, r) { return s + r.amtP; }, 0);
+        rows.push(['', 'جمع ' + g.k, '', '', '', '', fmtM(gb), '', fmtM(gp)]);
+      });
+      rows.push(['', 'جمع کل', '', '', '', '', fmtM(TB), '', fmtM(TP)]);
+      return { headers: ['ردیف', 'شماره ردیف', 'شرح', 'واحد', 'مقدار', 'بهای واحد برآورد', 'مبلغ برآورد', 'بهای واحد پیشنهاد', 'مبلغ پیشنهاد'], rows: rows };
+    }
+    if (n === 2 || n === 5 || n === 17) {
+      var rows2 = groupBy(its, function (r) { return r.reshte; }).map(function (g) {
+        var gb = g.rows.reduce(function (s, r) { return s + r.amtB; }, 0), gp = g.rows.reduce(function (s, r) { return s + r.amtP; }, 0);
+        return [g.k, fmtM(gb), fmtM(gp), fmtP(gb ? ((gp / gb) - 1) * 100 : 0) + '٪'];
+      });
+      rows2.push(['جمع کل', fmtM(TB), fmtM(TP), fmtP(TB ? ((TP / TB) - 1) * 100 : 0) + '٪']);
+      return { headers: ['رشته', 'مبلغ برآورد', 'مبلغ پیشنهاد', '٪ اضافه یا تخفیف'], rows: rows2 };
+    }
+    if (n === 3 || n === 7) {
+      return { headers: ['شرح', 'مبلغ برآورد', 'مبلغ پیشنهاد', '٪ اضافه یا تخفیف'], rows: [
+        ['جمع فهرست‌بها و ردیف‌های ستاره‌دار', fmtM(TB), fmtM(TP), fmtP(TB ? ((TP / TB) - 1) * 100 : 0) + '٪'],
+        ['جمع کل', fmtM(TB), fmtM(TP), fmtP(TB ? ((TP / TB) - 1) * 100 : 0) + '٪']] };
+    }
+    if (n === 4) {
+      var secMap = {};
+      (d.rows || []).forEach(function (r) {
+        var code = String(r.code || '').trim(); if (!code) return;
+        var key = code + '|' + (r.fj || 'ف');
+        var it = its.find(function (x) { return x.key === key; }); if (!it) return;
+        var sec = r.sec || 'بدون بخش';
+        if (!secMap[sec]) secMap[sec] = { b: 0, p: 0 };
+        var q = evalRowLite(r);
+        secMap[sec].b += q * it.b * it.coefB;
+        secMap[sec].p += q * it.p * it.coefP;
+      });
+      var rows4 = Object.keys(secMap).map(function (s) { var v = secMap[s]; return [s, fmtM(v.b), fmtM(v.p), fmtP(v.b ? ((v.p / v.b) - 1) * 100 : 0) + '٪']; });
+      rows4.push(['جمع کل', fmtM(TB), fmtM(TP), fmtP(TB ? ((TP / TB) - 1) * 100 : 0) + '٪']);
+      return { headers: ['بخش', 'مبلغ برآورد', 'مبلغ پیشنهاد', '٪ اضافه یا تخفیف'], rows: rows4 };
+    }
+    if (n === 6 || n === 9 || n === 11) {
+      var rows6 = groupBy(its.filter(function (r) { return r.chapter; }), function (r) { return r.reshte + ' — فصل ' + r.chapter; }).map(function (g) {
+        var gb = g.rows.reduce(function (s, r) { return s + r.amtB; }, 0), gp = g.rows.reduce(function (s, r) { return s + r.amtP; }, 0);
+        return [g.k, fmtM(gb), fmtM(gp), fmtP(gb ? ((gp / gb) - 1) * 100 : 0) + '٪'];
+      });
+      rows6.push(['جمع کل', fmtM(TB), fmtM(TP), fmtP(TB ? ((TP / TB) - 1) * 100 : 0) + '٪']);
+      return { headers: ['رشته — فصل', 'مبلغ برآورد', 'مبلغ پیشنهاد', '٪ اضافه یا تخفیف'], rows: rows6 };
+    }
+    if (n === 8) {
+      return { headers: ['مشخصه', 'مقدار'], rows: [
+        ['نام پروژه', projName()], ['جمع مبلغ برآورد', fmtM(TB)], ['جمع مبلغ پیشنهاد', fmtM(TP)],
+        ['٪ اضافه یا تخفیف کلی', fmtP(TB ? ((TP / TB) - 1) * 100 : 0) + '٪'],
+        ['تعداد ردیف‌های برآورد', String(its.length)], ['تاریخ گزارش', todayFa()]] };
+    }
+    if (n === 16) {
+      var rows16 = its.map(function (r, ix) {
+        return [ix + 1, r.code, r.desc, r.unit, fmtM(r.b), fmtM(r.p), fmtM(r.p - r.b), fmtP(r.b ? ((r.p / r.b) - 1) * 100 : 0) + '٪'];
+      });
+      return { headers: ['ردیف', 'شماره ردیف', 'شرح', 'واحد', 'بهای واحد برآورد', 'بهای واحد پیشنهاد', 'اختلاف', '٪ اضافه یا تخفیف'], rows: rows16 };
+    }
+    if (n === 14) {
+      var agg = {}, order = [];
+      its.forEach(function (r) {
+        (d.fac[r.key] || []).forEach(function (f) {
+          var code = String(f.code || '').trim(); if (!code) return;
+          if (!agg[code]) { agg[code] = { code: code, desc: f.desc || '', unit: f.unit || '', g: f.g || '', qtyTot: 0, price: num(f.price), bp: f.bp != null ? num(f.bp) : num(f.price) }; order.push(agg[code]); }
+          agg[code].qtyTot += num(f.qty) * (num(f.coef) || 1) * r.qty;
+          if (num(f.price)) agg[code].price = num(f.price);
+        });
+      });
+      var rows14 = [];
+      GROUPS.forEach(function (g) {
+        var gl = order.filter(function (x) { return x.g === g; });
+        if (!gl.length) return;
+        rows14.push(['', g, '', '', '', '', '', '']);
+        gl.forEach(function (x) { rows14.push([x.code, x.desc, x.unit, fmtQ(Math.round(x.qtyTot * 10000) / 10000), fmtM(x.bp), fmtM(x.price), fmtM(x.qtyTot * x.price)]); });
+      });
+      return { headers: ['کد عامل', 'شرح عامل', 'واحد', 'مقدار عامل در کل', 'بهای واحد پایه', 'بهای واحد پیشنهادی', 'بهای کل عامل'], rows: rows14 };
+    }
+    return null;
+  }
+  function rowsToHtml(rep) {
+    return rep.rows.map(function (r) {
+      var isBand = r.length > 1 && r[0] === '' && r[1] && (String(r[1]).indexOf('رشته:') === 0 || GROUPS.indexOf(r[1]) >= 0);
+      var isTot = r[0] === 'جمع کل' || (r[1] && String(r[1]).indexOf('جمع') === 0);
+      return '<tr' + (isBand ? ' class="band"' : (isTot ? ' class="tot"' : '')) + '>' + r.map(function (c, ix) { return '<td' + (ix === 2 || ix === 1 ? ' class="rt"' : '') + '>' + E(c) + '</td>'; }).join('') + '</tr>';
+    }).join('');
+  }
+  function t5Page(d, key, blank) {
+    /* one Table-5 page (same layout as df-fix19 printOne), optionally blank */
+    var its = items(d);
+    var row = key ? its.find(function (r) { return r.key === key; }) : null;
+    var list = (!blank && row) ? (d.fac[key] || []).slice().sort(function (a, b) { return GROUPS.indexOf(a.g) - GROUPS.indexOf(b.g); }) : [];
+    var total = 0, body = '';
+    GROUPS.forEach(function (g) {
+      var gl = list.filter(function (x) { return x.g === g; });
+      if (!gl.length && !blank) return;
+      body += '<tr class="gb"><td></td><td>کد عامل</td><td colspan="7" style="text-align:right">' + E(g) + '</td></tr>';
+      var gs = 0;
+      gl.forEach(function (x, i) {
+        var amt = num(x.qty) * num(x.price) * (num(x.coef) || 1);
+        gs += amt;
+        body += '<tr><td>' + (i + 1) + '</td><td>' + E(x.code) + '</td><td style="text-align:right">' + E(x.desc || '') + '</td><td>' + E(x.unit || '') + '</td><td></td><td>' + fmtQ(x.qty) + '</td><td>' + fmtM(x.price) + '</td><td>' + fmtP(num(x.coef) || 1) + '</td><td>' + fmtM(amt) + '</td></tr>';
+      });
+      if (blank) for (var i2 = 0; i2 < 4; i2++) body += '<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+      total += gs;
+      body += '<tr class="sm"><td colspan="8">جمع ' + E(g) + '</td><td>' + (blank ? '' : fmtM(gs)) + '</td></tr>';
+    });
+    var lp = row ? row.listPrice : 0;
+    var pct = lp ? (((total / lp) - 1) * 100) : 0;
+    var sigs = sigSel(d);
+    var sigCells = sigs.map(function (sg) { return '<td><div>' + E(sg.t) + '</div>' + (sg.n ? '<div class="sgn">' + E(sg.n) + '</div>' : '') + '</td>'; }).join('');
+    return '<section class="page t5p"><div class="t5-frame">' +
+      '<div class="t5-hbox"><div class="t5-hr"><div>موضوع کار: ' + E(projName()) + '</div><div>نام دستگاه اجرایی: </div></div>' +
+      '<div class="t5-hc">جدول ۵ ـ تجزیه بهای اقلام کار</div>' +
+      '<div class="t5-hl"><div>شماره صفحه: </div><div>تاریخ گزارش: ' + E(todayFa()) + '</div></div></div>' +
+      '<div class="t5-sec">بخش: ' + (row ? E(Object.keys(row.secs).join('، ')) : '') + '</div>' +
+      '<table class="t5"><tr><td colspan="9" class="band">شرح کار: ' + (row ? E(row.desc) : '') + ' &nbsp;|&nbsp; شماره ردیف فهرست بها: ' + (row ? E(row.code) : '') + '</td></tr>' +
+      '<tr><td colspan="9" class="inf">واحد: ' + (row ? E(row.unit) : '') + '</td></tr>' +
+      '<tr class="hd"><td>ردیف</td><td>کد عامل</td><td>شرح عامل</td><td>واحد</td><td>مقیاس</td><td>مقدار/مقیاس</td><td>بهای واحد</td><td>ضریب</td><td>بهای کل</td></tr>' +
+      body +
+      '<tr class="sm"><td colspan="8">جمع واحد کار</td><td>' + (blank ? '' : fmtM(total)) + '</td></tr>' +
+      '<tr class="sm"><td colspan="8">جمع بهای واحد ردیف</td><td>' + (blank ? '' : fmtM(lp)) + '</td></tr>' +
+      '<tr class="sm"><td colspan="8">٪ اضافه یا تخفیف</td><td>' + (blank ? '' : fmtP(pct)) + '</td></tr></table>' +
+      '<div class="t5-flex"></div>' +
+      (sigs.length ? '<table class="t5 t5-sig"><tr>' + sigCells + '</tr></table>' : '') +
+      '</div></section>';
+  }
+  var T5CSS = '<style>@page{size:A4 portrait;margin:0}section.page.t5p{width:210mm;height:297mm;padding:7mm;background:#fff;color:#000;font-family:Tahoma,sans-serif;font-size:11.5px;box-sizing:border-box;page-break-after:always}.t5-frame{border:2.4px solid #000;outline:1px solid #000;outline-offset:3px;height:100%;display:flex;flex-direction:column;padding:4.5mm;box-sizing:border-box}.t5-hbox{border:1.6px solid #000;border-radius:9px;display:flex;justify-content:space-between;align-items:center;padding:3mm 4mm;gap:4mm}.t5-hc{font-size:15.5px;font-weight:bold;text-align:center;flex:1}.t5-hr,.t5-hl{font-size:11px;line-height:2;min-width:52mm}.t5-hl{text-align:left}.t5-sec{padding:2mm 1mm 1mm;font-size:11px}table.t5{width:100%;border-collapse:collapse}table.t5 td{border:1px solid #666;padding:3.2px 5px;text-align:center}table.t5 .band{background:#d9d9d9;font-weight:bold;text-align:right}table.t5 .hd td{background:#bfbfbf;font-weight:bold}table.t5 tr.gb td{background:#d9d9d9;font-weight:bold}table.t5 tr.sm td{background:#dde7ea;font-weight:bold}table.t5 .inf{text-align:right}.t5-flex{flex:1}table.t5-sig td{height:24mm;vertical-align:bottom;padding-bottom:2.5mm}.sgn{font-size:10.5px;margin-top:1mm}@media print{section.page.t5p{margin:0!important;box-shadow:none!important}}</style>';
+  W.show = function (n) {
+    var d = D(); if (!d) return;
+    var title = REPORTS[n - 1];
+    if (n === 12 || n === 13) {
+      var its = items(d);
+      var pages = '';
+      if (n === 13) pages = t5Page(d, A.key, true);
+      else if (A.key) pages = t5Page(d, A.key, false);
+      else pages = its.filter(function (r) { return (d.fac[r.key] || []).length; }).map(function (r) { return t5Page(d, r.key, false); }).join('');
+      if (!pages) { T('ردیفی با آنالیز نیست.', 1); return; }
+      try { showPreview('<div dir="rtl">' + T5CSS + pages + '</div>', title); } catch (e) {}
+      return;
+    }
+    if (n === 15) {
+      var blankRep = { headers: ['کد عامل', 'شرح عامل', 'واحد', 'مقدار عامل در کل', 'بهای واحد پایه', 'بهای واحد پیشنهادی', 'بهای کل عامل'], rows: [] };
+      var blanks = '';
+      GROUPS.forEach(function (g) { blanks += '<tr class="band"><td colspan="7">' + g + '</td></tr>'; for (var i = 0; i < 6; i++) blanks += '<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>'; });
+      try { showPreview(frame(d, title, tbl(blankRep.headers, blanks)), title); } catch (e) {}
+      return;
+    }
+    var rep = build(n, d);
+    if (!rep) { T('این گزارش هنوز آماده نیست.', 1); return; }
+    try { showPreview(frame(d, title, tbl(rep.headers, rowsToHtml(rep))), title); } catch (e) {}
+  };
+  W.xls = function (n) {
+    var d = D(); if (!d) return;
+    var title = REPORTS[n - 1];
+    if (n === 12) { A.xlsAll(); return; }
+    if (n === 13 || n === 15) { T('فرم خام فقط چاپی است.', 1); return; }
+    var rep = build(n, d);
+    if (!rep) { T('این گزارش هنوز آماده نیست.', 1); return; }
+    var aoa = [[title], ['پروژه: ' + projName(), 'تاریخ: ' + todayFa()], rep.headers].concat(rep.rows);
+    try { dl(title + '.xlsx', makeXlsx([{ name: 'گزارش', aoa: aoa }]), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); } catch (e) { T('خطا در ساخت اکسل.', 1); }
+  };
+  W.open = function () {
+    var d = D(); if (!d) return;
+    var old = document.getElementById('an23Dlg');
+    if (old) old.remove();
+    var el = document.createElement('dialog');
+    el.id = 'an23Dlg';
+    el.className = 'mb-d';
+    el.style.cssText = 'max-width:min(480px,94vw);width:100%';
+    var radios = REPORTS.map(function (r, i) {
+      return '<label style="display:flex;gap:.5rem;align-items:center;padding:.32rem 0;border-bottom:1px dashed var(--border,#ddd)"><input type="radio" name="an23r" value="' + (i + 1) + '"' + (W.sel === i + 1 ? ' checked' : '') + ' style="width:auto"> ' + (i + 1) + '. ' + E(r) + '</label>';
+    }).join('');
+    el.innerHTML = '<div class="mb-card" style="margin:0"><h3 style="margin:.1rem 0 .5rem">📋 گزارشات برآورد</h3>' + radios +
+      '<div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.8rem;flex-wrap:wrap"><button class="btn" onclick="document.getElementById(\'an23Dlg\').close()">بستن</button><button class="btn" onclick="AN23.xlsSel()">📗 اکسل</button><button class="btn primary" onclick="AN23.showSel()">نمایش</button></div></div>';
+    document.body.appendChild(el);
+    el.showModal();
+  };
+  W.selVal = function () { var r = document.querySelector('input[name=an23r]:checked'); return r ? +r.value : W.sel; };
+  W.showSel = function () { W.sel = W.selVal(); var el = document.getElementById('an23Dlg'); if (el) { el.close(); el.remove(); } W.show(W.sel); };
+  W.xlsSel = function () { W.sel = W.selVal(); var el = document.getElementById('an23Dlg'); if (el) { el.close(); el.remove(); } W.xls(W.sel); };
+  function addBtn() {
+    var tools = document.querySelector('#moduleBody .an16-tools');
+    if (tools && !tools.querySelector('.an23-rptbtn')) {
+      var b = document.createElement('button');
+      b.className = 'btn an23-rptbtn';
+      b.textContent = '📋 گزارشات برآورد';
+      b.onclick = W.open;
+      tools.appendChild(b);
+    }
+  }
+  var oPage = A.page;
+  A.page = function () { var r = oPage.apply(this, arguments); addBtn(); return r; };
+  var oSheet = A.renderSheet;
+  A.renderSheet = function () { var r = oSheet.apply(this, arguments); addBtn(); return r; };
+})();
+</script>
 
 
 </body></html>
