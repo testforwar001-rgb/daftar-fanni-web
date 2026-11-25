@@ -9140,6 +9140,396 @@ input,select,textarea{max-width:100%}
   setTimeout(function () { clearInterval(iv); }, 30000);
 })();
 </script>
+<script id="df-fix32">
+/* df-fix32 (final37): کنترل پروژه (the separate «کنترل پروژه ستاره صبا»
+   app, B.html) integrated natively into the main app — his request
+   2026-11-25 «می خوام تلفیق بشه بیاد تو نرم افزار اصلی». Lives in the
+   «برنامه‌ریزی و کنترل پروژه» section, per PROJECT in db.pc[projectId]
+   (synced + backed up with everything else). B's own engine
+   (parseAct/model/parseFin/parseRes) is ported; data arrives via
+   import of B's «پشتیبان JSON» or of the B.html file itself, and can be
+   exported back in B's backup format. */
+(function () {
+  'use strict';
+  var W = { tab: 'dash' };
+  window.AN32 = W;
+  /* ---------- B engine (ported) ---------- */
+  function norm(s) { return String(s == null ? '' : s).replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[\u200c\s]+/g, ' ').trim(); }
+  function N(v) { return typeof v == 'number' ? v : (v != null && v !== '' && !isNaN(+v) ? +v : null); }
+  function jd(s) { var m = String(s == null ? '' : s).match(/(\d{3,4})[\/\-](\d{1,2})[\/\-](\d{1,2})/); return m ? [+m[1], +m[2], +m[3]] : null; }
+  function j2g(jy, jm, jd2) {
+    jy += 1595;
+    var days = -355668 + 365 * jy + ~~(jy / 33) * 8 + ~~(((jy % 33) + 3) / 4) + jd2 + (jm < 7 ? (jm - 1) * 31 : (jm - 7) * 30 + 186);
+    var gy = 400 * ~~(days / 146097); days %= 146097;
+    if (days > 36524) { gy += 100 * ~~(--days / 36524); days %= 36524; if (days >= 365) days++; }
+    gy += 4 * ~~(days / 1461); days %= 1461;
+    if (days > 365) { gy += ~~((days - 1) / 365); days = (days - 1) % 365; }
+    var gd = days + 1;
+    var sal = [0, 31, ((gy % 4 === 0 && gy % 100 !== 0) || gy % 400 === 0) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    var gm = 0; for (gm = 0; gm < 13; gm++) { var v = sal[gm]; if (gd <= v) break; gd -= v; }
+    return [gy, gm, gd];
+  }
+  function dn(a) { if (!a) return null; var g = j2g(a[0], a[1], a[2]); return Date.UTC(g[0], g[1] - 1, g[2]) / 864e5; }
+  function fl(f) { if (f == null || f === '') return 'نامشخص'; if (typeof f == 'number') return f > 0 ? 'طبقه ' + f : f < 0 ? 'منفی ' + (-f) : 'همکف'; var m = String(f).match(/^(\d+)-$/); return m ? 'منفی ' + m[1] : norm(f); }
+  function uk(u) { return norm(u).replace(/ /g, ''); }
+  function isoDn(s) { var m = String(s == null ? '' : s).match(/^(\d{4})-(\d\d)-(\d\d)/); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) / 864e5 : null; }
+  function parseAct(a) {
+    var rows = [], bad = [];
+    for (var i = 1; i < (a || []).length; i++) {
+      var r = a[i] || []; if (!r[14] && !r[8]) continue;
+      var j = jd(r[1]);
+      var o = { i: i + 1, j: r[1], g: r[6], con: r[5], front: r[8], item: r[9], id: r[10], wbs: r[11], floor: r[12], desc: r[14], total: N(r[15]), unit: r[16], done: N(r[17]) || 0, cum: N(r[18]), pct: N(r[19]), note: r[20] };
+      if (o.cum == null && o.pct != null && o.total) o.cum = o.pct * o.total;
+      if (o.pct == null && o.cum != null && o.total) o.pct = o.cum / o.total;
+      if (!j || !r[5]) { bad.push(o); continue; }
+      o.d = dn(j); rows.push(o);
+    }
+    return { rows: rows, bad: bad };
+  }
+  function model(rows, SET) {
+    rows = rows.slice().sort(function (a, b) { return a.d - b.d; });
+    var A = new Map();
+    rows.forEach(function (r) {
+      var k = norm(r.desc); var a = A.get(k);
+      if (!a) { a = { k: k, desc: k, front: norm(r.front) || 'نامشخص', item: norm(r.item), floor: fl(r.floor), con: norm(r.con), unit: uk(r.unit), id: r.id, total: r.total, pct: 0, cum: 0, first: r.d, last: r.d, hist: [] }; A.set(k, a); }
+      a.total = r.total || a.total; a.pct = r.pct == null ? a.pct : r.pct; a.cum = r.cum == null ? a.cum : r.cum; a.last = r.d; if (r.id) a.id = r.id; a.hist.push(r);
+    });
+    var fr = {};
+    A.forEach(function (a) { (fr[a.front] = fr[a.front] || { n: 0, s: 0 }).n++; });
+    var w = function (f) { return SET.w && SET.w[f] != null && SET.w[f] !== '' ? +SET.w[f] : fr[f].n; };
+    var fs = Object.keys(fr), Wsum = fs.reduce(function (s, f) { return s + w(f); }, 0) || 1;
+    var val = function () { return fs.reduce(function (s, f) { return s + w(f) * fr[f].s / fr[f].n; }, 0) / Wsum; };
+    var lt = new Map(), curve = [];
+    rows.forEach(function (r) {
+      var a = A.get(norm(r.desc)); if (!a) return;
+      var nw = Math.min(1, Math.max(0, r.pct || 0));
+      fr[a.front].s += nw - (lt.get(a.k) || 0); lt.set(a.k, nw);
+      var mk = r.j ? String(r.j).split('/').slice(0, 2).join('/') : '';
+      if (curve.length && curve[curve.length - 1][0] === r.d) { curve[curve.length - 1][1] = val(); curve[curve.length - 1][2] = mk; }
+      else curve.push([r.d, val(), mk]);
+    });
+    var asOf = rows.length ? rows[rows.length - 1].d : 0;
+    var acts = Array.from(A.values());
+    acts.forEach(function (a) { a.p = Math.min(1, Math.max(0, a.pct || 0)); a.st = a.p >= .99 ? 'done' : a.p > 0 ? (asOf - a.last > 14 ? 'stale' : 'act') : 'new'; });
+    fs.forEach(function (f) { fr[f].avg = fr[f].s / fr[f].n; });
+    return { rows: rows, acts: acts, fr: fr, curve: curve, asOf: asOf, overall: val() };
+  }
+  function parseFin(s) {
+    var c = s['COST-INCOME'] || [], iv = s.invoice || [];
+    var g = function (a, r, k) { return (a[r] || [])[k]; };
+    var cost = [], inc = [], r, n, v;
+    for (r = 19; r < 34; r++) { n = g(c, r, 2); v = N(g(c, r, 3)); if (n && v != null) cost.push([n, v]); }
+    for (r = 38; r < 48; r++) { n = g(c, r, 2); v = N(g(c, r, 3)); if (n && v != null) inc.push([n, v]); }
+    function sec(t, r0, r1) {
+      var o = [];
+      for (var r2 = r0; r2 < r1; r2++) {
+        var x = iv[r2] || []; if (!x[2]) continue;
+        var e = x[12], p = t == 'ad' ? N(x[14]) : t == 'tz' ? N(x[16]) : N(x[17]);
+        o.push({ t: t, no: x[2], from: x[3], to: x[4], claim: N(x[5]), per: N(x[6]), cons: N(x[9]), emp: N(e), pay: t == 'pr' ? x[16] : x[13], paid: p });
+      }
+      return o;
+    }
+    return { contract: N(g(c, 0, 2)) || N(g(iv, 0, 2)), cost: cost, inc: inc, costT: N(g(c, 34, 3)), incT: N(g(c, 48, 3)), st: sec('pr', 9, 19).concat(sec('tz', 22, 32)).concat(sec('ad', 37, 40)) };
+  }
+  function parseRes(s) {
+    var mat = (s.Material || []).slice(2).filter(function (r) { return r[1]; }).map(function (r) { return { n: norm(r[1]), u: r[2], est: N(r[3]), p: N(r[4]), tot: N(r[6]) }; });
+    var m = s.man || [], dr = m[3] || [], cols = [];
+    dr.forEach(function (v, i) { if (i > 1 && isoDn(v) != null) cols.push(i); });
+    var roles = [], tot = null, r, x, n2;
+    for (r = 5; r < m.length; r++) {
+      x = m[r] || []; n2 = norm(x[1]); if (!n2) continue;
+      if (n2.indexOf('جمع(') === 0) { tot = cols.map(function (c) { return N(x[c]) || 0; }); continue; }
+      if (n2.indexOf('جمع') === 0 || n2.indexOf('متوسط') === 0) continue;
+      roles.push({ n: n2, s: cols.reduce(function (a2, c) { return a2 + (N(x[c]) || 0); }, 0) });
+    }
+    var ma = s.mach || [], md = ma[3] || [], mc = [];
+    md.forEach(function (v, i) { if (i > 1 && isoDn(v) != null) mc.push(i); });
+    var mach = [];
+    for (r = 5; r < 60; r++) {
+      x = ma[r] || []; if (!x[1]) continue;
+      var cnt = [0, 1, 2].map(function (k) { return mc.filter(function (i) { return N(x[i + k]); }).length; });
+      mach.push({ n: norm(x[1]), a: cnt[0], r: cnt[1], f: cnt[2] });
+    }
+    var w = (s.Weather || []).slice(1).map(function (r2) { return { j: r2[1], max: N(r2[5]), min: N(r2[6]), st: r2[7] }; }).filter(function (x2) { return jd(x2.j); });
+    return { mat: mat, roles: roles, mach: mach, w: w };
+  }
+  /* ---------- store & compute ---------- */
+  function P() { try { return (typeof db !== 'undefined' && db && activeId) ? ((db.pc || {})[activeId] || null) : null; } catch (e) { return null; } }
+  function compute() {
+    var p = P(); if (!p || !p.S) return null;
+    var SET = p.SET || { start: '1404/12/06', dur: 550, w: {} };
+    var parsed = parseAct(p.S.Activiti || []);
+    var rows = parsed.rows.concat((p.ADDED || []).map(function (r) { var c = Object.assign({}, r); if (c.d == null && c.j) c.d = dn(jd(c.j)); return c; }));
+    var M = model(rows, SET);
+    return { M: M, FIN: parseFin(p.S), RES: parseRes(p.S), SET: SET, bad: parsed.bad.length };
+  }
+  W.compute = compute;
+  /* ---------- formatting ---------- */
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function faD(s) { return String(s).replace(/[0-9]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'[+c]; }); }
+  function money(x) { return faD(String(Math.round(x || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '٬')); }
+  function pct1(x) { return faD((Math.round(x * 1000) / 10).toFixed(1)) + '٪'; }
+  function num1(x) { return faD(String(Math.round((x || 0) * 10) / 10)); }
+  var ST = { done: ['تمام‌شده', '#1a7f37'], act: ['در حال انجام', '#2563eb'], stale: ['بدون فعالیت ۱۴ روز اخیر', '#b45309'], new: ['شروع‌نشده', '#6b7280'] };
+  function bar(p, color) {
+    return '<div style="background:var(--border,#e5e7eb);border-radius:99px;height:10px;min-width:90px;overflow:hidden"><div style="height:100%;width:' + Math.round(p * 100) + '%;background:' + (color || '#2563eb') + '"></div></div>';
+  }
+  function barsList(pairs) {
+    return pairs.map(function (pr) {
+      return '<div style="display:flex;gap:.6rem;align-items:center;padding:.3rem 0"><span style="min-width:9rem">' + esc(pr[0]) + '</span>' + bar(pr[1]) + '<b>' + pct1(pr[1]) + '</b><span style="opacity:.7">' + esc(pr[2] || '') + '</span></div>';
+    }).join('');
+  }
+  /* ---------- tabs ---------- */
+  function kpi(label, val, sub) {
+    return '<div class="panel" style="flex:1;min-width:150px;text-align:center"><div style="font-size:1.5rem;font-weight:800">' + val + '</div><div style="opacity:.8">' + label + '</div>' + (sub ? '<div style="opacity:.65;font-size:.82rem">' + sub + '</div>' : '') + '</div>';
+  }
+  function dashHtml(C) {
+    var M = C.M, SET = C.SET;
+    var startD = dn(jd(SET.start));
+    var elapsed = startD != null && M.asOf ? Math.max(0, M.asOf - startD) : 0;
+    var timePct = SET.dur ? Math.min(1, elapsed / (+SET.dur || 550)) : 0;
+    var counts = { done: 0, act: 0, stale: 0, new: 0 };
+    M.acts.forEach(function (a) { counts[a.st]++; });
+    var months = [], seen = {};
+    M.curve.forEach(function (pt) { if (pt[2]) { seen[pt[2]] = pt[1]; } });
+    Object.keys(seen).sort().forEach(function (mk, i, arr) {
+      var prev = i ? seen[arr[i - 1]] : 0;
+      months.push([mk.replace('/', '/'), seen[mk], '+' + pct1(seen[mk] - prev)]);
+    });
+    var fronts = Object.keys(M.fr).sort().map(function (f) { return [f, M.fr[f].avg, faD(M.fr[f].n) + ' فعالیت']; });
+    var byFloor = {}, byCon = {};
+    M.acts.forEach(function (a) {
+      (byFloor[a.floor] = byFloor[a.floor] || []).push(a.p);
+      (byCon[a.con] = byCon[a.con] || []).push(a.p);
+    });
+    var avg = function (arr) { return arr.reduce(function (s, x) { return s + x; }, 0) / (arr.length || 1); };
+    var floors = Object.keys(byFloor).sort().map(function (f) { return [f, avg(byFloor[f]), faD(byFloor[f].length) + ' فعالیت']; });
+    var cons = Object.keys(byCon).sort().map(function (c) { return [c, avg(byCon[c]), faD(byCon[c].length) + ' فعالیت']; });
+    var pts = M.curve.map(function (pt, i) { return (i * 100 / Math.max(1, M.curve.length - 1)).toFixed(1) + ',' + (46 - pt[1] * 42).toFixed(1); }).join(' ');
+    return '<div style="display:flex;gap:.7rem;flex-wrap:wrap">' +
+      kpi('پیشرفت کلی پروژه', pct1(M.overall), 'وزنی بر اساس جبهه‌ها') +
+      kpi('زمان سپری‌شده از پیمان', pct1(timePct), faD(elapsed) + ' روز از ' + faD(SET.dur || 550)) +
+      kpi('انحراف از برنامه', pct1(Math.abs(M.overall - timePct)), M.overall >= timePct ? 'جلوتر از زمان' : 'عقب‌تر از زمان') +
+      kpi('فعالیت‌ها', faD(M.acts.length), 'تمام‌شده: ' + faD(counts.done) + ' ـ در حال انجام: ' + faD(counts.act) + ' ـ شروع‌نشده: ' + faD(counts.new)) +
+      '</div>' +
+      '<div class="panel" style="margin-top:.7rem"><h3 style="margin:.2rem 0 .5rem">روند پیشرفت در زمان</h3>' +
+      '<svg viewBox="0 0 100 50" style="width:100%;height:110px;background:var(--bg2,#fafafa);border:1px solid var(--border,#e5e7eb);border-radius:8px"><polyline points="' + pts + '" fill="none" stroke="#2563eb" stroke-width="1.2"/></svg></div>' +
+      '<div style="display:flex;gap:.7rem;flex-wrap:wrap;margin-top:.7rem">' +
+      '<div class="panel" style="flex:1;min-width:280px"><h3 style="margin:.2rem 0 .5rem">پیشرفت ماهانه</h3>' + barsList(months.map(function (m) { return [m[0], m[1], m[2]]; })) + '</div>' +
+      '<div class="panel" style="flex:1;min-width:280px"><h3 style="margin:.2rem 0 .5rem">پیشرفت هر جبهه کاری</h3>' + barsList(fronts) + '</div></div>' +
+      '<div style="display:flex;gap:.7rem;flex-wrap:wrap;margin-top:.7rem">' +
+      '<div class="panel" style="flex:1;min-width:280px"><h3 style="margin:.2rem 0 .5rem">پیشرفت هر طبقه / بخش</h3>' + barsList(floors) + '</div>' +
+      '<div class="panel" style="flex:1;min-width:280px"><h3 style="margin:.2rem 0 .5rem">پیشرفت به تفکیک پیمانکار</h3>' + barsList(cons) + '</div></div>' +
+      (C.bad ? '<div class="notice" style="margin-top:.7rem">' + faD(C.bad) + ' ردیف بدون تاریخ یا پیمانکار در محاسبات لحاظ نشده است.</div>' : '');
+  }
+  function actHtml(C) {
+    var M = C.M;
+    var opts = M.acts.map(function (a, i) { return '<option value="' + i + '">' + esc(a.desc) + ' (' + esc(a.front) + ' ـ ' + esc(a.floor) + ')</option>'; }).join('');
+    var rows = M.acts.map(function (a) {
+      var st = ST[a.st];
+      return '<tr><td style="text-align:right">' + esc(a.desc) + '</td><td>' + esc(a.front) + '</td><td>' + esc(a.floor) + '</td><td>' + esc(a.con) + '</td><td>' + num1(a.total) + '</td><td>' + esc(a.unit) + '</td><td>' + num1(a.cum) + '</td><td>' + bar(a.p) + '</td><td><b>' + pct1(a.p) + '</b></td><td><span style="color:' + st[1] + ';font-weight:700">' + st[0] + '</span></td></tr>';
+    }).join('');
+    return '<div class="panel"><h3 style="margin:.2rem 0 .5rem">۱) ثبت پیشرفت روزانه</h3>' +
+      '<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:end">' +
+      '<label style="flex:2;min-width:220px">فعالیت<select id="an32act" style="width:100%">' + opts + '</select></label>' +
+      '<label>تاریخ (شمسی)<input id="an32date" style="width:8.5rem" placeholder="1405/2/1"></label>' +
+      '<label>حجم انجام‌شده امروز<input id="an32done" type="number" step="any" style="width:8rem"></label>' +
+      '<button class="btn primary" onclick="AN32.addEntry()">ثبت پیشرفت</button></div>' +
+      '<h3 style="margin:1rem 0 .5rem">۲) افزودن فعالیت / جبهه کاری جدید</h3>' +
+      '<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:end">' +
+      '<label style="flex:2;min-width:200px">شرح فعالیت<input id="an32ndesc" style="width:100%"></label>' +
+      '<label>جبهه<input id="an32nfront" style="width:8rem"></label>' +
+      '<label>طبقه<input id="an32nfloor" style="width:6rem"></label>' +
+      '<label>پیمانکار<input id="an32ncon" style="width:9rem"></label>' +
+      '<label>حجم کل<input id="an32ntotal" type="number" step="any" style="width:7rem"></label>' +
+      '<label>واحد<input id="an32nunit" style="width:6rem"></label>' +
+      '<button class="btn" onclick="AN32.addActivity()">افزودن فعالیت</button></div></div>' +
+      '<div class="panel" style="margin-top:.7rem"><h3 style="margin:.2rem 0 .5rem">فعالیت‌ها (' + faD(M.acts.length) + ')</h3>' +
+      '<input id="an32q" placeholder="جستجو در فعالیت‌ها…" style="width:100%;margin-bottom:.5rem" oninput="AN32.filterActs(this.value)">' +
+      '<div style="overflow:auto"><table class="mb-grid" id="an32tbl"><thead><tr><th>شرح فعالیت</th><th>جبهه</th><th>طبقه</th><th>پیمانکار</th><th>حجم کل</th><th>واحد</th><th>انجام‌شده (تجمعی)</th><th></th><th>پیشرفت</th><th>وضعیت</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+  }
+  W.filterActs = function (q) {
+    q = norm(q);
+    document.querySelectorAll('#an32tbl tbody tr').forEach(function (tr) { tr.style.display = !q || norm(tr.textContent).indexOf(q) >= 0 ? '' : 'none'; });
+  };
+  function todayJ() {
+    try { return new Date().toLocaleDateString('fa-IR-u-nu-latn'); } catch (e) { return ''; }
+  }
+  W.addEntry = function () {
+    var p = P(); if (!p) return;
+    var C = compute(); if (!C) return;
+    var sel = document.getElementById('an32act');
+    var a = C.M.acts[+sel.value]; if (!a) return;
+    var date = (document.getElementById('an32date').value || '').trim() || todayJ();
+    var done = parseFloat(document.getElementById('an32done').value);
+    if (!jd(date)) { toast('تاریخ شمسی درست نیست (مثل 1405/2/1).', 1); return; }
+    if (isNaN(done) || done <= 0) { toast('حجم انجام‌شده را وارد کنید.', 1); return; }
+    var cum = (a.cum || 0) + done;
+    p.ADDED = p.ADDED || [];
+    p.ADDED.push({ j: date, desc: a.desc, done: done, con: a.con, front: a.front, item: a.item, floor: a.floor, total: a.total, unit: a.unit, cum: cum, pct: a.total ? cum / a.total : 0, d: dn(jd(date)) });
+    save(); toast('پیشرفت روزانه ثبت شد.');
+    W.renderTab();
+  };
+  W.addActivity = function () {
+    var p = P(); if (!p) return;
+    var g = function (id) { return (document.getElementById(id).value || '').trim(); };
+    var desc = g('an32ndesc'), total = parseFloat(g('an32ntotal'));
+    if (!desc || isNaN(total) || total <= 0) { toast('شرح فعالیت و حجم کل لازم است.', 1); return; }
+    var date = todayJ();
+    p.ADDED = p.ADDED || [];
+    p.ADDED.push({ j: date, desc: desc, done: 0, con: g('an32ncon'), front: g('an32nfront') || 'نامشخص', item: '', floor: g('an32nfloor'), total: total, unit: g('an32nunit'), cum: 0, pct: 0, d: dn(jd(date)) });
+    save(); toast('فعالیت جدید اضافه شد.');
+    W.renderTab();
+  };
+  var TLAB = { pr: 'موقت', tz: 'تعدیل', ad: 'علی‌الحساب' };
+  function finHtml(C) {
+    var F = C.FIN;
+    var lastClaim = 0, paidT = 0;
+    F.st.forEach(function (s) { if (s.claim) lastClaim = Math.max(lastClaim, s.claim); if (s.paid) paidT += s.paid; });
+    var rows = F.st.map(function (s) {
+      return '<tr><td>' + esc(TLAB[s.t] || s.t) + '</td><td>' + esc(s.no) + '</td><td>' + esc(s.from || '') + '</td><td>' + esc(s.to || '') + '</td><td>' + money(s.claim) + '</td><td>' + money(s.per) + '</td><td>' + money(s.cons) + '</td><td>' + money(s.emp) + '</td><td>' + money(s.paid) + '</td></tr>';
+    }).join('');
+    var list = function (arr) { return arr.map(function (x) { return '<div style="display:flex;justify-content:space-between;padding:.28rem 0;border-bottom:1px dashed var(--border,#ddd)"><span>' + esc(x[0]) + '</span><b>' + money(x[1]) + '</b></div>'; }).join(''); };
+    return '<div style="display:flex;gap:.7rem;flex-wrap:wrap">' +
+      kpi('مبلغ اولیه قرارداد', money(F.contract), 'ریال') +
+      kpi('کارکرد ادعاشده تجمعی', money(lastClaim), 'آخرین صورت‌وضعیت') +
+      kpi('مجموع پرداخت‌شده', money(paidT), 'ریال') +
+      kpi('هزینه‌های برآوردی', money(F.costT), 'درآمدها: ' + money(F.incT)) + '</div>' +
+      '<div class="panel" style="margin-top:.7rem"><h3 style="margin:.2rem 0 .5rem">صورت‌وضعیت‌ها</h3><div style="overflow:auto"><table class="mb-grid"><thead><tr><th>نوع</th><th>شرح</th><th>شروع دوره</th><th>پایان دوره</th><th>ادعای تجمعی</th><th>کارکرد دوره</th><th>تأیید مشاور (تجمعی)</th><th>تأیید کارفرما</th><th>پرداخت‌شده</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>' +
+      '<div style="display:flex;gap:.7rem;flex-wrap:wrap;margin-top:.7rem">' +
+      '<div class="panel" style="flex:1;min-width:280px"><h3 style="margin:.2rem 0 .5rem">هزینه‌های برآوردی</h3>' + list(F.cost) + '</div>' +
+      '<div class="panel" style="flex:1;min-width:280px"><h3 style="margin:.2rem 0 .5rem">درآمدهای دریافتی</h3>' + list(F.inc) + '</div></div>';
+  }
+  function resHtml(C) {
+    var R = C.RES;
+    var mat = R.mat.map(function (m) {
+      var p = m.est ? (m.tot || 0) / m.est : 0;
+      return '<tr><td style="text-align:right">' + esc(m.n) + '</td><td>' + esc(m.u || '') + '</td><td>' + num1(m.est) + '</td><td>' + num1(m.tot) + '</td><td>' + bar(p) + '</td><td><b>' + pct1(p) + '</b></td></tr>';
+    }).join('');
+    var roles = R.roles.map(function (r) { return '<tr><td style="text-align:right">' + esc(r.n) + '</td><td>' + faD(Math.round(r.s)) + '</td></tr>'; }).join('');
+    var mach = R.mach.map(function (m) { return '<tr><td style="text-align:right">' + esc(m.n) + '</td><td>' + faD(m.a) + '</td><td>' + faD(m.r) + '</td><td>' + faD(m.f) + '</td></tr>'; }).join('');
+    var w = R.w.slice(-14).reverse().map(function (x) { return '<tr><td>' + faD(x.j) + '</td><td>' + num1(x.max) + '</td><td>' + num1(x.min) + '</td><td>' + esc(x.st || '') + '</td></tr>'; }).join('');
+    return '<div style="display:flex;gap:.7rem;flex-wrap:wrap">' +
+      '<div class="panel" style="flex:1;min-width:300px"><h3 style="margin:.2rem 0 .5rem">مصالح — پیشرفت تأمین</h3><div style="overflow:auto"><table class="mb-grid"><thead><tr><th>مصالح</th><th>واحد</th><th>برآورد</th><th>وارد شده</th><th></th><th>تأمین</th></tr></thead><tbody>' + mat + '</tbody></table></div></div>' +
+      '<div class="panel" style="flex:1;min-width:240px"><h3 style="margin:.2rem 0 .5rem">نیروی انسانی — جمع نفر-روز هر نقش</h3><table class="mb-grid"><thead><tr><th>نقش</th><th>نفر-روز</th></tr></thead><tbody>' + roles + '</tbody></table></div></div>' +
+      '<div style="display:flex;gap:.7rem;flex-wrap:wrap;margin-top:.7rem">' +
+      '<div class="panel" style="flex:1;min-width:280px"><h3 style="margin:.2rem 0 .5rem">ماشین‌آلات — روز در هر وضعیت</h3><table class="mb-grid"><thead><tr><th>دستگاه</th><th>فعال</th><th>آماده</th><th>تعمیر</th></tr></thead><tbody>' + mach + '</tbody></table></div>' +
+      '<div class="panel" style="flex:1;min-width:280px"><h3 style="margin:.2rem 0 .5rem">آب‌وهوا — ۱۴ روز اخیر</h3><table class="mb-grid"><thead><tr><th>تاریخ</th><th>بیشینه</th><th>کمینه</th><th>وضعیت هوا</th></tr></thead><tbody>' + w + '</tbody></table></div></div>';
+  }
+  function dataHtml(C) {
+    var p = P();
+    var fronts = C ? Object.keys(C.M.fr) : [];
+    var wInputs = fronts.map(function (f) {
+      return '<label style="display:flex;gap:.4rem;align-items:center">' + esc(f) + '<input data-wf="' + esc(f) + '" type="number" step="any" style="width:6rem" value="' + (C.SET.w && C.SET.w[f] != null ? C.SET.w[f] : '') + '" placeholder="پیش‌فرض"></label>';
+    }).join('');
+    return '<div class="panel"><h3 style="margin:.2rem 0 .5rem">ورود داده از نرم‌افزار کنترل پروژه (نسخه جدا)</h3>' +
+      '<p style="opacity:.85">فایل «پشتیبان JSON» همان نرم‌افزار، یا خود فایل B.html را انتخاب کنید؛ داده‌ها برای پروژه فعال (' + esc((current() || {}).name || '') + ') ذخیره و از این به بعد همین‌جا نگهداری و همگام می‌شوند.</p>' +
+      '<input type="file" id="an32file" accept=".json,.html,.htm" style="display:none" onchange="AN32.importFile(this)">' +
+      '<button class="btn primary" onclick="document.getElementById(\'an32file\').click()">📥 ورود داده (JSON یا B.html)</button> ' +
+      (p ? '<button class="btn" onclick="AN32.exportBackup()">⬇ خروجی پشتیبان JSON (سازگار با نسخه جدا)</button>' : '') +
+      (p && p.at ? '<div style="margin-top:.5rem;opacity:.75">آخرین ورود داده: ' + esc(p.at) + '</div>' : '') + '</div>' +
+      (C ? '<div class="panel" style="margin-top:.7rem"><h3 style="margin:.2rem 0 .5rem">تنظیمات محاسبه</h3>' +
+        '<div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:end">' +
+        '<label>تاریخ شروع پیمان<input id="an32start" style="width:8.5rem" value="' + esc(C.SET.start || '') + '"></label>' +
+        '<label>مدت پیمان (روز)<input id="an32dur" type="number" style="width:7rem" value="' + (C.SET.dur || '') + '"></label>' +
+        '<button class="btn primary" onclick="AN32.saveSettings()">ذخیره و محاسبه مجدد</button></div>' +
+        '<h4 style="margin:.8rem 0 .4rem">وزن جبهه‌ها (خالی = پیش‌فرض: تعداد فعالیت‌ها)</h4>' +
+        '<div style="display:flex;gap:.6rem;flex-wrap:wrap">' + wInputs + '</div></div>' : '');
+  }
+  W.saveSettings = function () {
+    var p = P(); if (!p) return;
+    p.SET = p.SET || { start: '', dur: 550, w: {} };
+    p.SET.start = document.getElementById('an32start').value.trim();
+    p.SET.dur = parseFloat(document.getElementById('an32dur').value) || 550;
+    p.SET.w = p.SET.w || {};
+    document.querySelectorAll('[data-wf]').forEach(function (inp) {
+      var f = inp.getAttribute('data-wf');
+      if (inp.value === '') delete p.SET.w[f]; else p.SET.w[f] = parseFloat(inp.value);
+    });
+    save(); toast('تنظیمات ذخیره شد.');
+    W.renderTab();
+  };
+  W.importFile = function (inp) {
+    var f = inp.files && inp.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      try {
+        var txt = String(rd.result || '');
+        var S = null, SET = null, ADDED = [];
+        if (/^\s*</.test(txt)) {
+          var i = txt.indexOf('const DATA=');
+          if (i < 0) throw new Error('DATA پیدا نشد');
+          var start = txt.indexOf('{', i), depth = 0, end = -1, inStr = false, esc2 = false;
+          for (var j = start; j < txt.length; j++) {
+            var ch = txt[j];
+            if (inStr) { if (esc2) esc2 = false; else if (ch === '\\') esc2 = true; else if (ch === '"') inStr = false; }
+            else if (ch === '"') inStr = true;
+            else if (ch === '{') depth++;
+            else if (ch === '}') { depth--; if (!depth) { end = j + 1; break; } }
+          }
+          var DATA = JSON.parse(txt.slice(start, end));
+          S = DATA.S; SET = { start: '1404/12/06', dur: 550, w: {} };
+        } else {
+          var d = JSON.parse(txt);
+          S = d.S; SET = d.SET || { start: '1404/12/06', dur: 550, w: {} }; ADDED = Array.isArray(d.ADDED) ? d.ADDED : [];
+        }
+        if (!S || !S.Activiti) throw new Error('ساختار داده درست نیست');
+        if (!confirm('داده‌های کنترل پروژه برای پروژه فعال با این فایل جایگزین شود؟')) return;
+        db.pc = db.pc || {};
+        db.pc[activeId] = { S: S, SET: SET, ADDED: ADDED, at: new Date().toLocaleDateString('fa-IR') };
+        save(); toast('داده‌های کنترل پروژه وارد شد.');
+        W.tab = 'dash'; W.renderTab();
+      } catch (e) { toast('ورود داده ناموفق بود: ' + e.message, 1); }
+      inp.value = '';
+    };
+    rd.readAsText(f);
+  };
+  W.exportBackup = function () {
+    var p = P(); if (!p) return;
+    dl('saba-pc-backup.json', JSON.stringify({ S: p.S, SET: p.SET, ADDED: p.ADDED || [] }), 'application/json');
+  };
+  /* ---------- shell ---------- */
+  var TABS = [['dash', 'داشبورد'], ['act', 'فعالیت‌ها و ثبت روزانه'], ['fin', 'مالی و صورت‌وضعیت'], ['res', 'منابع و آب‌وهوا'], ['data', 'داده‌ها و تنظیمات']];
+  W.goTab = function (t) { W.tab = t; W.renderTab(); };
+  W.renderTab = function () {
+    var host = document.getElementById('an32body');
+    if (!host) return;
+    var p = P();
+    if (!p) {
+      host.innerHTML = W.tab === 'data' ? dataHtml(null) :
+        '<div class="panel"><h3 style="margin:.2rem 0 .5rem">کنترل پروژه — ' + esc((current() || {}).name || '') + '</h3>' +
+        '<p>برای این پروژه هنوز داده‌ای وارد نشده است. از تب «داده‌ها و تنظیمات» فایل پشتیبان JSON نرم‌افزار کنترل پروژه یا خود فایل B.html را وارد کنید.</p>' +
+        '<button class="btn primary" onclick="AN32.goTab(\'data\')">رفتن به ورود داده</button></div>';
+      return;
+    }
+    var C = compute();
+    if (!C) { host.innerHTML = '<div class="panel">داده‌ها ناقص است؛ از تب داده‌ها دوباره وارد کنید.</div>'; return; }
+    host.innerHTML = W.tab === 'dash' ? dashHtml(C) : W.tab === 'act' ? actHtml(C) : W.tab === 'fin' ? finHtml(C) : W.tab === 'res' ? resHtml(C) : dataHtml(C);
+    var dt = document.getElementById('an32date');
+    if (dt && !dt.value) dt.value = todayJ();
+  };
+  function inject() {
+    if (typeof page === 'undefined' || page !== 'planning') return;
+    if (document.getElementById('an32shell')) return;
+    var c = document.getElementById('content');
+    if (!c) return;
+    if (!current()) return;
+    c.innerHTML = '<div id="an32shell"><div class="head"><div><h1>کنترل پروژه</h1><p>تلفیق‌شده از نرم‌افزار کنترل پروژه — داده‌ها داخل نرم‌افزار اصلی ذخیره و همگام می‌شوند.</p></div></div>' +
+      '<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.7rem">' +
+      TABS.map(function (t) { return '<button class="btn' + (W.tab === t[0] ? ' primary' : '') + '" data-an32tab="' + t[0] + '" onclick="AN32.goTab(\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('') +
+      '</div><div id="an32body"></div></div>';
+    W.renderTab();
+  }
+  setInterval(function () {
+    inject();
+    /* keep tab highlight in sync */
+    document.querySelectorAll('[data-an32tab]').forEach(function (b) {
+      var on = b.getAttribute('data-an32tab') === W.tab;
+      b.classList.toggle('primary', on);
+    });
+  }, 600);
+})();
+</script>
 
 
 </body></html>
