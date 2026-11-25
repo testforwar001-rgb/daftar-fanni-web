@@ -8724,6 +8724,104 @@ input,select,textarea{max-width:100%}
   setTimeout(function () { clearInterval(iv); }, 40000);
 })();
 </script>
+<script id="df-fix28">
+/* df-fix28 (final34): click-to-sort on working tables (his request
+   2026-11-25: «قسمت آنالیز یا هر تبی که کار می کنم بتونم بر اساس شماره
+   آیتم یا هر ردیف دیگری که هست سورت کنم»). A generic sorter attaches to
+   every table with a header inside #moduleBody (آنالیز، عوامل، برآورد،
+   متره، ستاره‌دار، ماژول‌ها…): click a column header to sort ascending,
+   click again for descending (▲/▼ shown). Numeric-aware (Persian digits,
+   thousand separators), band/total rows stay as separators/anchors, and
+   row handlers in this app are id/key-based so DOM reordering is safe. */
+(function () {
+  'use strict';
+  var W = {};
+  window.AN28 = W;
+  function norm(s) {
+    return String(s == null ? '' : s).replace(/[۰-۹]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c); }).replace(/[٬,]/g, '').replace(/٪/g, '').trim();
+  }
+  function cellVal(td) {
+    if (!td) return '';
+    var inp = td.querySelector('input, select, textarea');
+    if (inp) return inp.value;
+    return td.textContent.trim();
+  }
+  function isNum(s) { return s !== '' && /^-?\d+(\.\d+)?$/.test(s); }
+  function cmp(a, b) {
+    var na = norm(a), nb = norm(b);
+    if (isNum(na) && isNum(nb)) return parseFloat(na) - parseFloat(nb);
+    return String(a).localeCompare(String(b), 'fa');
+  }
+  function isSeparator(tr) {
+    if (tr.classList && /(band|sum|total|gband|head)/i.test(tr.className)) return true;
+    var tds = tr.children;
+    for (var i = 0; i < tds.length; i++) if (tds[i].colSpan && tds[i].colSpan > 1) return true;
+    return false;
+  }
+  function sortTable(table, col, dir) {
+    var tbody = table.tBodies && table.tBodies[0];
+    if (!tbody) return;
+    var rows = Array.prototype.slice.call(tbody.rows);
+    var out = [], seg = [];
+    function flush() {
+      if (seg.length > 1) {
+        seg = seg.map(function (tr, i) { return { tr: tr, i: i, v: cellVal(tr.children[col]) }; })
+          .sort(function (a, b) { var c = cmp(a.v, b.v); return c !== 0 ? c * dir : a.i - b.i; })
+          .map(function (x) { return x.tr; });
+      }
+      out = out.concat(seg); seg = [];
+    }
+    rows.forEach(function (tr) { if (isSeparator(tr)) { flush(); out.push(tr); } else seg.push(tr); });
+    flush();
+    out.forEach(function (tr) { tbody.appendChild(tr); });
+    /* renumber a leading ردیف column when it is purely numeric */
+    var ths = table.querySelectorAll('thead th');
+    var h0 = ths[0] ? ths[0].textContent.replace(/[▲▼]/g, '').trim() : '';
+    if (h0 === 'ردیف' || h0 === 'شماره' || h0 === '#') {
+      var n = 0;
+      out.forEach(function (tr) {
+        if (isSeparator(tr)) return;
+        var td = tr.children[0];
+        if (td && !td.querySelector('input,select,button') && isNum(norm(td.textContent))) { n++; td.textContent = String(n).replace(/[0-9]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'[+c]; }); }
+      });
+    }
+  }
+  W.sortTable = sortTable;
+  function attach(table) {
+    if (table.dataset.an28) return;
+    var thead = table.tHead;
+    if (!thead || !thead.rows.length) return;
+    var ths = thead.rows[thead.rows.length - 1].querySelectorAll('th');
+    if (!ths.length || table.querySelectorAll('tbody tr').length < 2) return;
+    table.dataset.an28 = '1';
+    ths.forEach(function (th, col) {
+      if (th.querySelector('input,select,button')) return;
+      th.style.cursor = 'pointer';
+      th.title = 'مرتب‌سازی بر اساس این ستون';
+      th.classList.add('an28-th');
+      th.addEventListener('click', function () {
+        var cur = table.dataset.an28col == String(col) ? +table.dataset.an28dir : 0;
+        var dir = cur === 1 ? -1 : 1;
+        table.dataset.an28col = String(col);
+        table.dataset.an28dir = String(dir);
+        ths.forEach(function (x) { var s = x.querySelector('.an28-ind'); if (s) s.remove(); });
+        var ind = document.createElement('span');
+        ind.className = 'an28-ind';
+        ind.textContent = dir === 1 ? ' ▲' : ' ▼';
+        th.appendChild(ind);
+        sortTable(table, col, dir);
+      });
+    });
+  }
+  W.attach = attach;
+  function scan() {
+    var mb = document.querySelector('#moduleBody');
+    if (!mb) return;
+    mb.querySelectorAll('table').forEach(attach);
+  }
+  setInterval(scan, 900);
+})();
+</script>
 
 
 </body></html>
