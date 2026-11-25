@@ -7046,6 +7046,14 @@ input,select,textarea{max-width:100%}
   }
   var A = window.AN16;
   if (!A) return;
+  /* signature selection — shared with the متره reports (d.rpt.riz, df-fix10):
+     only the ticked roles are printed, with their names. */
+  var SIGROLES = [['sigCon', 'sigConN', 'پیمانکار'], ['sigSup', 'sigSupN', 'ناظر'], ['sigCons', 'sigConsN', 'مشاور'], ['sigEmp', 'sigEmpN', 'کارفرما'], ['sigMgmt', 'sigMgmtN', 'مدیریت طرح']];
+  function sigSel(d) {
+    var s = (d.rpt && d.rpt.riz) || {};
+    return SIGROLES.filter(function (x) { return s[x[0]] == null ? true : !!s[x[0]]; }).map(function (x) { return { t: x[2], n: s[x[1]] || '' }; });
+  }
+  function sigSpans(n) { return { 1: [9], 2: [5, 4], 3: [3, 3, 3], 4: [3, 2, 2, 2], 5: [2, 2, 2, 2, 1] }[n] || []; }
   var GROUPS = ['نیروی انسانی', 'ماشین‌آلات', 'مصالح', 'حمل'];
   var BANK_RESH = { bk_abn: 'ابنیه', bk_mech: 'تأسیسات مکانیکی', bk_elec: 'تأسیسات برقی' };
   function bankItem(code) {
@@ -7098,7 +7106,7 @@ input,select,textarea{max-width:100%}
     '<xf numFmtId="166" fontId="1" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>' + // 11 sum money
     '<xf numFmtId="0" fontId="1" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>' + // 12 sum label
     '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>' + // 13 group band
-    '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>' + // 14 signature
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' + // 14 signature
     '<xf numFmtId="0" fontId="3" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"><alignment vertical="center"/></xf>' + // 15 info label
     '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
   function colName(i) { var s = ''; i++; while (i > 0) { var m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
@@ -7159,9 +7167,18 @@ input,select,textarea{max-width:100%}
     r = push([C('جمع بهای واحد ردیف', 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C(Math.round(info.listPrice), 11)]); merge(r, 0, 7);
     var pct = info.listPrice ? Math.round(((total / info.listPrice) - 1) * 10000) / 100 : 0;
     r = push([C('٪ اضافه یا تخفیف', 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C(pct, 10)]); merge(r, 0, 7);
-    push([C('', 14), C('', 14), C('', 14), C('', 14), C('', 14), C('', 14), C('', 14), C('', 14), C('', 14)], 42);
-    r = push([C('پیمانکار', 14), C('', 14), C('ناظر', 14), C('', 14), C('مشاور', 14), C('', 14), C('کارفرما', 14), C('', 14), C('مدیریت طرح', 14)]);
-    merge(r, 0, 1); merge(r, 2, 3); merge(r, 4, 5); merge(r, 6, 7);
+    var sigs = sigSel(d);
+    if (sigs.length) {
+      push([C('', 14), C('', 14), C('', 14), C('', 14), C('', 14), C('', 14), C('', 14), C('', 14), C('', 14)], 42);
+      var scells = [C('', 14), C('', 14), C('', 14), C('', 14), C('', 14), C('', 14), C('', 14), C('', 14), C('', 14)];
+      var spans = sigSpans(sigs.length), pos = 0;
+      sigs.forEach(function (sg, i) {
+        scells[pos] = C(sg.t + (sg.n ? '\n' + sg.n : ''), 14);
+        if (spans[i] > 1) merges.push(colName(pos) + (rows.length + 1) + ':' + colName(pos + spans[i] - 1) + (rows.length + 1));
+        pos += spans[i];
+      });
+      rows.push({ cells: scells });
+    }
     return { name: String(info.code).slice(0, 31), widths: [7, 13, 52, 11, 8, 15, 15, 9, 16], rows: rows, merges: merges };
   }
   function dlBook(sheets, fname) {
@@ -7180,7 +7197,7 @@ input,select,textarea{max-width:100%}
     dlBook(keys.map(function (k) { return sheetFor(d, k); }), 'آنالیز بها.xlsx');
     T('خروجی اکسل ' + keys.length + ' آنالیز ساخته شد.');
   };
-  /* ---------------- print, same official layout ---------------- */
+  /* ---------------- print: complete A4 page, official layout ---------------- */
   A.printOne = function (key) {
     var d = D(); if (!d) return;
     var info = itemInfo(d, key);
@@ -7195,27 +7212,230 @@ input,select,textarea{max-width:100%}
       gl.forEach(function (x, i) {
         var amt = num(x.qty) * num(x.price) * (num(x.coef) || 1);
         gs += amt;
-        body += '<tr><td>' + (i + 1) + '</td><td>' + E(x.code) + '</td><td style="text-align:right">' + E(x.desc || '') + '</td><td>' + E(x.unit || '') + '</td><td>' + faDec(1, 2) + '</td><td>' + faDec(x.qty, 8) + '</td><td>' + faDec(x.price, 2) + '</td><td>' + faDec(num(x.coef) || 1, 4) + '</td><td>' + fmtM(amt) + '</td></tr>';
+        body += '<tr><td>' + faDec(i + 1, 0) + '</td><td>' + E(x.code) + '</td><td style="text-align:right">' + E(x.desc || '') + '</td><td>' + E(x.unit || '') + '</td><td>' + faDec(1, 2) + '</td><td>' + faDec(x.qty, 8) + '</td><td>' + faDec(x.price, 2) + '</td><td>' + faDec(num(x.coef) || 1, 4) + '</td><td>' + fmtM(amt) + '</td></tr>';
       });
       total += gs;
       body += '<tr class="sm"><td colspan="8">جمع ' + E(g) + '</td><td>' + fmtM(gs) + '</td></tr>';
     });
     var pct = info.listPrice ? (((total / info.listPrice) - 1) * 100) : 0;
-    var html = '<div dir="rtl" style="font-family:Tahoma,sans-serif;font-size:12px;color:#000;background:#fff;padding:8mm">' +
-      '<table class="t5"><tr><td colspan="9" class="ttl">جدول ۵ ـ تجزیه بهای اقلام کار</td></tr>' +
-      '<tr><td colspan="5" class="inf">موضوع کار: ' + E(projName()) + '</td><td colspan="4" class="inf">تاریخ گزارش: ' + E(todayFa()) + '</td></tr>' +
-      '<tr><td colspan="5" class="inf">نام دستگاه اجرایی: </td><td colspan="4" class="inf">بخش: ' + E(info.secs.join('، ')) + '</td></tr>' +
+    var sigs = sigSel(d);
+    var sigCells = sigs.map(function (sg) { return '<td style="width:' + (100 / Math.max(1, sigs.length)) + '%"><div class="sgt">' + E(sg.t) + '</div>' + (sg.n ? '<div class="sgn">' + E(sg.n) + '</div>' : '') + '</td>'; }).join('');
+    var html = '<div dir="rtl"><section class="page t5p"><div class="t5-frame">' +
+      '<div class="t5-hbox"><div class="t5-hr"><div>موضوع کار: ' + E(projName()) + '</div><div>نام دستگاه اجرایی: </div></div>' +
+      '<div class="t5-hc">جدول ۵ ـ تجزیه بهای اقلام کار</div>' +
+      '<div class="t5-hl"><div>شماره صفحه: ۱</div><div>تاریخ گزارش: ' + E(todayFa()) + '</div></div></div>' +
+      '<div class="t5-sec">بخش: ' + E(info.secs.join('، ')) + '</div>' +
+      '<table class="t5">' +
       '<tr><td colspan="9" class="band">شرح کار: ' + E(info.desc) + ' &nbsp;|&nbsp; شماره ردیف فهرست بها: ' + E(info.code) + '</td></tr>' +
       '<tr><td colspan="9" class="inf">واحد: ' + E(info.unit) + '</td></tr>' +
       '<tr class="hd"><td>ردیف</td><td>کد عامل</td><td>شرح عامل</td><td>واحد</td><td>مقیاس</td><td>مقدار/مقیاس</td><td>بهای واحد</td><td>ضریب</td><td>بهای کل</td></tr>' +
       body +
       '<tr class="sm"><td colspan="8">جمع واحد کار</td><td>' + fmtM(total) + '</td></tr>' +
       '<tr class="sm"><td colspan="8">جمع بهای واحد ردیف</td><td>' + fmtM(info.listPrice) + '</td></tr>' +
-      '<tr class="sm"><td colspan="8">٪ اضافه یا تخفیف</td><td>' + faDec(pct, 2) + '</td></tr>' +
-      '<tr class="sg"><td colspan="2">پیمانکار</td><td colspan="2">ناظر</td><td colspan="2">مشاور</td><td colspan="2">کارفرما</td><td>مدیریت طرح</td></tr></table>' +
-      '<style>table.t5{width:100%;border-collapse:collapse}table.t5 td{border:1px solid #808080;padding:4px 6px;text-align:center}table.t5 .ttl{font-size:15px;font-weight:bold}table.t5 .band{background:#d9d9d9;font-weight:bold;text-align:right}table.t5 .hd td{background:#bfbfbf;font-weight:bold}table.t5 tr.gb td{background:#d9d9d9;font-weight:bold}table.t5 tr.sm td{background:#dde7ea;font-weight:bold}table.t5 .inf{text-align:right}table.t5 tr.sg td{height:52px;vertical-align:bottom}</style></div>';
+      '<tr class="sm"><td colspan="8">٪ اضافه یا تخفیف</td><td>' + faDec(pct, 2) + '</td></tr></table>' +
+      '<div class="t5-flex"></div>' +
+      (sigs.length ? '<table class="t5 t5-sig"><tr>' + sigCells + '</tr></table>' : '') +
+      '</div></section>' +
+      '<style>' +
+      '@page{size:A4 portrait;margin:0}' +
+      'section.page.t5p{width:210mm;height:297mm;padding:7mm;background:#fff;color:#000;font-family:Tahoma,sans-serif;font-size:11.5px;box-sizing:border-box}' +
+      '.t5-frame{border:2.4px solid #000;outline:1px solid #000;outline-offset:3px;height:100%;display:flex;flex-direction:column;padding:4.5mm;box-sizing:border-box}' +
+      '.t5-hbox{border:1.6px solid #000;border-radius:9px;display:flex;justify-content:space-between;align-items:center;padding:3mm 4mm;gap:4mm}' +
+      '.t5-hc{font-size:15.5px;font-weight:bold;text-align:center;flex:1}' +
+      '.t5-hr,.t5-hl{font-size:11px;line-height:2;min-width:52mm}' +
+      '.t5-hl{text-align:left}' +
+      '.t5-sec{padding:2mm 1mm 1mm;font-size:11px}' +
+      'table.t5{width:100%;border-collapse:collapse}' +
+      'table.t5 td{border:1px solid #666;padding:3.2px 5px;text-align:center}' +
+      'table.t5 .band{background:#d9d9d9;font-weight:bold;text-align:right}' +
+      'table.t5 .hd td{background:#bfbfbf;font-weight:bold}' +
+      'table.t5 tr.gb td{background:#d9d9d9;font-weight:bold}' +
+      'table.t5 tr.sm td{background:#dde7ea;font-weight:bold}' +
+      'table.t5 .inf{text-align:right}' +
+      '.t5-flex{flex:1}' +
+      'table.t5-sig td{height:24mm;vertical-align:bottom;padding-bottom:2.5mm}' +
+      '.sgn{font-size:10.5px;margin-top:1mm}' +
+      '@media print{section.page.t5p{margin:0!important;box-shadow:none!important}}' +
+      '</style></div>';
     try { showPreview(html, 'آنالیز بهای ردیف ' + info.code); } catch (e) {}
   };
+})();
+</script>
+<script id="df-fix20">
+/* df-fix20 (final25): signature selection for the analysis outputs, like
+   متره — a «✍️ امضاها» dialog in the analysis environment that edits the
+   SAME settings the ریز/خلاصه متره reports use (db.mb[contractId].rpt.riz:
+   sigCon/sigSup/sigCons/sigEmp/sigMgmt + name fields). Only ticked roles are
+   printed/exported, with their names (df-fix19 reads sigSel from there). */
+(function () {
+  'use strict';
+  function E(s) { try { return esc(s == null ? '' : s); } catch (e) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); } }
+  function T(m, err) { try { toast(m, err); } catch (e) {} }
+  function SV() { try { save(); } catch (e) {} }
+  function D() {
+    if (typeof db === 'undefined' || typeof activeProject === 'undefined' || !activeProject) return null;
+    db.mb = db.mb || {};
+    var d = db.mb[activeProject];
+    if (!d) return null;
+    d.rpt = d.rpt || {};
+    return d;
+  }
+  var A = window.AN16;
+  if (!A) return;
+  var ROLES = [['sigCon', 'sigConN', 'پیمانکار'], ['sigSup', 'sigSupN', 'ناظر'], ['sigCons', 'sigConsN', 'مشاور'], ['sigEmp', 'sigEmpN', 'کارفرما'], ['sigMgmt', 'sigMgmtN', 'مدیریت طرح']];
+  var W = { openSig: null };
+  window.AN20 = W;
+  W.openSig = function () {
+    var d = D(); if (!d) return;
+    var s = d.rpt.riz = Object.assign({ sigCon: 1, sigConN: '', sigSup: 1, sigSupN: '', sigCons: 1, sigConsN: '', sigEmp: 1, sigEmpN: '', sigMgmt: 1, sigMgmtN: '' }, d.rpt.riz || {});
+    var old = document.getElementById('an20Dlg');
+    if (old) old.remove();
+    var dlg = document.createElement('dialog');
+    dlg.id = 'an20Dlg';
+    dlg.className = 'mb-d';
+    dlg.style.cssText = 'max-width:min(520px,94vw);width:100%';
+    var rows = ROLES.map(function (x) {
+      return '<label style="display:flex;align-items:center;gap:.5rem;padding:.34rem 0;border-bottom:1px dashed var(--border,#ddd)">' +
+        '<input type="checkbox" style="width:auto" id="an20-' + x[0] + '"' + (s[x[0]] ? ' checked' : '') + '>' +
+        '<span style="min-width:92px">' + x[2] + '</span>' +
+        '<input type="text" placeholder="نام امضاکننده" id="an20-' + x[1] + '" value="' + E(s[x[1]] || '') + '" style="flex:1"></label>';
+    }).join('');
+    dlg.innerHTML = '<div class="mb-card" style="margin:0"><h3 style="margin:.1rem 0 .5rem">✍️ امضاها</h3>' +
+      '<p class="muted" style="font-size:.82rem;margin:.1rem 0 .5rem">مثل گزارش‌های متره: فقط امضاهای تیک‌خورده در چاپ و خروجی اکسل آنالیز بها نشان داده می‌شوند. این تنظیم با گزارش‌های متره مشترک است.</p>' +
+      rows +
+      '<div class="row" style="margin-top:.7rem;display:flex;gap:.5rem;justify-content:flex-end"><button class="btn" id="an20Cancel">انصراف</button><button class="btn primary" id="an20Save">ذخیره</button></div></div>';
+    document.body.appendChild(dlg);
+    dlg.showModal();
+    document.getElementById('an20Cancel').onclick = function () { dlg.close(); dlg.remove(); };
+    document.getElementById('an20Save').onclick = function () {
+      ROLES.forEach(function (x) {
+        s[x[0]] = document.getElementById('an20-' + x[0]).checked ? 1 : 0;
+        s[x[1]] = document.getElementById('an20-' + x[1]).value;
+      });
+      SV();
+      dlg.close(); dlg.remove();
+      T('تنظیم امضاها ذخیره شد.');
+    };
+  };
+  function addBtn(marker, label, fn) {
+    var tools = document.querySelector('#moduleBody .an16-tools');
+    if (tools && !tools.querySelector('.' + marker)) {
+      var b = document.createElement('button');
+      b.className = 'btn ' + marker;
+      b.textContent = label;
+      b.onclick = fn;
+      tools.appendChild(b);
+    }
+  }
+  var oPage = A.page;
+  A.page = function () { var r = oPage.apply(this, arguments); addBtn('an20-sigbtn', '✍️ امضاها', W.openSig); return r; };
+  var oSheet = A.renderSheet;
+  A.renderSheet = function () { var r = oSheet.apply(this, arguments); addBtn('an20-sigbtn', '✍️ امضاها', W.openSig); return r; };
+})();
+</script>
+<script id="df-fix21">
+/* df-fix21 (final25): undo for factor prices — «یک جا برای برگرداندن قیمت به
+   قبل، مثل آندو» (his words, 2026-11-25). Before every committed price
+   change (sheet price edit via df-fix17, AN16.setFacPrice, and the عوامل
+   page تأیید via df-fix18) a snapshot of the contract's pricing state
+   (facPrice + every analysis row price + every item's بهای واحد پیشنهاد) is
+   pushed onto d.undoFac (kept in the db, last 10). «↩ برگرداندن» restores
+   the latest snapshot. Buttons: عوامل page (next to تأیید), analysis sheet
+   and analysis list toolbars. */
+(function () {
+  'use strict';
+  function T(m, err) { try { toast(m, err); } catch (e) {} }
+  function SV() { try { save(); } catch (e) {} }
+  function D() {
+    if (typeof db === 'undefined' || typeof activeProject === 'undefined' || !activeProject) return null;
+    db.mb = db.mb || {};
+    var d = db.mb[activeProject];
+    if (!d) return null;
+    d.fac = d.fac || {}; d.price = d.price || {}; d.facPrice = d.facPrice || {};
+    if (!Array.isArray(d.undoFac)) d.undoFac = [];
+    return d;
+  }
+  var A = window.AN16;
+  if (!A) return;
+  var W = {};
+  window.AN21 = W;
+  W.snapshot = function () {
+    var d = D(); if (!d) return;
+    var rows = {}, p = {};
+    Object.keys(d.fac).forEach(function (key) {
+      rows[key] = {};
+      (d.fac[key] || []).forEach(function (f) { rows[key][f.id] = f.price; });
+    });
+    Object.keys(d.price).forEach(function (key) { p[key] = (d.price[key] && d.price[key].p != null) ? d.price[key].p : null; });
+    d.undoFac.push({ at: new Date().toISOString(), fp: JSON.parse(JSON.stringify(d.facPrice)), rows: rows, p: p });
+    if (d.undoFac.length > 10) d.undoFac = d.undoFac.slice(-10);
+    SV();
+  };
+  W.undo = function () {
+    var d = D(); if (!d) return;
+    var snap = d.undoFac.pop();
+    if (!snap) { T('تغییری برای برگرداندن نیست.', 1); return; }
+    d.facPrice = snap.fp || {};
+    Object.keys(d.fac).forEach(function (key) {
+      var saved = (snap.rows || {})[key] || {};
+      (d.fac[key] || []).forEach(function (f) { if (f.id in saved) f.price = saved[f.id]; });
+    });
+    Object.keys(d.price).forEach(function (key) {
+      if (key in (snap.p || {})) { if (snap.p[key] == null) delete d.price[key].p; else d.price[key].p = snap.p[key]; }
+    });
+    SV();
+    T('قیمت‌ها به قبل از تغییر برگشت.');
+    if (A._facShown) A.facPage();
+    else if (A.key) A.renderSheet();
+    else A.page();
+  };
+  /* snapshot hooks — outermost wraps, snapshot BEFORE the change commits */
+  if (typeof A.setFacPrice === 'function') {
+    var oSet = A.setFacPrice;
+    A.setFacPrice = function () { W.snapshot(); return oSet.apply(this, arguments); };
+  }
+  if (typeof A.fF === 'function') {
+    var oFF = A.fF;
+    A.fF = function (id, f, el) { if (f === 'price') W.snapshot(); return oFF.apply(this, arguments); };
+  }
+  if (window.AN17 && typeof window.AN17.confirm === 'function') {
+    var oConf = window.AN17.confirm;
+    window.AN17.confirm = function () { W.snapshot(); return oConf.apply(this, arguments); };
+  }
+  function addBtn(marker) {
+    var tools = document.querySelector('#moduleBody .an16-tools');
+    if (tools && !tools.querySelector('.' + marker)) {
+      var b = document.createElement('button');
+      b.className = 'btn ' + marker;
+      b.textContent = '↩ برگرداندن تغییر قیمت';
+      b.onclick = W.undo;
+      tools.appendChild(b);
+    }
+  }
+  var oFac = A.facPage;
+  A.facPage = function () {
+    var r = oFac.apply(this, arguments);
+    /* place it right next to «تأیید» in the confirm card when present */
+    var placed = false;
+    document.querySelectorAll('#moduleBody .an16-tools').forEach(function (t) {
+      if (placed) return;
+      var conf = Array.prototype.find.call(t.querySelectorAll('button'), function (b) { return b.textContent.indexOf('تأیید') >= 0; });
+      if (conf && !t.querySelector('.an21-undobtn')) {
+        var b = document.createElement('button');
+        b.className = 'btn an21-undobtn';
+        b.textContent = '↩ برگرداندن تغییر قیمت';
+        b.onclick = W.undo;
+        t.insertBefore(b, conf);
+        placed = true;
+      }
+    });
+    if (!placed) addBtn('an21-undobtn');
+    return r;
+  };
+  var oSheet = A.renderSheet;
+  A.renderSheet = function () { var r = oSheet.apply(this, arguments); addBtn('an21-undobtn'); return r; };
+  var oPage = A.page;
+  A.page = function () { var r = oPage.apply(this, arguments); addBtn('an21-undobtn'); return r; };
 })();
 </script>
 
