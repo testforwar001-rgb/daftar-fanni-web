@@ -4784,11 +4784,11 @@ table.mb-grid .op-in{min-width:150px}
 })();
 </script>
 <style id="df-fix11">
-#dfSplash{position:fixed;inset:0;background:#ffffff;z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .55s ease;font-family:inherit}
-#dfSplash img{width:min(230px,58vw);height:auto}
-#dfSplash .df-t{font-size:1.35rem;font-weight:800;color:#0e3355;letter-spacing:-.01em}
-#dfSplash .df-bar{width:min(210px,50vw);height:4px;border-radius:99px;background:#e3ebf2;overflow:hidden}
-#dfSplash .df-bar i{display:block;height:100%;width:40%;border-radius:99px;background:#0e3355;animation:dfLoad 1.1s ease-in-out infinite alternate}
+#dfSplash{position:fixed;inset:0;background:radial-gradient(720px 480px at 108% -8%,rgba(255,150,60,.20),transparent 55%),linear-gradient(160deg,#0d2440,#0e3355 55%,#0a1f38);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .55s ease;font-family:inherit}
+#dfSplash img{width:min(210px,52vw);height:auto;background:#ffffff;padding:16px;border-radius:26px;box-shadow:0 22px 48px rgba(0,0,0,.38)}
+#dfSplash .df-t{font-size:1.35rem;font-weight:800;color:#ffffff;letter-spacing:-.01em}
+#dfSplash .df-bar{width:min(210px,50vw);height:4px;border-radius:99px;background:rgba(255,255,255,.18);overflow:hidden}
+#dfSplash .df-bar i{display:block;height:100%;width:40%;border-radius:99px;background:#ff8a3d;animation:dfLoad 1.1s ease-in-out infinite alternate}
 @keyframes dfLoad{from{transform:translateX(130%)}to{transform:translateX(-260%)}}
 </style>
 <script id="df-fix11">
@@ -10535,7 +10535,16 @@ html[data-df49="mini"] .muted,html[data-df49="violet"] .muted{color:var(--text2)
   document.addEventListener('DOMContentLoaded', function () { apply(cur()); });
   function inject() {
     var c = document.getElementById('content');
-    if (!c || document.getElementById('df49card')) return;
+    if (!c) return;
+    /* the picker belongs ONLY on the Settings page — the old text-only check
+       («همگام‌سازی») also matched pages that merely mention sync in prose
+       (e.g. the صورت‌وضعیت dashboard) and leaked the card there (his
+       2026-11-26 «این تم‌ها همه‌جا هست») */
+    var onSettings = false;
+    try { onSettings = (typeof page !== 'undefined' && page === 'settings'); } catch (e) {}
+    var card = document.getElementById('df49card');
+    if (!onSettings) { if (card) card.remove(); return; }
+    if (card) return;
     if (!c.textContent || c.textContent.indexOf('همگام‌سازی') < 0) return;
     var card = document.createElement('div');
     card.className = 'panel'; card.id = 'df49card';
