@@ -9605,6 +9605,22 @@ input,select,textarea{max-width:100%}
   .nav>.subnav{position:static!important;left:auto!important;right:auto!important;width:auto!important;max-height:none!important;box-shadow:none!important;border-radius:0!important;border-bottom:0!important}
 }
 </style>
+<style id="df-fix35">
+/* df-fix35 (final40): popups must show EVERYTHING with no sideways
+   scrolling (his rule 2026-11-25: «وقتی پاپ آپ میاد کل اطلاعات رو
+   نشون بده نیاز به اسکرول یا چپ و راست کردن نباشه»). Root cause:
+   .mb-grid tables carry min-width:880px, so inside a dialog they
+   force a horizontal scrollbar and cut columns. Inside dialogs the
+   grid now fits the dialog width: no min-width, headers/cells wrap,
+   inputs shrink instead of pushing the table out. */
+.mb-d{max-height:94vh;overflow-y:auto;overflow-x:clip}
+.mb-d .mb-grid{min-width:0!important;max-width:100%}
+.mb-d .mb-grid th{white-space:normal}
+.mb-d .mb-grid td{overflow-wrap:anywhere}
+.mb-d .mb-grid input[type=text],.mb-d .mb-grid input[type=number],.mb-d .mb-grid select{min-width:0!important}
+.mb-d .mb-grid .code-in,.mb-d .mb-grid .desc-in,.mb-d .mb-grid .op-in,.mb-d .mb-grid .res{min-width:0!important;white-space:normal}
+.mb-d table{max-width:100%}
+</style>
 
 
 </body></html>
