@@ -8202,20 +8202,10 @@ input,select,textarea{max-width:100%}
   W.selVal = function () { var r = document.querySelector('input[name=an23r]:checked'); return r ? +r.value : W.sel; };
   W.showSel = function () { W.sel = W.selVal(); var el = document.getElementById('an23Dlg'); if (el) { el.close(); el.remove(); } W.show(W.sel); };
   W.xlsSel = function () { W.sel = W.selVal(); var el = document.getElementById('an23Dlg'); if (el) { el.close(); el.remove(); } W.xls(W.sel); };
-  function addBtn() {
-    var tools = document.querySelector('#moduleBody .an16-tools');
-    if (tools && !tools.querySelector('.an23-rptbtn')) {
-      var b = document.createElement('button');
-      b.className = 'btn an23-rptbtn';
-      b.textContent = '📋 گزارشات برآورد';
-      b.onclick = W.open;
-      tools.appendChild(b);
-    }
-  }
-  var oPage = A.page;
-  A.page = function () { var r = oPage.apply(this, arguments); addBtn(); return r; };
-  var oSheet = A.renderSheet;
-  A.renderSheet = function () { var r = oSheet.apply(this, arguments); addBtn(); return r; };
+  /* No buttons in the analysis environment (his correction 2026-11-25:
+     «بردی گذاشتی قسمت آنالیز» — the reports belong to برآورد فهرست بهایی).
+     The single entry is the برآورد page's گزارش menu → «گزارشات برآورد»,
+     wired by df-fix25 (MB10.eReports → AN23.open). */
 })();
 </script>
 <script id="df-fix25">
