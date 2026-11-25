@@ -7019,6 +7019,205 @@ input,select,textarea{max-width:100%}
   };
 })();
 </script>
+<script id="df-fix19">
+/* df-fix19 (final24): the analysis Excel + print outputs rebuilt to the
+   OFFICIAL «جدول ۵ ـ تجزیه بهای اقلام کار» page format (his reference page,
+   2026-11-25: «این باید باشه»): header box (موضوع کار / نام دستگاه اجرایی /
+   تاریخ گزارش), شرح کار band with the item code, واحد row, column headers
+   incl. the مقیاس column, مقدار/مقیاس with 8 decimals, ضریب with 4, group
+   bands with «کد عامل», per-group sums, جمع واحد کار / جمع بهای واحد ردیف /
+   ٪ اضافه یا تخفیف, and the signature row. makeXlsx cannot style cells, so
+   this builds a styled workbook through the payload's zipStore. */
+(function () {
+  'use strict';
+  function num(v) { try { return pn(v); } catch (e) { var n = parseFloat(String(v == null ? '' : v).replace(/[۰-۹]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c); }).replace(/,/g, '')); return isFinite(n) ? n : 0; } }
+  function E(s) { try { return esc(s == null ? '' : s); } catch (e) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); } }
+  function XE(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function fmtM(n) { try { return faR(n); } catch (e) { return String(Math.round(Number(n) || 0)); } }
+  function faDec(n, dec) { return (Number(n) || 0).toLocaleString('fa-IR', { minimumFractionDigits: dec, maximumFractionDigits: dec }); }
+  function T(m, err) { try { toast(m, err); } catch (e) {} }
+  function D() {
+    if (typeof db === 'undefined' || typeof activeProject === 'undefined' || !activeProject) return null;
+    db.mb = db.mb || {};
+    var d = db.mb[activeProject];
+    if (!d) return null;
+    d.fac = d.fac || {}; d.price = d.price || {};
+    return d;
+  }
+  var A = window.AN16;
+  if (!A) return;
+  var GROUPS = ['نیروی انسانی', 'ماشین‌آلات', 'مصالح', 'حمل'];
+  var BANK_RESH = { bk_abn: 'ابنیه', bk_mech: 'تأسیسات مکانیکی', bk_elec: 'تأسیسات برقی' };
+  function bankItem(code) {
+    var m = (db.mod) || {};
+    for (var k in BANK_RESH) { var list = m[k] || []; for (var i = 0; i < list.length; i++) if (String(list[i].code).trim() === String(code).trim()) return { code: code, desc: list[i].desc || '', unit: list[i].unit || '', price: num(list[i].price), bank: k }; }
+    return null;
+  }
+  function itemInfo(d, key) {
+    var code = key.split('|')[0];
+    var bi = bankItem(code);
+    var star = (d.stars || []).find(function (s) { return String(s.code).trim() === code; });
+    var qty = 0;
+    (d.rows || []).forEach(function (r) {
+      if ((String(r.code || '').trim() + '|' + (r.fj || 'ف')) !== key) return;
+      var f = String(r.formula || 'N*X*Y*Z+W').toUpperCase().replace(/\s+/g, '');
+      if (/^[NXYZW0-9.+\-*/() ]+$/.test(f)) {
+        var ex = f.replace(/[NXZWY]/g, function (L) { var v = r[L]; var n = (v === '' || v == null) ? (L === 'W' ? 0 : 1) : num(v); return '(' + (isFinite(n) ? n : 0) + ')'; });
+        try { var out = Function('return (' + ex + ')')(); qty += isFinite(out) ? out : 0; } catch (e) {}
+      }
+    });
+    var secs = {};
+    (d.rows || []).forEach(function (r) { if ((String(r.code || '').trim() + '|' + (r.fj || 'ف')) === key && r.sec) secs[r.sec] = 1; });
+    var pr = d.price[key] || {};
+    return { code: code, desc: bi ? bi.desc : (star ? (star.desc || '') : ''), unit: bi ? bi.unit : (star ? (star.unit || '') : ''), qty: qty, listPrice: num(pr.b != null ? pr.b : (bi ? bi.price : (star ? star.price : 0))), secs: Object.keys(secs) };
+  }
+  function projName() {
+    try { var p = (db.projects || []).find(function (x) { return x.id === activeId; }); return p ? (p.name || '') : ''; } catch (e) { return ''; }
+  }
+  function todayFa() { try { return new Date().toLocaleDateString('fa-IR'); } catch (e) { return ''; } }
+  /* ---------------- styled xlsx builder ---------------- */
+  var STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<numFmts count="5"><numFmt numFmtId="164" formatCode="0.00000000"/><numFmt numFmtId="165" formatCode="0.0000"/><numFmt numFmtId="166" formatCode="#,##0"/><numFmt numFmtId="167" formatCode="#,##0.00"/><numFmt numFmtId="168" formatCode="0.00"/></numFmts>' +
+    '<fonts count="4"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="14"/><name val="Calibri"/></font><font><b/><sz val="12"/><name val="Calibri"/></font></fonts>' +
+    '<fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFD9D9D9"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFBFBFBF"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDDE7EA"/></patternFill></fill></fills>' +
+    '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FF808080"/></left><right style="thin"><color rgb="FF808080"/></right><top style="thin"><color rgb="FF808080"/></top><bottom style="thin"><color rgb="FF808080"/></bottom><diagonal/></border></borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="16">' +
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +                                                              // 0 normal
+    '<xf numFmtId="0" fontId="2" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>' + // 1 title
+    '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf>' + // 2 band (شرح کار)
+    '<xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' + // 3 header
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf>' + // 4 border wrap
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>' + // 5 border center
+    '<xf numFmtId="166" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment vertical="center"/></xf>' + // 6 money
+    '<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment vertical="center"/></xf>' + // 7 qty8
+    '<xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment vertical="center"/></xf>' + // 8 coef4
+    '<xf numFmtId="167" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment vertical="center"/></xf>' + // 9 price2
+    '<xf numFmtId="168" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment vertical="center"/></xf>' + // 10 scale2/pct2
+    '<xf numFmtId="166" fontId="1" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>' + // 11 sum money
+    '<xf numFmtId="0" fontId="1" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>' + // 12 sum label
+    '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>' + // 13 group band
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>' + // 14 signature
+    '<xf numFmtId="0" fontId="3" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"><alignment vertical="center"/></xf>' + // 15 info label
+    '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+  function colName(i) { var s = ''; i++; while (i > 0) { var m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
+  function buildXlsx(sheets) {
+    var NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"', RN = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    var f = {};
+    f['[Content_Types].xml'] = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' + sheets.map(function (_, i) { return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; }).join('') + '</Types>';
+    f['_rels/.rels'] = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="' + RN + '/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+    f['xl/workbook.xml'] = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook ' + NS + ' xmlns:r="' + RN + '"><sheets>' + sheets.map(function (x, i) { return '<sheet name="' + XE(x.name) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>'; }).join('') + '</sheets></workbook>';
+    f['xl/_rels/workbook.xml.rels'] = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + sheets.map(function (_, i) { return '<Relationship Id="rId' + (i + 1) + '" Type="' + RN + '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>'; }).join('') + '<Relationship Id="rId' + (sheets.length + 1) + '" Type="' + RN + '/styles" Target="styles.xml"/></Relationships>';
+    f['xl/styles.xml'] = STYLES;
+    sheets.forEach(function (sh, si) {
+      var rowsXml = sh.rows.map(function (r, ri) {
+        var cells = r.cells.map(function (c, ci) {
+          if (c == null || c.v === '' || c.v == null) return '';
+          var ref = colName(ci) + (ri + 1);
+          var st = c.s != null ? ' s="' + c.s + '"' : '';
+          if (typeof c.v === 'number' && isFinite(c.v)) return '<c r="' + ref + '"' + st + '><v>' + c.v + '</v></c>';
+          return '<c r="' + ref + '"' + st + ' t="inlineStr"><is><t xml:space="preserve">' + XE(c.v) + '</t></is></c>';
+        }).join('');
+        return '<row r="' + (ri + 1) + '"' + (r.h ? ' ht="' + r.h + '" customHeight="1"' : '') + '>' + cells + '</row>';
+      }).join('');
+      var cols = sh.widths ? '<cols>' + sh.widths.map(function (w, i) { return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; }).join('') + '</cols>' : '';
+      var merges = sh.merges && sh.merges.length ? '<mergeCells count="' + sh.merges.length + '">' + sh.merges.map(function (m) { return '<mergeCell ref="' + m + '"/>'; }).join('') + '</mergeCells>' : '';
+      f['xl/worksheets/sheet' + (si + 1) + '.xml'] = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet ' + NS + '><sheetProperties><pageSetUpPr fitToPage="1"/></sheetProperties><sheetViews><sheetView rightToLeft="1" workbookViewId="0"/></sheetViews>' + cols + '<sheetData>' + rowsXml + '</sheetData>' + merges + '<pageSetup paperSize="9" orientation="portrait" fitToPage="1" fitToWidth="1" fitToHeight="0"/></worksheet>';
+    });
+    return zipStore(f);
+  }
+  function C(v, s) { return { v: v, s: s }; }
+  function sheetFor(d, key) {
+    var info = itemInfo(d, key);
+    var list = (d.fac[key] || []).slice().sort(function (a, b) { return GROUPS.indexOf(a.g) - GROUPS.indexOf(b.g); });
+    var rows = [], merges = [];
+    function push(cells, h) { rows.push({ cells: cells, h: h }); return rows.length; }
+    function merge(r, a, b) { merges.push(colName(a) + r + ':' + colName(b) + r); }
+    var r;
+    r = push([C('جدول ۵ ـ تجزیه بهای اقلام کار', 1), C('', 1), C('', 1), C('', 1), C('', 1), C('', 1), C('', 1), C('', 1), C('', 1)]); merge(r, 0, 8);
+    r = push([C('موضوع کار: ' + projName(), 15), C('', 15), C('', 15), C('', 15), C('', 15), C('تاریخ گزارش: ' + todayFa(), 15), C('', 15), C('', 15), C('', 15)]); merge(r, 0, 4); merge(r, 5, 8);
+    r = push([C('نام دستگاه اجرایی: ', 15), C('', 15), C('', 15), C('', 15), C('', 15), C('بخش: ' + info.secs.join('، '), 15), C('', 15), C('', 15), C('', 15)]); merge(r, 0, 4); merge(r, 5, 8);
+    r = push([C('شرح کار: ' + info.desc + '   |   شماره ردیف فهرست بها: ' + info.code, 2), C('', 2), C('', 2), C('', 2), C('', 2), C('', 2), C('', 2), C('', 2), C('', 2)]); merge(r, 0, 8);
+    r = push([C('واحد: ' + info.unit, 15), C('', 15), C('', 15), C('', 15), C('', 15), C('', 15), C('', 15), C('', 15), C('', 15)]); merge(r, 0, 8);
+    push([C('ردیف', 3), C('کد عامل', 3), C('شرح عامل', 3), C('واحد', 3), C('مقیاس', 3), C('مقدار/مقیاس', 3), C('بهای واحد', 3), C('ضریب', 3), C('بهای کل', 3)]);
+    var total = 0;
+    GROUPS.forEach(function (g) {
+      var gl = list.filter(function (x) { return x.g === g; });
+      if (!gl.length) return;
+      push([C('', 13), C('کد عامل', 13), C(g, 13), C('', 13), C('', 13), C('', 13), C('', 13), C('', 13), C('', 13)]);
+      var gs = 0;
+      gl.forEach(function (x, i) {
+        var amt = num(x.qty) * num(x.price) * (num(x.coef) || 1);
+        gs += amt;
+        push([C(i + 1, 5), C(x.code, 5), C(x.desc || '', 4), C(x.unit || '', 5), C(1, 10), C(num(x.qty), 7), C(num(x.price), 9), C(num(x.coef) || 1, 8), C(Math.round(amt), 6)]);
+      });
+      total += gs;
+      r = push([C('جمع ' + g, 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C(Math.round(gs), 11)]); merge(r, 0, 7);
+    });
+    r = push([C('جمع واحد کار', 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C(Math.round(total), 11)]); merge(r, 0, 7);
+    r = push([C('جمع بهای واحد ردیف', 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C(Math.round(info.listPrice), 11)]); merge(r, 0, 7);
+    var pct = info.listPrice ? Math.round(((total / info.listPrice) - 1) * 10000) / 100 : 0;
+    r = push([C('٪ اضافه یا تخفیف', 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C('', 12), C(pct, 10)]); merge(r, 0, 7);
+    push([C('', 14), C('', 14), C('', 14), C('', 14), C('', 14), C('', 14), C('', 14), C('', 14), C('', 14)], 42);
+    r = push([C('پیمانکار', 14), C('', 14), C('ناظر', 14), C('', 14), C('مشاور', 14), C('', 14), C('کارفرما', 14), C('', 14), C('مدیریت طرح', 14)]);
+    merge(r, 0, 1); merge(r, 2, 3); merge(r, 4, 5); merge(r, 6, 7);
+    return { name: String(info.code).slice(0, 31), widths: [7, 13, 52, 11, 8, 15, 15, 9, 16], rows: rows, merges: merges };
+  }
+  function dlBook(sheets, fname) {
+    try { dl(fname, buildXlsx(sheets), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); }
+    catch (e) { T('خروجی اکسل ساخته نشد.', 1); }
+  }
+  A.xlsOne = function (key) {
+    var d = D(); if (!d) return;
+    if (!((d.fac[key] || []).length)) { T('این ردیف هنوز آنالیز ندارد.', 1); return; }
+    dlBook([sheetFor(d, key)], 'آنالیز ' + key.split('|')[0] + '.xlsx');
+  };
+  A.xlsAll = function () {
+    var d = D(); if (!d) return;
+    var keys = Object.keys(d.fac).filter(function (k) { return (d.fac[k] || []).length; });
+    if (!keys.length) { T('هنوز آنالیزی ثبت نشده است — اول «آنالیز همه» را بزنید.', 1); return; }
+    dlBook(keys.map(function (k) { return sheetFor(d, k); }), 'آنالیز بها.xlsx');
+    T('خروجی اکسل ' + keys.length + ' آنالیز ساخته شد.');
+  };
+  /* ---------------- print, same official layout ---------------- */
+  A.printOne = function (key) {
+    var d = D(); if (!d) return;
+    var info = itemInfo(d, key);
+    var list = (d.fac[key] || []).slice().sort(function (a, b) { return GROUPS.indexOf(a.g) - GROUPS.indexOf(b.g); });
+    var total = 0;
+    var body = '';
+    GROUPS.forEach(function (g) {
+      var gl = list.filter(function (x) { return x.g === g; });
+      if (!gl.length) return;
+      body += '<tr class="gb"><td></td><td>کد عامل</td><td colspan="7" style="text-align:right">' + E(g) + '</td></tr>';
+      var gs = 0;
+      gl.forEach(function (x, i) {
+        var amt = num(x.qty) * num(x.price) * (num(x.coef) || 1);
+        gs += amt;
+        body += '<tr><td>' + (i + 1) + '</td><td>' + E(x.code) + '</td><td style="text-align:right">' + E(x.desc || '') + '</td><td>' + E(x.unit || '') + '</td><td>' + faDec(1, 2) + '</td><td>' + faDec(x.qty, 8) + '</td><td>' + faDec(x.price, 2) + '</td><td>' + faDec(num(x.coef) || 1, 4) + '</td><td>' + fmtM(amt) + '</td></tr>';
+      });
+      total += gs;
+      body += '<tr class="sm"><td colspan="8">جمع ' + E(g) + '</td><td>' + fmtM(gs) + '</td></tr>';
+    });
+    var pct = info.listPrice ? (((total / info.listPrice) - 1) * 100) : 0;
+    var html = '<div dir="rtl" style="font-family:Tahoma,sans-serif;font-size:12px;color:#000;background:#fff;padding:8mm">' +
+      '<table class="t5"><tr><td colspan="9" class="ttl">جدول ۵ ـ تجزیه بهای اقلام کار</td></tr>' +
+      '<tr><td colspan="5" class="inf">موضوع کار: ' + E(projName()) + '</td><td colspan="4" class="inf">تاریخ گزارش: ' + E(todayFa()) + '</td></tr>' +
+      '<tr><td colspan="5" class="inf">نام دستگاه اجرایی: </td><td colspan="4" class="inf">بخش: ' + E(info.secs.join('، ')) + '</td></tr>' +
+      '<tr><td colspan="9" class="band">شرح کار: ' + E(info.desc) + ' &nbsp;|&nbsp; شماره ردیف فهرست بها: ' + E(info.code) + '</td></tr>' +
+      '<tr><td colspan="9" class="inf">واحد: ' + E(info.unit) + '</td></tr>' +
+      '<tr class="hd"><td>ردیف</td><td>کد عامل</td><td>شرح عامل</td><td>واحد</td><td>مقیاس</td><td>مقدار/مقیاس</td><td>بهای واحد</td><td>ضریب</td><td>بهای کل</td></tr>' +
+      body +
+      '<tr class="sm"><td colspan="8">جمع واحد کار</td><td>' + fmtM(total) + '</td></tr>' +
+      '<tr class="sm"><td colspan="8">جمع بهای واحد ردیف</td><td>' + fmtM(info.listPrice) + '</td></tr>' +
+      '<tr class="sm"><td colspan="8">٪ اضافه یا تخفیف</td><td>' + faDec(pct, 2) + '</td></tr>' +
+      '<tr class="sg"><td colspan="2">پیمانکار</td><td colspan="2">ناظر</td><td colspan="2">مشاور</td><td colspan="2">کارفرما</td><td>مدیریت طرح</td></tr></table>' +
+      '<style>table.t5{width:100%;border-collapse:collapse}table.t5 td{border:1px solid #808080;padding:4px 6px;text-align:center}table.t5 .ttl{font-size:15px;font-weight:bold}table.t5 .band{background:#d9d9d9;font-weight:bold;text-align:right}table.t5 .hd td{background:#bfbfbf;font-weight:bold}table.t5 tr.gb td{background:#d9d9d9;font-weight:bold}table.t5 tr.sm td{background:#dde7ea;font-weight:bold}table.t5 .inf{text-align:right}table.t5 tr.sg td{height:52px;vertical-align:bottom}</style></div>';
+    try { showPreview(html, 'آنالیز بهای ردیف ' + info.code); } catch (e) {}
+  };
+})();
+</script>
 
 
 </body></html>
