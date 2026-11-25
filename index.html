@@ -9661,6 +9661,51 @@ input,select,textarea{max-width:100%}
 .app.min:has(>.side:hover),.app.min:has(>.side:focus-within){--railw:245px;transition:--railw .35s ease .18s}
 .app.min .side{width:auto!important;justify-self:stretch!important;transition:none!important}
 </style>
+<script id="df-fix39">
+/* df-fix39 (final43): Enter moves to the next cell in the متره grid
+   (his words 2026-11-25: «قسمت متره وقتی اینتر میزنم بره سل بعدی»).
+   A capture-phase keydown handler scoped to the متره page only
+   (the page is identified by its #mbQCode entry input): Enter on a
+   grid input/select focuses the next editable field in DOM order —
+   code → ف/ج → شرح عملیات → N → X → Y → Z → W → فرمول → بخش →
+   ملاحظات → next row's code. Shift+Enter goes back. The entry row
+   (#mbQCode) and the search boxes keep their own Enter behaviour
+   (suggestion pick / add) — they live outside the grid table, so
+   they are never hijacked. Dialogs (.mb-d) are untouched. */
+(function () {
+  function gridFields() {
+    if (!document.getElementById('mbQCode')) return null;
+    var t = document.querySelector('#moduleBody table.mb-grid');
+    if (!t) return null;
+    return Array.prototype.filter.call(t.querySelectorAll('input,select'), function (el) {
+      if (el.disabled) return false;
+      var ty = (el.type || '').toLowerCase();
+      if (ty === 'hidden' || ty === 'checkbox' || ty === 'radio' || ty === 'button' || ty === 'submit') return false;
+      if (!el.getClientRects().length) return false;
+      return true;
+    });
+  }
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Enter' || ev.ctrlKey || ev.altKey || ev.metaKey) return;
+    var el = ev.target;
+    if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'SELECT')) return;
+    if (el.closest && el.closest('.mb-d')) return;
+    var sug = document.querySelector('.mb-sug');
+    if (sug && sug.style.display !== 'none' && sug.getClientRects().length) return;
+    var F = gridFields();
+    if (!F) return;
+    var i = F.indexOf(el);
+    if (i < 0) return;
+    ev.preventDefault();
+    var n = F[ev.shiftKey ? i - 1 : i + 1];
+    if (n) {
+      n.focus();
+      if (n.tagName === 'INPUT' && (n.type === 'text' || n.type === '')) { try { n.select(); } catch (e) {} }
+    }
+  }, true);
+  window.AN39 = { gridFields: gridFields };
+})();
+</script>
 
 
 </body></html>
