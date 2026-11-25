@@ -6659,18 +6659,19 @@ input,select,textarea{max-width:100%}
     return aoa;
   }
   function dlXlsx(sheets, fname) {
-    try { makeXlsx(sheets); } catch (e) { T('خروجی اکسل ساخته نشد.', 1); }
+    try { dl(fname || 'آنالیز بها.xlsx', makeXlsx(sheets), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); }
+    catch (e) { T('خروجی اکسل ساخته نشد.', 1); }
   }
   A.xlsOne = function (key) {
     var row = aggEst().find(function (r) { return r.key === key; }); if (!row) return;
     if (!facList(key).length) { T('این ردیف هنوز آنالیز ندارد.', 1); return; }
-    dlXlsx([{ name: ('آنالیز ' + row.code).slice(0, 31), aoa: sheetAOA(row), widths: [10, 14, 46, 12, 14, 16, 10, 16] }]);
+    dlXlsx([{ name: ('آنالیز ' + row.code).slice(0, 31), aoa: sheetAOA(row), widths: [10, 14, 46, 12, 14, 16, 10, 16] }], 'آنالیز ' + row.code + '.xlsx');
   };
   A.xlsAll = function () {
     var rows = aggEst().filter(function (r) { return facList(r.key).length; });
     if (!rows.length) { T('هنوز آنالیزی ثبت نشده است — اول «آنالیز همه» را بزنید.', 1); return; }
     var sheets = rows.map(function (r) { return { name: String(r.code).slice(0, 31), aoa: sheetAOA(r), widths: [10, 14, 46, 12, 14, 16, 10, 16] }; });
-    dlXlsx(sheets);
+    dlXlsx(sheets, 'آنالیز بها.xlsx');
     T('خروجی اکسل ' + rows.length + ' آنالیز ساخته شد.');
   };
   A.xlsFac = function () {
@@ -6678,7 +6679,7 @@ input,select,textarea{max-width:100%}
     var aoa = [['فهرست عوامل مؤثر در پروژه'], ['کد عامل', 'شرح عامل', 'واحد', 'مقدار عامل در کل', 'بهای واحد پیشنهادی', 'بهای کل عامل', 'درصد']];
     ag.list.forEach(function (x) { aoa.push([x.code, x.desc, x.unit, Math.round(x.qtyTot * 10000) / 10000, x.price, Math.round(x.amount), x.pct]); });
     aoa.push(['جمع کل', '', '', '', '', Math.round(ag.total), 100]);
-    dlXlsx([{ name: 'عوامل مؤثر', aoa: aoa, widths: [14, 46, 12, 16, 16, 18, 10] }]);
+    dlXlsx([{ name: 'عوامل مؤثر', aoa: aoa, widths: [14, 46, 12, 16, 16, 18, 10] }], 'عوامل مؤثر در پروژه.xlsx');
   };
   A.printOne = function (key) {
     var row = aggEst().find(function (r) { return r.key === key; }); if (!row) return;
@@ -6716,6 +6717,306 @@ input,select,textarea{max-width:100%}
   }
   var iv = setInterval(function () { if (patch()) clearInterval(iv); }, 700);
   setTimeout(function () { clearInterval(iv); }, 60000);
+})();
+</script>
+<script id="df-fix17">
+/* df-fix17 (final23): پیشنهاد قیمت workflow on top of df-fix16.
+   His model (2026-11-25): opening an item's analysis shows its BASE analysis;
+   there he updates the prices of its effective factors — and those factor
+   prices are the project's عوامل مؤثر prices, so the item's price refreshes
+   automatically. Implementation:
+   - db.mb[contractId].facPrice[code] holds the project's effective factor price.
+   - A factor-price edit in ANY analysis sheet writes facPrice and syncs every
+     analysis row that uses the same factor, across all items.
+   - After any analysis change, every analyzed item's بهای واحد پیشنهاد
+     (d.price[key].p) is refreshed automatically from its analysis total.
+   - The عوامل مؤثر page is editable with the same mechanism. */
+(function () {
+  'use strict';
+  function num(v) { try { return pn(v); } catch (e) { var n = parseFloat(String(v == null ? '' : v).replace(/[۰-۹]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c); }).replace(/,/g, '')); return isFinite(n) ? n : 0; } }
+  function E(s) { try { return esc(s == null ? '' : s); } catch (e) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); } }
+  function fmtM(n) { try { return faR(n); } catch (e) { return String(Math.round(Number(n) || 0)); } }
+  function fmtQ(n) { return (Number(n) || 0).toLocaleString('fa-IR', { maximumFractionDigits: 4 }); }
+  function T(m, err) { try { toast(m, err); } catch (e) {} }
+  function SV() { try { save(); } catch (e) {} }
+  function D() {
+    if (typeof db === 'undefined' || typeof activeProject === 'undefined' || !activeProject) return null;
+    db.mb = db.mb || {};
+    var d = db.mb[activeProject];
+    if (!d) return null;
+    d.fac = d.fac || {}; d.price = d.price || {}; d.facPrice = d.facPrice || {};
+    return d;
+  }
+  function facSumOf(list) { return (list || []).reduce(function (s, f) { return s + num(f.qty) * num(f.price) * (num(f.coef) || 1); }, 0); }
+  function applyAll() {
+    var d = D(); if (!d) return 0;
+    var n = 0;
+    Object.keys(d.fac).forEach(function (key) {
+      var list = d.fac[key];
+      if (list && list.length) { d.price[key] = d.price[key] || {}; d.price[key].p = facSumOf(list); n++; }
+    });
+    if (n) SV();
+    return n;
+  }
+  function syncFactorPrice(code, price) {
+    var d = D(); if (!d || !code) return;
+    d.facPrice[code] = price;
+    Object.keys(d.fac).forEach(function (key) {
+      (d.fac[key] || []).forEach(function (f) { if (String(f.code).trim() === code) f.price = price; });
+    });
+  }
+  function applyOverrides() {
+    var d = D(); if (!d) return;
+    Object.keys(d.facPrice).forEach(function (code) {
+      Object.keys(d.fac).forEach(function (key) {
+        (d.fac[key] || []).forEach(function (f) { if (String(f.code).trim() === code) f.price = d.facPrice[code]; });
+      });
+    });
+  }
+  var A = window.AN16;
+  if (!A) return;
+  A.setFacPrice = function (code, price) {
+    code = String(code || '').trim(); if (!code) return;
+    syncFactorPrice(code, num(price));
+    applyAll();
+    T('قیمت عامل ' + code + ' بروز شد و بهای واحد پیشنهاد ردیف‌ها خودکار بهنگام شد.');
+    if (A._facShown) A.facPage();
+  };
+  /* wrap sheet edits: a price edit is a project factor-price update */
+  var ofF = A.fF;
+  A.fF = function (id, f, el) {
+    var d = D();
+    var code = null;
+    if (d && A.key && d.fac[A.key]) { var row = d.fac[A.key].find(function (x) { return x.id === id; }); if (row) code = String(row.code || '').trim(); }
+    ofF.apply(this, arguments);
+    if (f === 'price' && code) syncFactorPrice(code, num(el && el.value));
+    setTimeout(applyAll, 250);
+  };
+  ['fDel', 'fDelSel', 'fAdd', 'round'].forEach(function (m) {
+    if (typeof A[m] === 'function') { var orig = A[m]; A[m] = function () { var r = orig.apply(this, arguments); setTimeout(applyAll, 250); return r; }; }
+  });
+  var oAll = A.analyzeAll;
+  A.analyzeAll = function () {
+    var r = oAll.apply(this, arguments);
+    setTimeout(function () { applyOverrides(); applyAll(); }, 1600);
+    setTimeout(function () { applyOverrides(); applyAll(); }, 3400);
+    return r;
+  };
+  var oSheet = A.renderSheet;
+  A.renderSheet = function () {
+    var r = oSheet.apply(this, arguments);
+    var w = document.querySelector('#moduleBody .mb-wrap');
+    if (w && !w.querySelector('.an17-note')) {
+      var p = document.createElement('p');
+      p.className = 'muted an17-note';
+      p.style.cssText = 'font-size:.8rem;margin:.2rem 0 .6rem';
+      p.textContent = 'این آنالیز پایه‌ی ردیف است؛ قیمت هر عامل را که اینجا بروز کنید، در آنالیز همه ردیف‌ها اعمال می‌شود و بهای واحد پیشنهاد خودکار بهنگام می‌شود.';
+      w.insertBefore(p, w.children[1] || null);
+    }
+    return r;
+  };
+  /* editable عوامل مؤثر در پروژه page (same aggregation as df-fix16) */
+  var GROUPS = ['نیروی انسانی', 'ماشین‌آلات', 'مصالح', 'حمل'];
+  var DIGIT_GROUP = { '1': 'نیروی انسانی', '2': 'ماشین‌آلات', '3': 'مصالح', '4': 'حمل' };
+  function aggEstLite(d) {
+    var map = {}, order = [];
+    (d.rows || []).forEach(function (r) {
+      var key = String(r.code || '').trim() + '|' + (r.fj || 'ف');
+      if (!map[key]) { map[key] = { key: key, qty: 0 }; order.push(map[key]); }
+      var f = String(r.formula || 'N*X*Y*Z+W').toUpperCase().replace(/\s+/g, '');
+      var q = 0;
+      if (/^[NXYZW0-9.+\-*/() ]+$/.test(f)) {
+        var ex = f.replace(/[NXZWY]/g, function (L) { var v = r[L]; var n = (v === '' || v == null) ? (L === 'W' ? 0 : 1) : num(v); return '(' + (isFinite(n) ? n : 0) + ')'; });
+        try { var out = Function('return (' + ex + ')')(); q = isFinite(out) ? out : 0; } catch (e) { q = 0; }
+      }
+      map[key].qty += q;
+    });
+    return order;
+  }
+  A.facPage = function () {
+    A._facShown = true;
+    var d = D();
+    var b = document.getElementById('moduleBody');
+    if (!d || !b) return;
+    var agg = {}, order = [];
+    aggEstLite(d).forEach(function (r) {
+      (d.fac[r.key] || []).forEach(function (f) {
+        var code = String(f.code || '').trim(); if (!code) return;
+        if (!agg[code]) { agg[code] = { code: code, desc: f.desc || '', unit: f.unit || '', g: f.g || DIGIT_GROUP[code.charAt(0)] || '', qtyTot: 0, price: num(f.price) }; order.push(agg[code]); }
+        agg[code].qtyTot += num(f.qty) * (num(f.coef) || 1) * r.qty;
+        if (num(f.price)) agg[code].price = num(f.price);
+      });
+    });
+    var tot = order.reduce(function (s, x) { return s + x.qtyTot * x.price; }, 0);
+    var tab = A.facTab || 'همه';
+    var tabs = ['همه'].concat(GROUPS).map(function (g) { return '<button class="btn' + (tab === g ? ' primary' : '') + '" onclick="AN16.facTabSet(\'' + g + '\')">' + g + '</button>'; }).join(' ');
+    var list = order.filter(function (x) { return tab === 'همه' || x.g === tab; });
+    var trs = list.map(function (x) {
+      var amount = x.qtyTot * x.price, pct = tot ? Math.round(amount / tot * 10000) / 100 : 0;
+      return '<tr><td><b>' + E(x.code) + '</b></td><td>' + E(x.desc) + '</td><td>' + E(x.unit) + '</td><td>' + fmtQ(Math.round(x.qtyTot * 10000) / 10000) + '</td>' +
+        '<td><input type="text" class="num" style="min-width:100px" value="' + E(x.price) + '" onchange="AN16.setFacPrice(\'' + x.code + '\', this.value)"></td>' +
+        '<td>' + fmtM(amount) + '</td><td>' + fmtQ(pct) + '٪</td></tr>';
+    }).join('');
+    b.innerHTML = '<div class="head"><div><h1>فهرست عوامل مؤثر در پروژه</h1><p>قیمت هر عامل را بروز کنید؛ آنالیز همه ردیف‌ها و بهای واحد پیشنهادشان خودکار بهنگام می‌شود.</p></div></div>' +
+      '<div class="mb-wrap"><div class="an16-tools"><button class="btn" onclick="AN16.goList()">→ فهرست آنالیزها</button>' + tabs +
+      '<button class="btn" onclick="AN16.xlsFac()">📗 خروجی اکسل عوامل</button></div>' +
+      '<div class="mb-card" style="margin-bottom:.6rem">جمع کل عوامل: <b>' + fmtM(tot) + '</b></div>' +
+      '<div class="mb-scroll"><table class="mb-grid" style="min-width:760px"><thead><tr><th>کد عامل</th><th>شرح عامل</th><th>واحد</th><th>مقدار عامل در کل</th><th>بهای واحد پیشنهادی (قابل ویرایش)</th><th>بهای کل عامل</th><th>درصد</th></tr></thead><tbody>' +
+      (trs || '<tr><td colspan="7" class="muted" style="text-align:center;padding:.8rem">هنوز عاملی در آنالیزها نیست — اول «آنالیز همه» را بزنید.</td></tr>') + '</tbody></table></div></div>';
+  };
+  var oList = A.page;
+  A.page = function () { A._facShown = false; return oList.apply(this, arguments); };
+  var oGo = A.goList;
+  A.goList = function () { A._facShown = false; return oGo.apply(this, arguments); };
+})();
+</script>
+<script id="df-fix18">
+/* df-fix18 (final23): عوامل مؤثر page v2 — staged editing with تأیید (his spec
+   2026-11-25): on this page he can (a) apply a ضریب to the effective factors
+   (all / one group / checked rows) or (b) correct prices one by one — nothing
+   is saved until he presses تأیید; on تأیید the new prices land on every
+   فهرست‌بها item whose analysis uses those factors and all proposed prices
+   refresh automatically. Supersedes df-fix17's facPage (sheet-level single
+   price edits still apply immediately, as he described for the sheet). */
+(function () {
+  'use strict';
+  function num(v) { try { return pn(v); } catch (e) { var n = parseFloat(String(v == null ? '' : v).replace(/[۰-۹]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c); }).replace(/,/g, '')); return isFinite(n) ? n : 0; } }
+  function E(s) { try { return esc(s == null ? '' : s); } catch (e) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); } }
+  function fmtM(n) { try { return faR(n); } catch (e) { return String(Math.round(Number(n) || 0)); } }
+  function fmtQ(n) { return (Number(n) || 0).toLocaleString('fa-IR', { maximumFractionDigits: 4 }); }
+  function T(m, err) { try { toast(m, err); } catch (e) {} }
+  function SV() { try { save(); } catch (e) {} }
+  function D() {
+    if (typeof db === 'undefined' || typeof activeProject === 'undefined' || !activeProject) return null;
+    db.mb = db.mb || {};
+    var d = db.mb[activeProject];
+    if (!d) return null;
+    d.fac = d.fac || {}; d.price = d.price || {}; d.facPrice = d.facPrice || {};
+    return d;
+  }
+  var A = window.AN16;
+  if (!A) return;
+  var S = { draft: {}, scope: 'همه' };
+  window.AN17 = S;
+  var GROUPS = ['نیروی انسانی', 'ماشین‌آلات', 'مصالح', 'حمل'];
+  var DIGIT_GROUP = { '1': 'نیروی انسانی', '2': 'ماشین‌آلات', '3': 'مصالح', '4': 'حمل' };
+  function aggEstLite(d) {
+    var map = {}, order = [];
+    (d.rows || []).forEach(function (r) {
+      var key = String(r.code || '').trim() + '|' + (r.fj || 'ف');
+      if (!map[key]) { map[key] = { key: key, qty: 0 }; order.push(map[key]); }
+      var f = String(r.formula || 'N*X*Y*Z+W').toUpperCase().replace(/\s+/g, '');
+      var q = 0;
+      if (/^[NXYZW0-9.+\-*/() ]+$/.test(f)) {
+        var ex = f.replace(/[NXZWY]/g, function (L) { var v = r[L]; var n = (v === '' || v == null) ? (L === 'W' ? 0 : 1) : num(v); return '(' + (isFinite(n) ? n : 0) + ')'; });
+        try { var out = Function('return (' + ex + ')')(); q = isFinite(out) ? out : 0; } catch (e) { q = 0; }
+      }
+      map[key].qty += q;
+    });
+    return order;
+  }
+  function aggregate(d) {
+    var agg = {}, order = [];
+    aggEstLite(d).forEach(function (r) {
+      (d.fac[r.key] || []).forEach(function (f) {
+        var code = String(f.code || '').trim(); if (!code) return;
+        if (!agg[code]) { agg[code] = { code: code, desc: f.desc || '', unit: f.unit || '', g: f.g || DIGIT_GROUP[code.charAt(0)] || '', qtyTot: 0, price: num(f.price) }; order.push(agg[code]); }
+        agg[code].qtyTot += num(f.qty) * (num(f.coef) || 1) * r.qty;
+        if (num(f.price)) agg[code].price = num(f.price);
+      });
+    });
+    return order;
+  }
+  function priceOf(x) { return (x.code in S.draft) ? num(S.draft[x.code]) : x.price; }
+  S.setDraft = function (code, v) { S.draft[String(code).trim()] = v; S.refreshTotals(); };
+  S.refreshTotals = function () {
+    var d = D(); if (!d) return;
+    var order = aggregate(d);
+    var tot = order.reduce(function (s, x) { return s + x.qtyTot * priceOf(x); }, 0);
+    var el = document.getElementById('an17Tot'); if (el) el.innerHTML = fmtM(tot);
+    order.forEach(function (x) {
+      var c = document.getElementById('an17Amt-' + x.code);
+      if (c) c.textContent = fmtM(x.qtyTot * priceOf(x));
+    });
+  };
+  S.applyCoef = function () {
+    var inp = document.getElementById('an17Coef');
+    var coef = inp ? num(inp.value) : 0;
+    if (!coef || coef <= 0) { T('ضریب را وارد کنید (مثلاً ۱/۰۵).', 1); return; }
+    var d = D(); if (!d) return;
+    var order = aggregate(d);
+    var checked = {};
+    document.querySelectorAll('.an17-chk:checked').forEach(function (c) { checked[c.getAttribute('data-code')] = 1; });
+    var n = 0;
+    order.forEach(function (x) {
+      var inScope = S.scope === 'همه' || (S.scope === 'انتخاب‌شده‌ها' ? !!checked[x.code] : x.g === S.scope);
+      if (!inScope) return;
+      S.draft[x.code] = Math.round(priceOf(x) * coef);
+      n++;
+    });
+    if (!n) { T('عاملی در این دامنه نیست.', 1); return; }
+    A.facPage();
+    T('ضریب روی ' + n + ' عامل اعمال شد — برای ثبت نهایی «تأیید» را بزنید.');
+  };
+  S.setScope = function (v) { S.scope = v; };
+  S.reset = function () { S.draft = {}; A.facPage(); };
+  S.confirm = function () {
+    var d = D(); if (!d) return;
+    var order = aggregate(d);
+    var changed = [];
+    order.forEach(function (x) {
+      if (x.code in S.draft && num(S.draft[x.code]) !== x.price) changed.push([x.code, num(S.draft[x.code])]);
+    });
+    if (!changed.length) { T('تغییری برای ثبت نیست.', 1); return; }
+    var affected = {};
+    changed.forEach(function (pair) {
+      var code = pair[0], price = pair[1];
+      d.facPrice[code] = price;
+      Object.keys(d.fac).forEach(function (key) {
+        (d.fac[key] || []).forEach(function (f) { if (String(f.code).trim() === code) { f.price = price; affected[key] = 1; } });
+      });
+    });
+    Object.keys(d.fac).forEach(function (key) {
+      var list = d.fac[key];
+      if (list && list.length) { d.price[key] = d.price[key] || {}; d.price[key].p = list.reduce(function (s, f) { return s + num(f.qty) * num(f.price) * (num(f.coef) || 1); }, 0); }
+    });
+    SV();
+    S.draft = {};
+    A.facPage();
+    T('تأیید شد: ' + changed.length + ' عامل بروز شد و آنالیز ' + Object.keys(affected).length + ' ردیف فهرست‌بها بهنگام شد.');
+  };
+  A.facPage = function () {
+    A._facShown = true;
+    var d = D();
+    var b = document.getElementById('moduleBody');
+    if (!d || !b) return;
+    var order = aggregate(d);
+    var tot = order.reduce(function (s, x) { return s + x.qtyTot * priceOf(x); }, 0);
+    var tab = A.facTab || 'همه';
+    var tabs = ['همه'].concat(GROUPS).map(function (g) { return '<button class="btn' + (tab === g ? ' primary' : '') + '" onclick="AN16.facTabSet(\'' + g + '\')">' + g + '</button>'; }).join(' ');
+    var scopes = ['همه', 'نیروی انسانی', 'ماشین‌آلات', 'مصالح', 'حمل', 'انتخاب‌شده‌ها'].map(function (s) { return '<option' + (S.scope === s ? ' selected' : '') + '>' + s + '</option>'; }).join('');
+    var list = order.filter(function (x) { return tab === 'همه' || x.g === tab; });
+    var trs = list.map(function (x) {
+      var p = priceOf(x), amount = x.qtyTot * p, pct = tot ? Math.round(amount / tot * 10000) / 100 : 0;
+      var edited = (x.code in S.draft) && num(S.draft[x.code]) !== x.price;
+      return '<tr' + (edited ? ' style="background:rgba(230,170,40,.13)"' : '') + '><td><input type="checkbox" class="an17-chk" data-code="' + x.code + '"></td><td><b>' + E(x.code) + '</b></td><td>' + E(x.desc) + '</td><td>' + E(x.unit) + '</td><td>' + fmtQ(Math.round(x.qtyTot * 10000) / 10000) + '</td>' +
+        '<td><input type="text" class="num" style="min-width:100px" value="' + E(p) + '" oninput="AN17.setDraft(\'' + x.code + '\', this.value)"></td>' +
+        '<td id="an17Amt-' + x.code + '">' + fmtM(amount) + '</td><td>' + fmtQ(pct) + '٪</td></tr>';
+    }).join('');
+    b.innerHTML = '<div class="head"><div><h1>فهرست عوامل مؤثر در پروژه</h1><p>ضریب بدهید یا قیمت‌ها را دانه‌دانه اصلاح کنید؛ تا «تأیید» نزنید چیزی ثبت نمی‌شود. با تأیید، قیمت تازه روی همه ردیف‌های فهرست‌بها که آن عامل را دارند می‌نشیند.</p></div></div>' +
+      '<div class="mb-wrap"><div class="an16-tools"><button class="btn" onclick="AN16.goList()">→ فهرست آنالیزها</button>' + tabs +
+      '<button class="btn" onclick="AN16.xlsFac()">📗 خروجی اکسل عوامل</button></div>' +
+      '<div class="mb-card" style="margin-bottom:.6rem"><div class="an16-tools" style="align-items:center;margin:0">' +
+      '<label>ضریب: <input type="text" id="an17Coef" placeholder="۱/۰۵" style="width:80px"></label>' +
+      '<label>دامنه: <select onchange="AN17.setScope(this.value)">' + scopes + '</select></label>' +
+      '<button class="btn" onclick="AN17.applyCoef()">اعمال ضریب روی قیمت‌ها</button>' +
+      '<span style="flex:1"></span>' +
+      '<button class="btn" onclick="AN17.reset()">انصراف</button>' +
+      '<button class="btn primary" onclick="AN17.confirm()">✔ تأیید و بروزرسانی همه آنالیزها</button></div>' +
+      '<div style="margin-top:.4rem">جمع کل عوامل: <b id="an17Tot">' + fmtM(tot) + '</b></div></div>' +
+      '<div class="mb-scroll"><table class="mb-grid" style="min-width:820px"><thead><tr><th></th><th>کد عامل</th><th>شرح عامل</th><th>واحد</th><th>مقدار عامل در کل</th><th>بهای واحد پیشنهادی (قابل اصلاح)</th><th>بهای کل عامل</th><th>درصد</th></tr></thead><tbody>' +
+      (trs || '<tr><td colspan="8" class="muted" style="text-align:center;padding:.8rem">هنوز عاملی در آنالیزها نیست — اول «آنالیز همه» را بزنید.</td></tr>') + '</tbody></table></div></div>';
+  };
 })();
 </script>
 
