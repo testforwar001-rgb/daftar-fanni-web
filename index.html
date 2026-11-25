@@ -9621,6 +9621,32 @@ input,select,textarea{max-width:100%}
 .mb-d .mb-grid .code-in,.mb-d .mb-grid .desc-in,.mb-d .mb-grid .op-in,.mb-d .mb-grid .res{min-width:0!important;white-space:normal}
 .mb-d table{max-width:100%}
 </style>
+<style id="df-fix36">
+/* df-fix36 (final41): the collapsed (min) sidebar must NOT float over
+   the page when it expands on hover (his words 2026-11-25: «وقتی روی
+   منو میرم و حالت کشویی باز میشه منو های زیرش میاد رو — قاعدتاً
+   نباید نشان داده بشه»). Before: .app.min kept a 56px grid track
+   while .side:hover grew to 245px, covering the page. Now the grid
+   track itself widens with the hover, so the expanded menu PUSHES
+   the content aside and the page stays fully visible. */
+.app.min{transition:grid-template-columns .3s ease}
+.app.min:has(>.side:hover),.app.min:has(>.side:focus-within){grid-template-columns:245px 1fr!important}
+</style>
+<style id="df-fix37">
+/* df-fix37 (final41): the «دفتر فنی و مهندسی» submenu (#engSub) must
+   look like the OTHER sidebar menus (his words 2026-11-25: «دفتر فنی
+   هم بکراندش سفیده — مثل مابقی منو ها بشه»). It carried the .engnav
+   light-card styling (white background, dark text) inside the dark
+   sidebar; now it is transparent over the sidebar brown with the
+   same cream text as every other .subnav, keeping the standard
+   highlight for the active item. */
+#engSub{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;color:#f3d9b8!important}
+#engSub .gh{color:#fff!important}
+#engSub .gi button{color:#f3d9b8!important}
+#engSub .gi button:hover,#engSub .gi button.on{background:var(--side-on)!important;color:#fff!important}
+#engSub .gi .sh,#engSub .sh{color:#f3d9b8!important;opacity:.65!important}
+#engSub .gi button.lk{color:#f3d9b8!important;opacity:.6!important}
+</style>
 
 
 </body></html>
