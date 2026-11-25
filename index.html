@@ -7438,6 +7438,468 @@ input,select,textarea{max-width:100%}
   A.page = function () { var r = oPage.apply(this, arguments); addBtn('an21-undobtn'); return r; };
 })();
 </script>
+<script id="df-fix22">
+/* df-fix22 (final26): the analysis sheet rebuilt to the SECOND تدکار film's
+   exact structure (2026-11-25, «دقیقاً همین فرمت و همین ساختار»):
+   - factor grid with پایه columns beside پیشنهاد: شرح عامل | واحد عامل |
+     مقدار/مقیاس | بهای واحد پیشنهاد | ضریب پیشنهاد | حاصل پیشنهاد |
+     ٪ پیشنهاد | ٪ پایه | مقدار پایه | بهای واحد پایه (bq/bp snapshotted on
+     each factor row from the base analysis / bank).
+   - عملیات menu: نقل آنالیز از ردیف دیگر، اعمال ضریب (the film's dialog:
+     مقدار + ضرب/جایگزین + نوع عامل + نوع عملیات)، فهرست عوامل مؤثر،
+     خلاصه آنالیز، مقطوع، حذف (این ردیف / همه ردیف‌ها / ردیف‌های یک بخش).
+   - رندینگ with the film's confirm text.
+   - عوامل مؤثر page gains رشته/فصل selectors like the film's window.
+   Replaces AN16.renderSheet (df-fix16) — its fF/fAdd/fPick/fDel handlers are
+   reused; the df-fix17/20/21 toolbar extras are rendered inline here. */
+(function () {
+  'use strict';
+  function num(v) { try { return pn(v); } catch (e) { var n = parseFloat(String(v == null ? '' : v).replace(/[۰-۹]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c); }).replace(/,/g, '')); return isFinite(n) ? n : 0; } }
+  function E(s) { try { return esc(s == null ? '' : s); } catch (e) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); } }
+  function fmtM(n) { try { return faR(n); } catch (e) { return String(Math.round(Number(n) || 0)); } }
+  function fmtQ(n) { return (Number(n) || 0).toLocaleString('fa-IR', { maximumFractionDigits: 4 }); }
+  function fmtP(n) { return (Number(n) || 0).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function T(m, err) { try { toast(m, err); } catch (e) {} }
+  function SV() { try { save(); } catch (e) {} }
+  function D() {
+    if (typeof db === 'undefined' || typeof activeProject === 'undefined' || !activeProject) return null;
+    db.mb = db.mb || {};
+    var d = db.mb[activeProject];
+    if (!d) return null;
+    d.fac = d.fac || {}; d.price = d.price || {}; d.facPrice = d.facPrice || {};
+    return d;
+  }
+  var A = window.AN16;
+  if (!A) return;
+  var W = { fReshte: 'همه', fFasl: 'همه' };
+  window.AN22 = W;
+  var GROUPS = ['نیروی انسانی', 'ماشین‌آلات', 'مصالح', 'حمل'];
+  var BANK_RESH = { bk_abn: 'ابنیه', bk_mech: 'تأسیسات مکانیکی', bk_elec: 'تأسیسات برقی' };
+  var FAC_BANK = { '1': 'bk_lab', '2': 'bk_equ', '3': 'bk_mat', '4': 'bk_mac' };
+  function bankItem(code) {
+    var m = db.mod || {};
+    for (var k in BANK_RESH) { var l = m[k] || []; for (var i = 0; i < l.length; i++) if (String(l[i].code).trim() === String(code).trim()) return { desc: l[i].desc || '', unit: l[i].unit || '', price: num(l[i].price), bank: k }; }
+    return null;
+  }
+  function factorBankPrice(code) {
+    var bk = FAC_BANK[String(code).charAt(0)];
+    var l = (db.mod || {})[bk] || [];
+    for (var i = 0; i < l.length; i++) if (String(l[i].code).trim() === String(code).trim()) return num(l[i].price);
+    return null;
+  }
+  function evalRowLite(r) {
+    var f = String(r.formula || 'N*X*Y*Z+W').toUpperCase().replace(/\s+/g, '');
+    if (!/^[NXYZW0-9.+\-*/() ]+$/.test(f)) return 0;
+    var ex = f.replace(/[NXZWY]/g, function (L) { var v = r[L]; var n = (v === '' || v == null) ? (L === 'W' ? 0 : 1) : num(v); return '(' + (isFinite(n) ? n : 0) + ')'; });
+    try { var o = Function('return (' + ex + ')')(); return isFinite(o) ? o : 0; } catch (e) { return 0; }
+  }
+  function aggAll(d) {
+    var map = {}, order = [];
+    (d.rows || []).forEach(function (r) {
+      var code = String(r.code || '').trim(); if (!code) return;
+      var key = code + '|' + (r.fj || 'ف');
+      if (!map[key]) { map[key] = { key: key, code: code, fj: r.fj || 'ف', qty: 0, secs: {} }; order.push(map[key]); }
+      map[key].qty += evalRowLite(r);
+      if (r.sec) map[key].secs[r.sec] = 1;
+    });
+    order.forEach(function (o) {
+      var bi = bankItem(o.code);
+      var st = (d.stars || []).find(function (s) { return String(s.code).trim() === o.code; });
+      o.desc = bi ? bi.desc : (st ? (st.desc || '') : '');
+      o.unit = bi ? bi.unit : (st ? (st.unit || '') : '');
+      o.reshte = bi ? BANK_RESH[bi.bank] : 'ستاره‌دار';
+      o.bank = bi ? bi.bank : null;
+      o.listPrice = bi ? bi.price : (st ? num(st.price) : 0);
+      var pr = d.price[o.key] || {};
+      o.b = pr.b != null ? num(pr.b) : o.listPrice;
+      o.p = pr.p != null ? num(pr.p) : o.b;
+    });
+    return order;
+  }
+  function chapterOf(o) {
+    if (o.bank === 'bk_abn') return o.code.slice(0, 2);
+    if (o.bank === 'bk_mech' || o.bank === 'bk_elec') return o.code.slice(2, 4);
+    return '';
+  }
+  function facSumOf(list) { return (list || []).reduce(function (s, f) { return s + num(f.qty) * num(f.price) * (num(f.coef) || 1); }, 0); }
+  function baseSumOf(list) { return (list || []).reduce(function (s, f) { return s + num(f.bq != null ? f.bq : f.qty) * num(f.bp != null ? f.bp : f.price); }, 0); }
+  function ensureBase(d, key) {
+    var changed = false;
+    (d.fac[key] || []).forEach(function (f) {
+      if (f.bq == null) { f.bq = num(f.qty); changed = true; }
+      if (f.bp == null) { var bp = factorBankPrice(f.code); f.bp = bp != null ? bp : num(f.price); changed = true; }
+    });
+    if (changed) SV();
+    return changed;
+  }
+  W.ensureBaseAll = function () { var d = D(); if (!d) return; Object.keys(d.fac).forEach(function (k) { ensureBase(d, k); }); };
+  var oAll = A.analyzeAll;
+  A.analyzeAll = function () { var r = oAll.apply(this, arguments); setTimeout(W.ensureBaseAll, 1300); setTimeout(W.ensureBaseAll, 3200); return r; };
+  function reprice(d, key) {
+    var pr = d.price[key] = d.price[key] || {};
+    if (!pr.lump) pr.p = facSumOf(d.fac[key]);
+  }
+  function snap() { if (window.AN21) AN21.snapshot(); }
+  /* ---------------- sheet v2 ---------------- */
+  A.renderSheet = function () {
+    var d = D();
+    var b = document.getElementById('moduleBody');
+    if (!d || !b || !A.key) return;
+    ensureBase(d, A.key);
+    var items = aggAll(d);
+    var row = items.find(function (r) { return r.key === A.key; });
+    if (!row) { A.page(); return; }
+    var list = (d.fac[A.key] || []).slice().sort(function (x, y) { return GROUPS.indexOf(x.g) - GROUPS.indexOf(y.g); });
+    var sum = facSumOf(list), bsum = baseSumOf(list);
+    var totB = items.reduce(function (s, r) { return s + r.qty * r.b; }, 0);
+    var wProj = totB ? (row.qty * row.b / totB * 100) : 0;
+    var secNames = Object.keys(row.secs);
+    var wSec = 0;
+    if (secNames.length && totB) {
+      var s0 = secNames[0];
+      var den = items.filter(function (r) { return r.secs[s0]; }).reduce(function (s, r) { return s + r.qty * r.b; }, 0);
+      wSec = den ? (row.qty * row.b / den * 100) : 0;
+    }
+    var pctAn = row.b ? ((sum / row.b) - 1) * 100 : 0;
+    var pr = d.price[A.key] || {};
+    var groupsHtml = GROUPS.map(function (g) {
+      var gl = list.filter(function (x) { return x.g === g; });
+      if (!gl.length) return '';
+      var gs = facSumOf(gl);
+      var trs = gl.map(function (f) {
+        var amt = num(f.qty) * num(f.price) * (num(f.coef) || 1);
+        var bamt = num(f.bq != null ? f.bq : f.qty) * num(f.bp != null ? f.bp : f.price);
+        return '<tr><td><input type="checkbox" class="an16-sel" data-id="' + f.id + '"></td>' +
+          '<td><input type="text" value="' + E(f.code) + '" onchange="AN16.fF(\'' + f.id + '\',\'code\',this)"></td>' +
+          '<td><input type="text" value="' + E(f.desc || '') + '" onchange="AN16.fF(\'' + f.id + '\',\'desc\',this)"></td>' +
+          '<td><input type="text" value="' + E(f.unit || '') + '" onchange="AN16.fF(\'' + f.id + '\',\'unit\',this)"></td>' +
+          '<td><input type="text" class="num" value="' + E(f.qty) + '" onchange="AN16.fF(\'' + f.id + '\',\'qty\',this)"></td>' +
+          '<td><input type="text" class="num" value="' + E(f.price) + '" onchange="AN16.fF(\'' + f.id + '\',\'price\',this)"></td>' +
+          '<td><input type="text" class="num" value="' + E(f.coef == null ? 1 : f.coef) + '" onchange="AN16.fF(\'' + f.id + '\',\'coef\',this)"></td>' +
+          '<td>' + fmtM(amt) + '</td><td>' + fmtP(sum ? amt / sum * 100 : 0) + '</td>' +
+          '<td>' + fmtP(bsum ? bamt / bsum * 100 : 0) + '</td>' +
+          '<td>' + fmtQ(f.bq != null ? f.bq : f.qty) + '</td><td>' + fmtM(f.bp != null ? f.bp : f.price) + '</td></tr>';
+      }).join('');
+      return '<div class="mb-card an16-gcard"><div class="an16-band"><span>' + g + '</span><span>جمع: ' + fmtM(gs) + ' &nbsp;|&nbsp; ٪پیشنهاد: ' + fmtP(sum ? gs / sum * 100 : 0) + '</span></div>' +
+        '<div class="mb-scroll"><table class="mb-grid an22-grid" style="min-width:1180px"><thead><tr><th></th><th>کد عامل</th><th>شرح عامل</th><th>واحد عامل</th><th>مقدار/مقیاس</th><th>بهای واحد پیشنهاد</th><th>ضریب پیشنهاد</th><th>حاصل پیشنهاد</th><th>٪ پیشنهاد</th><th>٪ پایه</th><th>مقدار پایه</th><th>بهای واحد پایه</th></tr></thead><tbody>' + trs + '</tbody></table></div>' +
+        '<div class="an16-tools"><button class="btn" onclick="AN16.fPickOpen(\'' + g + '\')">⊕ انتخاب از بانک عوامل</button><button class="btn" onclick="AN16.fAdd(\'' + g + '\')">＋ عامل دستی</button></div></div>';
+    }).join('');
+    b.innerHTML = '<div class="mb-wrap">' +
+      '<div class="an16-kpis">' +
+      '<div class="kpi"><span>ردیف</span><b>' + E(row.code) + '</b> <span class="an16-fj">' + E(row.fj) + '</span>' + (pr.lump ? ' <span class="an16-fj" style="background:#b45309">مقطوع</span>' : '') + '</div>' +
+      '<div class="kpi"><span>واحد</span><b>' + E(row.unit) + '</b></div>' +
+      '<div class="kpi"><span>مقدار در برآورد</span><b>' + fmtQ(row.qty) + '</b></div>' +
+      '<div class="kpi"><span>وزن در پروژه</span><b>' + fmtP(wProj) + '٪</b></div>' +
+      '<div class="kpi"><span>وزن در بخش</span><b>' + fmtP(wSec) + '٪</b></div>' +
+      '<div class="kpi"><span>برآورد</span><b>' + fmtM(row.b) + '</b></div>' +
+      '<div class="kpi"><span>پیشنهاد ردیف</span><b>' + fmtM(row.p) + '</b></div>' +
+      '<div class="kpi"><span>جمع پایه</span><b>' + fmtM(bsum) + '</b></div>' +
+      '<div class="kpi"><span>جمع آنالیز</span><b>' + fmtM(sum) + '</b></div>' +
+      '<div class="kpi"><span>٪ اضافه یا تخفیف آنالیز</span><b>' + fmtP(pctAn) + '٪</b></div></div>' +
+      '<div class="mb-card an16-desc"><b>شرح ردیف:</b> ' + E(row.desc) + '</div>' +
+      '<p class="muted an17-note" style="font-size:.8rem;margin:.2rem 0 .6rem">این آنالیز پایه‌ی ردیف است؛ قیمت هر عامل را که اینجا بروز کنید، در آنالیز همه ردیف‌ها اعمال می‌شود و بهای واحد پیشنهاد خودکار بهنگام می‌شود.</p>' +
+      '<div class="an16-tools">' +
+      '<button class="btn" onclick="AN16.goList()">→ فهرست آنالیزها</button>' +
+      '<span class="an22-opwrap"><button class="btn" onclick="AN22.toggleOps(event)">⚙ عملیات ▾</button>' +
+      '<span class="an22-ops" id="an22Ops" style="display:none">' +
+      '<button onclick="AN22.copyDlg()">نقل آنالیز از ردیف دیگر</button>' +
+      '<button onclick="AN22.coefDlg()">اعمال ضریب بر عوامل</button>' +
+      '<button onclick="AN16.facPage()">فهرست عوامل مؤثر در پروژه</button>' +
+      '<button onclick="AN22.summaryDlg()">خلاصه آنالیز</button>' +
+      '<button onclick="AN22.toggleLump()">' + (pr.lump ? '✓ مقطوع (لغو)' : 'مقطوع') + '</button>' +
+      '<button onclick="AN22.delItem()">حذف آنالیز این ردیف</button>' +
+      '<button onclick="AN22.delSection()">حذف آنالیز ردیف‌های یک بخش</button>' +
+      '<button onclick="AN22.delAll()">حذف آنالیز همه ردیف‌ها</button>' +
+      '</span></span>' +
+      '<input type="text" placeholder="جستجوی عامل…" value="' + E(A.q || '') + '" oninput="AN16.fSearch(this)" style="max-width:170px">' +
+      '<button class="btn" onclick="AN16.fDelSel()">⊖ حذف انتخاب‌شده‌ها</button>' +
+      '<button class="btn" onclick="AN16.round()">رندینگ</button>' +
+      '<button class="btn" onclick="AN16.xlsOne(\'' + A.key + '\')">📗 اکسل</button>' +
+      '<button class="btn" onclick="AN16.printOne(\'' + A.key + '\')">🖨 چاپ آنالیز</button>' +
+      '<button class="btn" onclick="AN16.facPage()">عوامل مؤثر</button>' +
+      '<button class="btn an20-sigbtn" onclick="AN20.openSig()">✍️ امضاها</button>' +
+      '<button class="btn an21-undobtn" onclick="AN21.undo()">↩ برگرداندن تغییر قیمت</button>' +
+      '<button class="btn primary" onclick="AN16.applySum()">جمع آنالیز ← بهای واحد پیشنهاد ردیف</button></div>' +
+      (groupsHtml || '<div class="mb-card" style="text-align:center;padding:1rem">این ردیف هنوز آنالیز ندارد.<br><br><button class="btn primary" onclick="AN16.seedOne()">بارگذاری آنالیز پایه فهرست‌بها</button> <button class="btn" onclick="AN16.fAdd(\'نیروی انسانی\')">＋ ساخت دستی از عوامل</button></div>') +
+      '</div>' +
+      '<style>.an22-opwrap{position:relative;display:inline-block}.an22-ops{position:absolute;top:calc(100% + 4px);right:0;z-index:70;background:var(--card,#fff);border:1px solid var(--border,#ccc);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.18);min-width:230px;padding:.3rem;display:flex;flex-direction:column}.an22-ops button{background:none;border:none;text-align:right;padding:.45rem .6rem;border-radius:7px;cursor:pointer;font:inherit;color:inherit}.an22-ops button:hover{background:var(--hover,rgba(0,0,0,.06))}.an22-grid td input[type=text]{min-width:70px}.an22-grid td:nth-child(3) input{min-width:170px}</style>';
+  };
+  W.toggleOps = function (ev) {
+    if (ev) ev.stopPropagation();
+    var p = document.getElementById('an22Ops');
+    if (!p) return;
+    var open = p.style.display !== 'none';
+    p.style.display = open ? 'none' : 'flex';
+    if (!open) setTimeout(function () { document.addEventListener('click', function h() { var q = document.getElementById('an22Ops'); if (q) q.style.display = 'none'; document.removeEventListener('click', h); }); }, 10);
+  };
+  /* ---------------- عملیات: اعمال ضریب (film dialog) ---------------- */
+  function dlg(id, html) {
+    var old = document.getElementById(id);
+    if (old) old.remove();
+    var el = document.createElement('dialog');
+    el.id = id;
+    el.className = 'mb-d';
+    el.style.cssText = 'max-width:min(560px,94vw);width:100%';
+    el.innerHTML = html;
+    document.body.appendChild(el);
+    el.showModal();
+    return el;
+  }
+  W.coefDlg = function () {
+    var d = D(); if (!d || !A.key) return;
+    var grps = GROUPS.map(function (g) { return '<label style="display:flex;gap:.4rem;align-items:center"><input type="checkbox" class="an22-grp" value="' + g + '" checked style="width:auto"> ' + g + '</label>'; }).join('');
+    var el = dlg('an22CoefDlg', '<div class="mb-card" style="margin:0"><h3 style="margin:.1rem 0 .6rem">اعمال ضریب بر روی عوامل آنالیز ردیف ' + E(A.key.split('|')[0]) + '</h3>' +
+      '<label style="display:flex;gap:.5rem;align-items:center">مقدار: <input type="text" id="an22CoefVal" value="1" style="max-width:110px"></label>' +
+      '<div style="display:flex;gap:1rem;margin:.55rem 0"><label><input type="radio" name="an22Mode" value="mul" checked style="width:auto"> ضرب شود</label><label><input type="radio" name="an22Mode" value="set" style="width:auto"> جایگزین شود</label></div>' +
+      '<div style="display:flex;gap:1.2rem;flex-wrap:wrap"><div><b>نوع عامل</b><div style="display:grid;gap:.3rem;margin-top:.3rem">' + grps + '</div></div>' +
+      '<div><b>نوع عملیات</b><div style="display:grid;gap:.3rem;margin-top:.3rem">' +
+      '<label><input type="radio" name="an22Tgt" value="price" checked style="width:auto"> بهای واحد</label>' +
+      '<label><input type="radio" name="an22Tgt" value="qty" style="width:auto"> مقدار</label>' +
+      '<label><input type="radio" name="an22Tgt" value="coef" style="width:auto"> ضریب خاص</label></div></div></div>' +
+      '<div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.8rem"><button class="btn" onclick="document.getElementById(\'an22CoefDlg\').close()">انصراف</button><button class="btn primary" onclick="AN22.coefApply()">ثبت</button></div></div>');
+    return el;
+  };
+  W.coefApply = function () {
+    var d = D(); if (!d || !A.key) return;
+    var v = num(document.getElementById('an22CoefVal').value);
+    var mode = (document.querySelector('input[name=an22Mode]:checked') || {}).value || 'mul';
+    var tgt = (document.querySelector('input[name=an22Tgt]:checked') || {}).value || 'price';
+    var grps = Array.prototype.map.call(document.querySelectorAll('.an22-grp:checked'), function (c) { return c.value; });
+    if (!grps.length) { T('حداقل یک گروه عامل را انتخاب کنید.', 1); return; }
+    snap();
+    (d.fac[A.key] || []).forEach(function (f) {
+      if (grps.indexOf(f.g) < 0) return;
+      if (tgt === 'price') f.price = mode === 'mul' ? Math.round(num(f.price) * v) : v;
+      else if (tgt === 'qty') f.qty = mode === 'mul' ? num(f.qty) * v : v;
+      else f.coef = mode === 'mul' ? (num(f.coef) || 1) * v : v;
+    });
+    reprice(d, A.key);
+    SV();
+    var el = document.getElementById('an22CoefDlg');
+    if (el) { el.close(); el.remove(); }
+    A.renderSheet();
+    T('ضریب اعمال شد.');
+  };
+  /* ---------------- عملیات: نقل آنالیز ---------------- */
+  W.copyDlg = function () {
+    var d = D(); if (!d || !A.key) return;
+    var items = aggAll(d).filter(function (r) { return r.key !== A.key; });
+    if (!items.length) { T('ردیف دیگری در برآورد نیست.', 1); return; }
+    var opts = items.map(function (r) { return '<option value="' + E(r.key) + '">' + E(r.code) + ' — ' + E(r.desc) + ((d.fac[r.key] || []).length ? '' : ' (بدون آنالیز — اول آنالیز همه)') + '</option>'; }).join('');
+    dlg('an22CopyDlg', '<div class="mb-card" style="margin:0"><h3 style="margin:.1rem 0 .6rem">نقل آنالیز از ردیف دیگر</h3>' +
+      '<label>ردیف مبدأ: <select id="an22Src" style="width:100%">' + opts + '</select></label>' +
+      '<p class="muted" style="font-size:.82rem">آنالیز ردیف مبدأ عیناً روی ردیف جاری (' + E(A.key.split('|')[0]) + ') می‌نشیند و جایگزین آنالیز فعلی می‌شود.</p>' +
+      '<div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.7rem"><button class="btn" onclick="document.getElementById(\'an22CopyDlg\').close()">انصراف</button><button class="btn primary" onclick="AN22.copyDo()">نقل</button></div></div>');
+  };
+  W.copyDo = function () {
+    var d = D(); if (!d || !A.key) return;
+    var src = document.getElementById('an22Src').value;
+    var rows = d.fac[src] || [];
+    if (!rows.length) { T('ردیف مبدأ هنوز آنالیز ندارد — اول «آنالیز همه» را بزنید.', 1); return; }
+    snap();
+    d.fac[A.key] = rows.map(function (f) {
+      var c = JSON.parse(JSON.stringify(f));
+      try { c.id = uid('f'); } catch (e) { c.id = 'f' + Math.random().toString(36).slice(2, 9); }
+      return c;
+    });
+    reprice(d, A.key);
+    SV();
+    var el = document.getElementById('an22CopyDlg');
+    if (el) { el.close(); el.remove(); }
+    A.renderSheet();
+    T('آنالیز نقل شد.');
+  };
+  /* ---------------- عملیات: خلاصه آنالیز ---------------- */
+  W.summaryDlg = function () {
+    var d = D(); if (!d || !A.key) return;
+    ensureBase(d, A.key);
+    var list = d.fac[A.key] || [];
+    var totB = baseSumOf(list), totP = facSumOf(list);
+    var trs = GROUPS.map(function (g) {
+      var gl = list.filter(function (x) { return x.g === g; });
+      if (!gl.length) return '';
+      return '<tr><td>' + g + '</td><td>' + fmtM(baseSumOf(gl)) + '</td><td>' + fmtM(facSumOf(gl)) + '</td><td>' + fmtP(totP ? facSumOf(gl) / totP * 100 : 0) + '٪</td></tr>';
+    }).join('');
+    dlg('an22SumDlg', '<div class="mb-card" style="margin:0"><h3 style="margin:.1rem 0 .6rem">خلاصه آنالیز ردیف ' + E(A.key.split('|')[0]) + '</h3>' +
+      '<table class="mb-grid"><thead><tr><th>گروه</th><th>جمع پایه</th><th>جمع پیشنهاد</th><th>٪ پیشنهاد</th></tr></thead><tbody>' + trs +
+      '<tr style="font-weight:bold"><td>جمع کل</td><td>' + fmtM(totB) + '</td><td>' + fmtM(totP) + '</td><td>۱۰۰٪</td></tr></tbody></table>' +
+      '<div style="display:flex;justify-content:flex-end;margin-top:.7rem"><button class="btn" onclick="document.getElementById(\'an22SumDlg\').close()">بستن</button></div></div>');
+  };
+  /* ---------------- عملیات: مقطوع + حذف‌ها ---------------- */
+  W.toggleLump = function () {
+    var d = D(); if (!d || !A.key) return;
+    var pr = d.price[A.key] = d.price[A.key] || {};
+    if (pr.lump) { delete pr.lump; delete pr.lumpP; T('مقطوع لغو شد.'); }
+    else { pr.lump = 1; pr.lumpP = pr.p != null ? num(pr.p) : facSumOf(d.fac[A.key]); T('ردیف مقطوع شد؛ بهای واحد پیشنهادش ثابت می‌ماند.'); }
+    SV();
+    A.renderSheet();
+  };
+  function guardLump() {
+    var d = D(); if (!d) return;
+    var any = false;
+    Object.keys(d.price).forEach(function (k) { var pr = d.price[k]; if (pr && pr.lump && pr.p !== pr.lumpP) { pr.p = pr.lumpP; any = true; } });
+    if (any) SV();
+  }
+  var oFF2 = A.fF;
+  A.fF = function () { var r = oFF2.apply(this, arguments); setTimeout(guardLump, 700); setTimeout(guardLump, 1600); return r; };
+  if (typeof A.setFacPrice === 'function') {
+    var oSet2 = A.setFacPrice;
+    A.setFacPrice = function () { var r = oSet2.apply(this, arguments); setTimeout(guardLump, 700); setTimeout(guardLump, 1600); return r; };
+  }
+  W.delItem = function () {
+    var d = D(); if (!d || !A.key) return;
+    if (!confirm('آنالیز این ردیف حذف شود؟')) return;
+    snap();
+    d.fac[A.key] = [];
+    if (d.price[A.key]) delete d.price[A.key].p;
+    SV();
+    A.renderSheet();
+    T('آنالیز ردیف حذف شد.');
+  };
+  W.delAll = function () {
+    var d = D(); if (!d) return;
+    if (!confirm('آنالیز همه ردیف‌ها حذف شود؟')) return;
+    snap();
+    Object.keys(d.fac).forEach(function (k) { d.fac[k] = []; if (d.price[k]) delete d.price[k].p; });
+    SV();
+    A.page();
+    T('آنالیز همه ردیف‌ها حذف شد.');
+  };
+  W.delSection = function () {
+    var d = D(); if (!d) return;
+    var name = prompt('نام بخش را وارد کنید:');
+    if (!name) return;
+    var items = aggAll(d).filter(function (r) { return r.secs[name] && (d.fac[r.key] || []).length; });
+    if (!items.length) { T('در این بخش آنالیزی نیست.', 1); return; }
+    if (!confirm('آنالیز ' + items.length + ' ردیف بخش «' + name + '» حذف شود؟')) return;
+    snap();
+    items.forEach(function (r) { d.fac[r.key] = []; if (d.price[r.key]) delete d.price[r.key].p; });
+    SV();
+    A.page();
+    T('آنالیز ردیف‌های بخش حذف شد.');
+  };
+  /* ---------------- رندینگ با متن فیلم ---------------- */
+  A.round = function () {
+    var d = D(); if (!d || !A.key) return;
+    if (!confirm('آیا می‌خواهید بهای واحد گرد شود؟')) return;
+    snap();
+    (d.fac[A.key] || []).forEach(function (f) { f.price = Math.ceil(num(f.price) / 1000) * 1000; });
+    reprice(d, A.key);
+    SV();
+    A.renderSheet();
+  };
+  /* ---------------- عوامل مؤثر: رشته/فصل (film window) ---------------- */
+  function chapterLabel(o) { var c = chapterOf(o); return c ? 'فصل ' + c : ''; }
+  function filteredItems(d) {
+    return aggAll(d).filter(function (o) {
+      if (W.fReshte !== 'همه' && o.reshte !== W.fReshte) return false;
+      if (W.fFasl !== 'همه' && chapterLabel(o) !== W.fFasl) return false;
+      return true;
+    });
+  }
+  function aggregateF(d, items) {
+    var agg = {}, order = [];
+    var DIG = { '1': 'نیروی انسانی', '2': 'ماشین‌آلات', '3': 'مصالح', '4': 'حمل' };
+    items.forEach(function (r) {
+      (d.fac[r.key] || []).forEach(function (f) {
+        var code = String(f.code || '').trim(); if (!code) return;
+        if (!agg[code]) { agg[code] = { code: code, desc: f.desc || '', unit: f.unit || '', g: f.g || DIG[code.charAt(0)] || '', qtyTot: 0, price: num(f.price) }; order.push(agg[code]); }
+        agg[code].qtyTot += num(f.qty) * (num(f.coef) || 1) * r.qty;
+        if (num(f.price)) agg[code].price = num(f.price);
+      });
+    });
+    return order;
+  }
+  W.setFacFilter = function (kind, v) {
+    if (kind === 'reshte') { W.fReshte = v; W.fFasl = 'همه'; }
+    else W.fFasl = v;
+    A.facPage();
+  };
+  function addUndoBtn() {
+    if (!window.AN21) return;
+    document.querySelectorAll('#moduleBody .an16-tools').forEach(function (t) {
+      if (t.querySelector('.an21-undobtn')) return;
+      var conf = Array.prototype.find.call(t.querySelectorAll('button'), function (x) { return x.textContent.indexOf('تأیید') >= 0; });
+      if (conf) {
+        var b = document.createElement('button');
+        b.className = 'btn an21-undobtn';
+        b.textContent = '↩ برگرداندن تغییر قیمت';
+        b.onclick = AN21.undo;
+        t.insertBefore(b, conf);
+      }
+    });
+  }
+  var oFacPage = A.facPage;
+  A.facPage = function () {
+    if (W.fReshte === 'همه' && W.fFasl === 'همه') { var r0 = oFacPage.apply(this, arguments); addUndoBtn(); return r0; }
+    /* filtered variant of the df-fix18 page (same AN17 draft/تأیید handlers) */
+    A._facShown = true;
+    var d = D();
+    var b = document.getElementById('moduleBody');
+    if (!d || !b) return;
+    var S = window.AN17;
+    var items = filteredItems(d);
+    var order = aggregateF(d, items);
+    function priceOf(x) { return (S && x.code in S.draft) ? num(S.draft[x.code]) : x.price; }
+    var tot = order.reduce(function (s, x) { return s + x.qtyTot * priceOf(x); }, 0);
+    var all = aggAll(d);
+    var reshtes = ['همه'].concat(all.map(function (o) { return o.reshte; }).filter(function (v, i, a) { return a.indexOf(v) === i; }));
+    var fasls = ['همه'].concat(all.filter(function (o) { return W.fReshte === 'همه' || o.reshte === W.fReshte; }).map(chapterLabel).filter(function (v, i, a) { return v && a.indexOf(v) === i; }));
+    var tab = A.facTab || 'همه';
+    var tabs = ['همه'].concat(GROUPS).map(function (g) { return '<button class="btn' + (tab === g ? ' primary' : '') + '" onclick="AN16.facTabSet(\'' + g + '\')">' + g + '</button>'; }).join(' ');
+    var scopes = ['همه', 'نیروی انسانی', 'ماشین‌آلات', 'مصالح', 'حمل', 'انتخاب‌شده‌ها'].map(function (s) { return '<option' + (S && S.scope === s ? ' selected' : '') + '>' + s + '</option>'; }).join('');
+    var list = order.filter(function (x) { return tab === 'همه' || x.g === tab; });
+    var trs = list.map(function (x) {
+      var p = priceOf(x), amount = x.qtyTot * p, pct = tot ? Math.round(amount / tot * 10000) / 100 : 0;
+      var edited = S && (x.code in S.draft) && num(S.draft[x.code]) !== x.price;
+      return '<tr' + (edited ? ' style="background:rgba(230,170,40,.13)"' : '') + '><td><input type="checkbox" class="an17-chk" data-code="' + x.code + '"></td><td><b>' + E(x.code) + '</b></td><td>' + E(x.desc) + '</td><td>' + E(x.unit) + '</td><td>' + fmtQ(Math.round(x.qtyTot * 10000) / 10000) + '</td>' +
+        '<td><input type="text" class="num" style="min-width:100px" value="' + E(p) + '" oninput="AN17.setDraft(\'' + x.code + '\', this.value)"></td>' +
+        '<td id="an17Amt-' + x.code + '">' + fmtM(amount) + '</td><td>' + fmtP(pct) + '٪</td></tr>';
+    }).join('');
+    b.innerHTML = '<div class="head"><div><h1>فهرست عوامل مؤثر در پروژه</h1><p>ضریب بدهید یا قیمت‌ها را دانه‌دانه اصلاح کنید؛ تا «تأیید» نزنید چیزی ثبت نمی‌شود. با تأیید، قیمت تازه روی همه ردیف‌های فهرست‌بها که آن عامل را دارند می‌نشیند.</p></div></div>' +
+      '<div class="mb-wrap"><div class="an16-tools"><button class="btn" onclick="AN16.goList()">→ فهرست آنالیزها</button>' + tabs +
+      '<button class="btn" onclick="AN16.xlsFac()">📗 خروجی اکسل عوامل</button>' +
+      '<label>رشته: <select onchange="AN22.setFacFilter(\'reshte\', this.value)">' + reshtes.map(function (r) { return '<option' + (W.fReshte === r ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></label>' +
+      '<label>فصل: <select onchange="AN22.setFacFilter(\'fasl\', this.value)">' + fasls.map(function (r) { return '<option' + (W.fFasl === r ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></label></div>' +
+      '<div class="mb-card" style="margin-bottom:.6rem"><div class="an16-tools" style="align-items:center;margin:0">' +
+      '<label>ضریب: <input type="text" id="an17Coef" placeholder="۱/۰۵" style="width:80px"></label>' +
+      '<label>دامنه: <select onchange="AN17.setScope(this.value)">' + scopes + '</select></label>' +
+      '<button class="btn" onclick="AN17.applyCoef()">اعمال ضریب روی قیمت‌ها</button>' +
+      '<span style="flex:1"></span>' +
+      '<button class="btn" onclick="AN17.reset()">انصراف</button>' +
+      '<button class="btn primary" onclick="AN17.confirm()">✔ تأیید و بروزرسانی همه آنالیزها</button></div>' +
+      '<div style="margin-top:.4rem">جمع کل عوامل (در این نما): <b id="an17Tot">' + fmtM(tot) + '</b></div></div>' +
+      '<div class="mb-scroll"><table class="mb-grid" style="min-width:820px"><thead><tr><th></th><th>کد عامل</th><th>شرح عامل</th><th>واحد</th><th>مقدار عامل در کل</th><th>بهای واحد پیشنهادی (قابل اصلاح)</th><th>بهای کل عامل</th><th>درصد</th></tr></thead><tbody>' +
+      (trs || '<tr><td colspan="8" class="muted" style="text-align:center;padding:.8rem">در این رشته/فصل عاملی نیست.</td></tr>') + '</tbody></table></div></div>';
+    addUndoBtn();
+  };
+  if (window.AN17 && typeof window.AN17.applyCoef === 'function') {
+    var oCoef = window.AN17.applyCoef;
+    window.AN17.applyCoef = function () {
+      if (W.fReshte === 'همه' && W.fFasl === 'همه') return oCoef.apply(this, arguments);
+      var d = D(); if (!d) return;
+      var inp = document.getElementById('an17Coef');
+      var coef = inp ? num(inp.value) : 0;
+      if (!coef || coef <= 0) { T('ضریب را وارد کنید (مثلاً ۱/۰۵).', 1); return; }
+      var S = window.AN17;
+      var order = aggregateF(d, filteredItems(d));
+      var checked = {};
+      document.querySelectorAll('.an17-chk:checked').forEach(function (c) { checked[c.getAttribute('data-code')] = 1; });
+      var n = 0;
+      order.forEach(function (x) {
+        var cur = (x.code in S.draft) ? num(S.draft[x.code]) : x.price;
+        var inScope = S.scope === 'همه' || (S.scope === 'انتخاب‌شده‌ها' ? !!checked[x.code] : x.g === S.scope);
+        if (!inScope) return;
+        S.draft[x.code] = Math.round(cur * coef);
+        n++;
+      });
+      if (!n) { T('عاملی در این دامنه نیست.', 1); return; }
+      A.facPage();
+      T('ضریب روی ' + n + ' عامل اعمال شد — برای ثبت نهایی «تأیید» را بزنید.');
+    };
+  }
+})();
+</script>
 
 
 </body></html>
