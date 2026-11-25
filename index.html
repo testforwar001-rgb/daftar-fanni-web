@@ -7933,7 +7933,7 @@ input,select,textarea{max-width:100%}
     'جدول الف (بخشنامه ۱۰۰/۷۶۵۷۴)', 'جدول ب (بخشنامه ۱۰۰/۷۶۵۷۴)', 'جدول پ (بخشنامه ۱۰۰/۷۶۵۷۴)',
     'جدول ۱ (بخشنامه ۹۶/۱۲۳۲۵۷۹)', 'جدول ۲ (بخشنامه ۹۶/۱۲۳۲۵۷۹)', 'جدول ۳ (بخشنامه ۹۶/۱۲۳۲۵۷۹)', 'جدول ۴ (بخشنامه ۹۶/۱۲۳۲۵۷۹)',
     'جدول ۵ (بخشنامه ۹۶/۱۲۳۲۵۷۹)', 'جدول ۵ (فرم خام)', 'جدول ۶ (بخشنامه ۹۶/۱۲۳۲۵۷۹)', 'جدول ۶ (فرم خام)',
-    'مقایسه بهای واحد برآورد و پیشنهاد', 'مقایسه کلی برآورد و پیشنهاد'];
+    'مقایسه بهای واحد برآورد و پیشنهاد', 'مقایسه کلی برآورد و پیشنهاد', 'ردیف های پایه ردیف تجمیعی'];
   function bankItem(code) {
     var m = db.mod || {};
     for (var k in BANK_RESH) { var l = m[k] || []; for (var i = 0; i < l.length; i++) if (String(l[i].code).trim() === String(code).trim()) return { desc: l[i].desc || '', unit: l[i].unit || '', price: num(l[i].price), bank: k }; }
@@ -8086,11 +8086,24 @@ input,select,textarea{max-width:100%}
       });
       return { headers: ['کد عامل', 'شرح عامل', 'واحد', 'مقدار عامل در کل', 'بهای واحد پایه', 'بهای واحد پیشنهادی', 'بهای کل عامل'], rows: rows14 };
     }
+    if (n === 18) {
+      /* ردیف‌های پایه ردیف تجمیعی: the متره detail rows aggregated into each
+         برآورد row, per item, with the item total. */
+      var rows18 = [];
+      its.forEach(function (it) {
+        rows18.push(['', it.code + ' — ' + it.desc, '', '', '', '', '', '']);
+        (d.rows || []).filter(function (r) { return String(r.code || '').trim() === it.code && (r.fj || 'ف') === it.fj; }).forEach(function (r) {
+          rows18.push([r.sec || '', r.op || '', r.N == null ? '' : String(r.N), r.X == null ? '' : String(r.X), r.Y == null ? '' : String(r.Y), r.Z == null ? '' : String(r.Z), r.W == null ? '' : String(r.W), fmtQ(evalRowLite(r))]);
+        });
+        rows18.push(['', 'جمع مقدار ردیف', '', '', '', '', '', fmtQ(it.qty)]);
+      });
+      return { headers: ['بخش', 'شرح عملیات', 'تعداد', 'طول', 'عرض', 'ارتفاع', 'وزن', 'حاصل'], rows: rows18 };
+    }
     return null;
   }
   function rowsToHtml(rep) {
     return rep.rows.map(function (r) {
-      var isBand = r.length > 1 && r[0] === '' && r[1] && (String(r[1]).indexOf('رشته:') === 0 || GROUPS.indexOf(r[1]) >= 0);
+      var isBand = r.length > 1 && r[0] === '' && r[1] && String(r[1]).indexOf('جمع') !== 0;
       var isTot = r[0] === 'جمع کل' || (r[1] && String(r[1]).indexOf('جمع') === 0);
       return '<tr' + (isBand ? ' class="band"' : (isTot ? ' class="tot"' : '')) + '>' + r.map(function (c, ix) { return '<td' + (ix === 2 || ix === 1 ? ' class="rt"' : '') + '>' + E(c) + '</td>'; }).join('') + '</tr>';
     }).join('');
