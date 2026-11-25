@@ -10149,11 +10149,11 @@ input,select,textarea{max-width:100%}
     '.df46-sheet.df46-flex{display:flex;flex-direction:column;min-height:282mm;box-sizing:border-box}' +
     '.df46-sheet.df46-flex .df46-sig{margin-top:auto}' +
     '.pkg-cont .page,.page.pkg-cont{page-break-after:auto!important}' +
-    '@page{margin-bottom:11mm!important}' +
+    '@page{margin-bottom:5mm!important}' +
     '@page{@bottom-left{content:"صفحه: " counter(page);font-size:10px}}' +
     '@page ls{@bottom-left{content:"صفحه: " counter(page);font-size:10px}}' +
     '</style>';
-  var T5_MARGIN = '@page{margin-bottom:11mm!important}';
+  var T5_MARGIN = '@page{margin-bottom:5mm!important}';
   function transform(html) {
     if (!html || html.indexOf('<table') < 0) return html;
     try {
@@ -10217,7 +10217,7 @@ input,select,textarea{max-width:100%}
       else tops.forEach(function (el, i) { if (i < tops.length - 1) el.style.pageBreakAfter = 'always'; });
       /* no top band (his call: «اون قسمت گروه فنی پشتیبان رو بردار با خط زیرش»)
          — only the fixed footer band stays */
-      var bands = '<div class="dffx-f"><span></span><span>دفتر فنی</span></div>';
+      var bands = '';
       var css = CSS; if (html.indexOf('t5p') >= 0) css = css.split(T5_MARGIN).join('');
       body.insertAdjacentHTML('beforeend', bands + css);
       return body.innerHTML;
