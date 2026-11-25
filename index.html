@@ -9595,6 +9595,16 @@ input,select,textarea{max-width:100%}
   setTimeout(function () { clearInterval(iv); }, 30000);
 })();
 </script>
+<style id="df-fix34">
+/* df-fix34 (final39): on the phone the section submenu must NOT float
+   over the page (his pick 2026-11-25: «صفحه متره پشت منو کامل دیده
+   بشه»). The shell/df-fix14 made .nav>.subnav a fixed overlay drawer
+   on ≤850px; here it opens IN FLOW inside the sidebar instead, so the
+   page below stays fully visible and nothing is covered or cut. */
+@media (max-width:850px){
+  .nav>.subnav{position:static!important;left:auto!important;right:auto!important;width:auto!important;max-height:none!important;box-shadow:none!important;border-radius:0!important;border-bottom:0!important}
+}
+</style>
 
 
 </body></html>
