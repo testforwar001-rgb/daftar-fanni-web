@@ -8218,43 +8218,22 @@ input,select,textarea{max-width:100%}
   A.renderSheet = function () { var r = oSheet.apply(this, arguments); addBtn(); return r; };
 })();
 </script>
-<script id="df-fix24">
-/* df-fix24 (final29): the گزارشات برآورد dialog also lives in the متره و
-   برآورد section itself (his words 2026-11-25: «این آیتم ها در گزارش متره
-   برآورد باشه» — تدکار opens it from the برآورد page). Injects a
-   «📋 گزارشات برآورد» bar at the top of the متره (mb:metre) and برآورد
-   (mb:est) pages; the dialog itself is df-fix23's AN23. */
+<script id="df-fix25">
+/* df-fix25 (final30): the تدکار report list belongs in the برآورد فهرست
+   بهایی page's own گزارش menu (his words 2026-11-25: «باید در قسمت براورد
+   فهرست بهایی گزارشات باشه این 17 ردیف»). df-fix10's menu item
+   «گزارشات برآورد» (MB10.eReports) opened a small 5-item dialog; it now
+   opens df-fix23's full 18-item گزارشات برآورد dialog. The df-fix24 top
+   bars are dropped — one entry, in the menu, like تدکار. */
 (function () {
   'use strict';
-  function inject() {
-    var b = document.getElementById('moduleBody');
-    if (!b || b.querySelector('.an24-rptbar')) return;
-    if (!window.AN23) return;
-    var bar = document.createElement('div');
-    bar.className = 'an24-rptbar';
-    bar.style.cssText = 'margin:0 0 .6rem;display:flex;gap:.5rem;flex-wrap:wrap';
-    var btn = document.createElement('button');
-    btn.className = 'btn primary';
-    btn.textContent = '📋 گزارشات برآورد';
-    btn.onclick = function () { AN23.open(); };
-    bar.appendChild(btn);
-    b.insertBefore(bar, b.firstChild);
-  }
-  var done = {};
-  function wrap(key) {
-    if (done[key]) return true;
-    if (typeof TABS === 'undefined' || !TABS || typeof TABS[key] !== 'function') return false;
-    var orig = TABS[key];
-    TABS[key] = function () { var r = orig.apply(this, arguments); setTimeout(inject, 0); setTimeout(inject, 350); return r; };
-    done[key] = true;
-    return true;
-  }
-  var tries = 0;
   var iv = setInterval(function () {
-    tries++;
-    var a = wrap('mb:est'), c = wrap('mb:metre');
-    if ((a && c) || tries > 120) clearInterval(iv);
+    if (window.MB10 && typeof MB10.eReports === 'function' && window.AN23) {
+      MB10.eReports = function () { AN23.open(); };
+      clearInterval(iv);
+    }
   }, 300);
+  setTimeout(function () { clearInterval(iv); }, 30000);
 })();
 </script>
 
