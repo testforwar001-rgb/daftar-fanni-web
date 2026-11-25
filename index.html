@@ -8494,9 +8494,15 @@ input,select,textarea{max-width:100%}
     '.an27 .hd{display:flex;justify-content:space-between;font-size:12.5px;line-height:2}' +
     '.an27 .tt{font-weight:700;font-size:15px}' +
     '.an27 .rule{border-top:4.5px double #000;margin:4px 0 7px}' +
-    '.an27 .sig{display:flex;justify-content:space-between;margin-top:34px;font-size:12.5px;font-weight:700}' +
-    '.an27 .foot{display:flex;justify-content:space-between;align-items:flex-end;border-top:1.2px solid #000;margin-top:30px;padding-top:5px;font-size:11.5px}' +
+    '.an27 .sig{display:flex;justify-content:space-between;margin-top:16px;font-size:12.5px;font-weight:700}' +
+    '.an27 .foot{display:flex;justify-content:space-between;align-items:flex-end;border-top:1.2px solid #000;margin-top:12px;padding-top:5px;font-size:11.5px}' +
     '.an27 .stamp{font-weight:700;font-size:12.5px}' +
+    '@page{size:A4 portrait;margin:5mm}@page ls{size:A4 landscape;margin:5mm}' +
+    '.an27.page{page:portrait;page-break-after:always;break-after:page}' +
+    '.an27.page:last-of-type{page-break-after:auto;break-after:auto}' +
+    '.an27.page.ls{page:ls}' +
+    '.an27 td{overflow-wrap:anywhere}' +
+    '.an27 tr{page-break-inside:avoid;break-inside:avoid}' +
     '</style>';
   function headA(title, reshte, year) {
     return '<div class="hd"><div><span class="tt">' + esc(title) + '</span><br>پروژه : ' + esc(projName()) + (reshte ? '<br>رشته : ' + esc(reshte) : '') + '<br>فهرست بهای واحد پایه سال : ' + esc(year) + '</div>' +
@@ -9806,7 +9812,7 @@ input,select,textarea{max-width:100%}
     var pr = (typeof current === 'function') ? current() : null;
     return '<div class="sv41-hd"><div><b>' + E(title) + '</b></div><div class="muted">پروژه: ' + E(pr ? (pr.name || '') : '') + ' — پیمان: ' + E(ct ? (ct.name || '') : '') + '</div></div>';
   }
-  var CSS = '<style>.sv41{font-family:\'B Nazanin\',\'B Mitra\',Vazirmatn,Tahoma,serif;color:#000}.sv41 table{border-collapse:collapse;width:100%;border:2.2px solid #000;font-size:.86rem}.sv41 th,.sv41 td{border:1px solid #000;padding:.28rem .45rem}.sv41 th{background:#eee;border-bottom:3.5px double #000}.sv41 .band td{background:#ddd;font-weight:700}.sv41 .tot td{font-weight:700;background:#f4f4f4}.sv41-hd{margin-bottom:.5rem}.sv41 .page{background:#fff;padding:8mm}.sv41 h3{margin:.2rem 0 .5rem}</style>';
+  var CSS = '<style>.sv41{font-family:\'B Nazanin\',\'B Mitra\',Vazirmatn,Tahoma,serif;color:#000}.sv41 table{border-collapse:collapse;width:100%;border:2.2px solid #000;font-size:.86rem}.sv41 th,.sv41 td{border:1px solid #000;padding:.28rem .45rem}.sv41 th{background:#eee;border-bottom:3.5px double #000}.sv41 .band td{background:#ddd;font-weight:700}.sv41 .tot td{font-weight:700;background:#f4f4f4}.sv41-hd{margin-bottom:.5rem}.sv41 .page{background:#fff;padding:8mm}.sv41 h3{margin:.2rem 0 .5rem}.sv41 td{overflow-wrap:anywhere}.sv41 tr{page-break-inside:avoid;break-inside:avoid}@page{size:A4 portrait;margin:5mm}@page ls{size:A4 landscape;margin:5mm}.sv41 .page{page:portrait;page-break-after:always;break-after:page}.sv41 .page:last-child{page-break-after:auto;break-after:auto}.sv41 .page.ls{page:ls}</style>';
   function tbl(cols, rowsHtml) { return '<table><thead><tr>' + cols.map(function (c) { return '<th>' + E(c) + '</th>'; }).join('') + '</tr></thead><tbody>' + rowsHtml + '</tbody></table>'; }
   function build(n, uptoSeq) {
     var cm = cumModel(uptoSeq); var last = cm.lastDoc;
@@ -9856,14 +9862,14 @@ input,select,textarea{max-width:100%}
         var base = '<td>' + (i + 1) + '</td><td>' + E(c) + '</td><td>' + E((s && s.desc) || e.desc || '') + '</td><td>' + E((s && s.unit) || e.unit || '') + '</td><td>' + Q(e.qty) + '</td><td>' + Q(s.qty) + '</td><td>' + Q(s.qty - e.qty) + '</td><td>' + F(e.amt) + '</td><td>' + F(s.amt) + '</td><td>' + F(s.amt - e.amt) + '</td>';
         return '<tr>' + base + (n === 11 ? '<td>' + PC(s.qty, e.qty) + '</td><td>' + (e.qty === 0 ? '—' : (s.qty >= e.qty ? 'تکمیل' : (s.qty > 0 ? 'در حال انجام' : 'شروع‌نشده'))) + '</td>' : '') + '</tr>'; }).join('');
       var cols = ['ردیف', 'کد', 'شرح', 'واحد', 'مقدار برآورد', 'مقدار صورت‌وضعیت', 'اختلاف مقدار', 'مبلغ برآورد', 'مبلغ صورت‌وضعیت', 'اختلاف مبلغ']; if (n === 11) cols.push('درصد انجام', 'وضعیت');
-      return '<div dir="rtl" class="sv41"><section class="page">' + CSS + head(REPORTS[n - 1]) + tbl(cols, rows7 + '<tr class="tot"><td colspan="7">جمع کل</td><td>' + F(tE) + '</td><td>' + F(tS) + '</td><td>' + F(tS - tE) + '</td>' + (n === 11 ? '<td colspan="2"></td>' : '') + '</tr>') + '</section></div>';
+      return '<div dir="rtl" class="sv41"><section class="page ls">' + CSS + head(REPORTS[n - 1]) + tbl(cols, rows7 + '<tr class="tot"><td colspan="7">جمع کل</td><td>' + F(tE) + '</td><td>' + F(tS) + '</td><td>' + F(tS - tE) + '</td>' + (n === 11 ? '<td colspan="2"></td>' : '') + '</tr>') + '</section></div>';
     }
     if (n === 8) {
       var est3 = estModel(); var byCh2 = {};
       function acc(map, c, e, s) { var sBank = (s && s.bank) || (e && e.bank) || ''; var k = (RESH[sBank] || sBank || '—') + ' — فصل ' + chapOf(c, sBank); map[k] = map[k] || { e: 0, s: 0 }; map[k].e += e ? e.amt : 0; map[k].s += s ? s.amt : 0; }
       codes.forEach(function (c) { acc(byCh2, c, est3[c], cm.byCode[c]); }); Object.keys(est3).forEach(function (c) { if (!cm.byCode[c]) acc(byCh2, c, est3[c], null); });
       var rows8 = Object.keys(byCh2).sort().map(function (k) { var v = byCh2[k]; return '<tr><td>' + E(k) + '</td><td>' + F(v.e) + '</td><td>' + F(v.s) + '</td><td>' + F(v.s - v.e) + '</td></tr>'; }).join('');
-      return '<div dir="rtl" class="sv41"><section class="page">' + CSS + head(REPORTS[n - 1]) + tbl(['رشته — فصل', 'مبلغ برآورد', 'مبلغ صورت‌وضعیت', 'اختلاف'], rows8) + '</section></div>';
+      return '<div dir="rtl" class="sv41"><section class="page ls">' + CSS + head(REPORTS[n - 1]) + tbl(['رشته — فصل', 'مبلغ برآورد', 'مبلغ صورت‌وضعیت', 'اختلاف'], rows8) + '</section></div>';
     }
     if (n === 9) {
       var est4 = estModel(); var tE2 = 0, tS2 = cm.totRows; Object.keys(est4).forEach(function (c) { tE2 += est4[c].amt; });
