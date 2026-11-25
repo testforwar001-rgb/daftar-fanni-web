@@ -10137,7 +10137,7 @@ input,select,textarea{max-width:100%}
     '.dffx-h,.dffx-f{position:fixed;left:0;right:0;display:flex;justify-content:space-between;align-items:center;font-family:\'B Nazanin\',\'B Mitra\',Vazirmatn,Tahoma,serif;font-size:11px;color:#000;z-index:5}' +
     '.dffx-h{top:0;border-bottom:1.4px solid #000;padding:0 1mm 1mm}' +
     '.dffx-f{bottom:0;border-top:1.4px solid #000;padding:1mm 1mm 0}' +
-    'td.nw,th.nw{white-space:nowrap!important}td.wp,th.wp{white-space:normal!important}' +
+    'td.nw,th.nw{white-space:nowrap!important}td.wp,th.wp{white-space:normal!important}td.wp{min-width:26mm}' +
     'table.r23{font-family:\'B Nazanin\',\'B Mitra\',Vazirmatn,Tahoma,serif!important}' +
     'table.r23 td,table.r23 th{font-size:12.5px!important;padding:5px 7px!important;line-height:1.7!important}' +
     'table.r23-sig,table.r23-sig td,table.t5-sig,table.t5-sig td{border:0!important}' +
@@ -10171,9 +10171,19 @@ input,select,textarea{max-width:100%}
         rows.forEach(function (tr, ri) {
           Array.prototype.forEach.call(tr.children, function (c, i) {
             if (c.tagName !== 'TD' && c.tagName !== 'TH') return;
-            if (wrapCols[i] || (ri > 0 && c.colSpan && c.colSpan > 1)) c.classList.add('wp'); else c.classList.add('nw');
+            /* headers may wrap to two lines (his rule) so their columns can
+               shrink and the description column gets the freed width */
+            if (c.tagName === 'TH' || wrapCols[i] || (ri > 0 && c.colSpan && c.colSpan > 1)) c.classList.add('wp'); else c.classList.add('nw');
           });
         });
+        /* widen the description column: a 32% col share (the official جدول ۵
+           frame keeps its own proportions and is left untouched) */
+        var wkeys = Object.keys(wrapCols);
+        if (wkeys.length && rows[0].children.length >= 5 && !tb.closest('.t5p')) {
+          var cg = doc.createElement('colgroup'), fw = Math.min.apply(null, wkeys.map(Number));
+          for (var k = 0; k < rows[0].children.length; k++) { var col = doc.createElement('col'); if (k === fw) col.style.width = '32%'; cg.appendChild(col); }
+          tb.insertBefore(cg, tb.firstChild);
+        }
       });
       /* signatures on EVERY sheet (his rule): a section without a signature row
          gets the selected signers appended — a plain row, no box */
@@ -10268,6 +10278,66 @@ input,select,textarea{max-width:100%}
     tmp.querySelectorAll('style').forEach(function (s) { s.remove(); });
     return tmp.innerHTML;
   }
+  var PRINT_CSS = 'body{margin:0;background:#fff}section.page.t5p{box-sizing:border-box!important;height:286mm!important;page:t5}section.page:last-of-type{page-break-after:auto!important;break-after:auto!important}.df47-rot{width:200mm;height:287mm;position:relative;overflow:hidden;page-break-after:always;break-after:page;margin:0 auto}.df47-rotin{position:absolute;left:0;top:0;width:287mm;height:200mm;transform-origin:top left;transform:translateY(287mm) rotate(-90deg)}.df47-rotin>section.page{page:auto!important;width:287mm!important;height:200mm!important;min-height:200mm!important;margin:0!important;box-shadow:none!important}@page{size:A4 portrait;margin:5mm}@page ls{size:A4 landscape;margin:5mm}@page t5{size:A4 portrait;margin:0}';
+  /* Rotation and bottom-anchoring must be decided at the sheet's REAL print
+     width: measured in the phone-width preview, a wide landscape sheet looks
+     far taller than it is, so it was left unrotated and Android squeezed it
+     onto portrait paper (descriptions shattered into one word per line).
+     Two hidden clones lay the body out at landscape width (1085px) and at
+     portrait width (756px); the decisions are then applied by index. */
+  function measure(html, styles, cb) {
+    var res = { rot: [], flexL: [], flexP: [], flexS: [] };
+    function clone(width, done) {
+      var fr = document.createElement('iframe');
+      fr.style.cssText = 'position:absolute;left:-9999px;top:0;width:' + width + 'px;height:300px;visibility:hidden';
+      document.body.appendChild(fr);
+      var cd = fr.contentDocument, fired = false;
+      var go = function () {
+        if (fired) return; fired = true;
+        /* wait until the written document is fully parsed, then measure —
+           a fixed delay races the parser on big packages and later sheets
+           silently measure as missing */
+        var tries = 0;
+        (function poll() {
+          tries++;
+          if (cd.readyState === 'complete' || tries > 25) {
+            setTimeout(function () { try { done(cd); } catch (e) {} fr.remove(); }, 30);
+          } else setTimeout(poll, 40);
+        })();
+      };
+      fr.onload = go;
+      cd.open(); cd.write('<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="utf-8">' + styles + '<style>' + PRINT_CSS + '</style></head><body>' + html + '</body></html>'); cd.close();
+      go();
+      setTimeout(go, 1500);
+    }
+    clone(1085, function (cd) {
+      cd.querySelectorAll('section.page.ls:not(.t5p)').forEach(function (sec, i) {
+        if (sec.offsetHeight && sec.offsetHeight <= 756) { res.rot.push(i); res.flexL.push(i); }
+      });
+      clone(756, function (cd2) {
+        cd2.querySelectorAll('section.page:not(.ls):not(.t5p)').forEach(function (sec, i) { if (sec.offsetHeight && sec.offsetHeight <= 1085) res.flexP.push(i); });
+        cd2.querySelectorAll('.df46-sheet').forEach(function (sec, i) { if (sec.offsetHeight && sec.offsetHeight <= 1085) res.flexS.push(i); });
+        cb(res);
+      });
+    });
+  }
+  function applyMeasure(html, res) {
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var ls = doc.querySelectorAll('section.page.ls:not(.t5p)');
+    res.flexL.forEach(function (i) { if (ls[i]) ls[i].classList.add('df46-flex'); });
+    res.rot.slice().sort(function (a, b) { return b - a; }).forEach(function (i) {
+      var sec = ls[i]; if (!sec) return;
+      var rot = doc.createElement('div'); rot.className = 'df47-rot';
+      var inn = doc.createElement('div'); inn.className = 'df47-rotin';
+      sec.parentNode.insertBefore(rot, sec);
+      inn.appendChild(sec); rot.appendChild(inn);
+    });
+    var ps = doc.querySelectorAll('section.page:not(.ls):not(.t5p)');
+    res.flexP.forEach(function (i) { if (ps[i]) ps[i].classList.add('df46-flex'); });
+    var sh = doc.querySelectorAll('.df46-sheet');
+    res.flexS.forEach(function (i) { if (sh[i]) sh[i].classList.add('df46-flex'); });
+    return doc.body.innerHTML;
+  }
   function openPrint(pvm) {
     var f = pvm.querySelector('iframe');
     if (!f || !f.contentDocument) { return false; }
@@ -10277,13 +10347,16 @@ input,select,textarea{max-width:100%}
        @page{size:A4 portrait} kills the named landscape pages document-wide);
        one canonical pair is appended below instead */
     doc.querySelectorAll('style').forEach(function (s) { if (s.id !== 'pvx') styles += '<style>' + s.textContent.replace(/@page[^{]*\{[^}]*size\s*:[^}]*\}/g, '') + '</style>'; });
-    var html = '<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="utf-8"><title>چاپ گزارش</title>' + styles +
-      '<style>body{margin:0;background:#fff}section.page.t5p{box-sizing:border-box!important;height:296.5mm!important;page:t5}section.page:last-of-type{page-break-after:auto!important;break-after:auto!important}.df47-rot{width:200mm;height:287mm;position:relative;overflow:hidden;page-break-after:always;break-after:page;margin:0 auto}.df47-rotin{position:absolute;left:0;top:0;width:287mm;height:200mm;transform-origin:top left;transform:translateY(287mm) rotate(-90deg)}.df47-rotin>section.page{page:auto!important;width:287mm!important;height:200mm!important;min-height:200mm!important;margin:0!important;box-shadow:none!important}@page{size:A4 portrait;margin:5mm}@page ls{size:A4 landscape;margin:5mm}@page t5{size:A4 portrait;margin:0}</style></head><body>' + rotWrap(bodyHtml(doc)) +
-      '<scr' + 'ipt>window.onload=function(){setTimeout(function(){window.print()},400)}<\/scr' + 'ipt></body></html>';
+    var raw = bodyHtml(doc);
     var w = null;
     try { w = window.open('', '_blank'); } catch (e) {}
     if (!w) return false;
-    w.document.open(); w.document.write(html); w.document.close();
+    measure(raw, styles, function (res) {
+      var html = '<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="utf-8"><title>چاپ گزارش</title>' + styles +
+        '<style>' + PRINT_CSS + '</style></head><body>' + applyMeasure(raw, res) +
+        '<scr' + 'ipt>window.onload=function(){setTimeout(function(){window.print()},400)}<\/scr' + 'ipt></body></html>';
+      try { w.document.open(); w.document.write(html); w.document.close(); } catch (e) {}
+    });
     return true;
   }
   /* pin the signature row to the bottom of every one-page sheet (his rule:
@@ -10303,20 +10376,6 @@ input,select,textarea{max-width:100%}
         if (sec.offsetHeight && sec.offsetHeight <= 1085) sec.classList.add('df46-flex');
       });
     } catch (e) {}
-  }
-  /* Android's print path ignores @page size and shrinks wide sheets onto
-     portrait paper. So one-page landscape sheets are rotated 90° inside a
-     portrait page box in the print document: every page stays portrait,
-     nothing is scaled, and the sheet reads by turning the page. */
-  function rotWrap(html) {
-    var doc = new DOMParser().parseFromString(html, 'text/html');
-    doc.querySelectorAll('section.page.ls.df47-rok').forEach(function (sec) {
-      var rot = doc.createElement('div'); rot.className = 'df47-rot';
-      var inn = doc.createElement('div'); inn.className = 'df47-rotin';
-      sec.parentNode.insertBefore(rot, sec);
-      inn.appendChild(sec); rot.appendChild(inn);
-    });
-    return doc.body.innerHTML;
   }
   window.__df47 = { openPrint: openPrint, anchorSigs: anchorSigs };
   setInterval(function () {
