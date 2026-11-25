@@ -10140,7 +10140,9 @@ input,select,textarea{max-width:100%}
     'td.nw,th.nw{white-space:nowrap!important}td.wp,th.wp{white-space:normal!important}' +
     'table.r23{font-family:\'B Nazanin\',\'B Mitra\',Vazirmatn,Tahoma,serif!important}' +
     'table.r23 td,table.r23 th{font-size:12.5px!important;padding:5px 7px!important;line-height:1.7!important}' +
-    'table.r23-sig td{height:22mm!important;max-height:22mm!important;padding:2mm!important}' +
+    'table.r23-sig,table.r23-sig td,table.t5-sig,table.t5-sig td{border:0!important}' +
+    'table.r23-sig td{height:auto!important;max-height:none!important;padding:6mm 2mm 0!important;vertical-align:top!important}' +
+    '.df46-sig{display:flex;justify-content:space-between;gap:4mm;margin-top:8mm;font-family:\'B Nazanin\',\'B Mitra\',Vazirmatn,Tahoma,serif;font-size:12.5px;font-weight:700;color:#000}' +
     '.pkg-cont .page,.page.pkg-cont{page-break-after:auto!important}' +
     '@page{margin-top:11mm!important;margin-bottom:11mm!important}' +
     '@page{@bottom-left{content:"صفحه: " counter(page);font-size:10px}}' +
@@ -10168,6 +10170,13 @@ input,select,textarea{max-width:100%}
           });
         });
       });
+      /* signatures on EVERY sheet (his rule): a section without a signature row
+         gets the selected signers appended — a plain row, no box */
+      var sigRoles = [['sigCon', 'sigConN', 'پیمانکار'], ['sigSup', 'sigSupN', 'ناظر'], ['sigCons', 'sigConsN', 'مشاور'], ['sigEmp', 'sigEmpN', 'کارفرما'], ['sigMgmt', 'sigMgmtN', 'مدیریت طرح']];
+      var sigCfg = {};
+      try { var mbd = (db.mb || {})[activeProject]; if (mbd && mbd.rpt && mbd.rpt.riz) sigCfg = mbd.rpt.riz; } catch (e) {}
+      var sigHtml = '<div class="df46-sig">' + sigRoles.filter(function (r) { return sigCfg[r[0]] !== false && sigCfg[r[0]] !== 0; }).map(function (r) { return '<span>مهر و امضای ' + r[2] + (sigCfg[r[1]] ? ' ـ ' + escH(sigCfg[r[1]]) : '') + '</span>'; }).join('') + '</div>';
+      body.querySelectorAll('section.page').forEach(function (sec) { if (!sec.querySelector('table.t5-sig,table.r23-sig,.sig') && sec.textContent.indexOf('امض') < 0) sec.insertAdjacentHTML('beforeend', sigHtml); });
       /* (1) flow footers out, fixed bands in */
       body.querySelectorAll('.foot').forEach(function (el) { el.remove(); });
       var proj = '';
@@ -10216,6 +10225,65 @@ input,select,textarea{max-width:100%}
         AN30.openPkg = function () { var r = op.apply(this, arguments); setTimeout(function () { addPgRow(document.getElementById('an30Dlg'), 'df46pgP'); }, 60); return r; };
         AN30.__df46ui = 1;
       }
+    } catch (e) {}
+  }, 700);
+})();
+</script>
+<script id="df-fix47">
+/* df-fix47 — print the preview as its OWN top-level document (his A4-fit batch,
+   2026-11-25). On Android Chrome, printing the preview iframe prints the whole
+   app page instead: sheets come out shrunk on portrait paper, fixed header/
+   footer bands and continuous page numbers never appear. So the preview's
+   print button now opens the report in a standalone tab and prints there,
+   where the @page rules (named portrait/landscape), the fixed bands and the
+   continuous page counter behave per spec. Falls back to the iframe print
+   when a popup is blocked. */
+(function () {
+  'use strict';
+  /* the fragment's own <style> elements live in the body too — they are all
+     collected (sanitised) into the head, so strip them from the body copy */
+  function bodyHtml(doc) {
+    var tmp = doc.createElement('div');
+    tmp.innerHTML = doc.body.innerHTML;
+    tmp.querySelectorAll('style').forEach(function (s) { s.remove(); });
+    return tmp.innerHTML;
+  }
+  function openPrint(pvm) {
+    var f = pvm.querySelector('iframe');
+    if (!f || !f.contentDocument) { return false; }
+    var doc = f.contentDocument;
+    var styles = '';
+    /* drop every size-bearing @page rule from the fragments (T5CSS's global
+       @page{size:A4 portrait} kills the named landscape pages document-wide);
+       one canonical pair is appended below instead */
+    doc.querySelectorAll('style').forEach(function (s) { if (s.id !== 'pvx') styles += '<style>' + s.textContent.replace(/@page[^{]*\{[^}]*size\s*:[^}]*\}/g, '') + '</style>'; });
+    var html = '<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="utf-8"><title>چاپ گزارش</title>' + styles +
+      '<style>body{margin:0;background:#fff}section.page.t5p{box-sizing:border-box!important;height:296.5mm!important;page:t5}section.page:last-of-type{page-break-after:auto!important;break-after:auto!important}@page{size:A4 portrait;margin:5mm}@page ls{size:A4 landscape;margin:5mm}@page t5{size:A4 portrait;margin:0}</style></head><body>' + bodyHtml(doc) +
+      '<scr' + 'ipt>window.onload=function(){setTimeout(function(){window.print()},400)}<\/scr' + 'ipt></body></html>';
+    var w = null;
+    try { w = window.open('', '_blank'); } catch (e) {}
+    if (!w) return false;
+    w.document.open(); w.document.write(html); w.document.close();
+    return true;
+  }
+  window.__df47 = { openPrint: openPrint };
+  setInterval(function () {
+    try {
+      if (typeof window.showPreview !== 'function' || !window.showPreview.__df46 || window.showPreview.__df47) return;
+      var orig = window.showPreview;
+      var w = function (html, title) {
+        var r = orig.call(window, html, title);
+        setTimeout(function () {
+          var pvm = document.getElementById('pvm'); if (!pvm) return;
+          var btn = pvm.querySelector('#pvp'); if (!btn || btn.__df47) return;
+          var nb = btn.cloneNode(true); nb.__df47 = 1;
+          nb.addEventListener('click', function () { if (!openPrint(pvm)) { var f = pvm.querySelector('iframe'); if (f && f.contentWindow) f.contentWindow.print(); } });
+          btn.replaceWith(nb);
+        }, 80);
+        return r;
+      };
+      w.__df46 = 1; w.__df47 = 1;
+      window.showPreview = w;
     } catch (e) {}
   }, 700);
 })();
