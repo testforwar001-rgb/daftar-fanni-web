@@ -8822,6 +8822,78 @@ input,select,textarea{max-width:100%}
   setInterval(scan, 900);
 })();
 </script>
+<script id="df-fix29">
+/* df-fix29 (final35): «بازگردانی به قیمت پایه» next to the price-undo
+   (his request 2026-11-25: قسمت بازگردانی قیمت، به قیمت پایه هم
+   برگردونه). One click: every factor price returns to its base (bank)
+   price, the project facPrice overrides are cleared, item پیشنهاد
+   prices re-derive from the base analyses, and manual پیشنهاد
+   overrides on non-analysed items are cleared back to the base price.
+   A snapshot is taken first, so the reset itself can be undone. */
+(function () {
+  'use strict';
+  var W = {};
+  window.AN29 = W;
+  function D() { try { return (typeof db !== 'undefined' && db && db.mb && activeProject) ? (db.mb[activeProject] || null) : null; } catch (e) { return null; } }
+  function T(m, bad) { try { toast(m, bad); } catch (e) { } }
+  var BANK = { '1': 'bk_lab', '2': 'bk_equ', '3': 'bk_mat', '4': 'bk_mac' };
+  function bankPrice(code) {
+    var bk = BANK[String(code).charAt(0)];
+    var arr = (bk && db.mod && db.mod[bk]) || [];
+    var it = arr.find(function (x) { return String(x.code) === String(code); });
+    return it ? (+it.price || 0) : null;
+  }
+  W.resetToBase = function () {
+    var d = D(); if (!d) return;
+    if (!confirm('همه قیمت‌های عوامل به قیمت پایه (بانک قیمت) برگردد و قیمت‌های پیشنهاد بر اساس آن بهنگام شود؟')) return;
+    if (window.AN21 && AN21.snapshot) AN21.snapshot();
+    var stackLen = (d.undoFac || []).length;
+    var codes = {};
+    Object.keys(d.fac || {}).forEach(function (k) { (d.fac[k] || []).forEach(function (r) { codes[r.code] = 1; }); });
+    Object.keys(d.facPrice || {}).forEach(function (c) { codes[c] = 1; });
+    var n = 0;
+    Object.keys(codes).forEach(function (code) {
+      var bp = bankPrice(code);
+      if (bp == null) return;
+      n++;
+      if (window.AN16 && AN16.setFacPrice) AN16.setFacPrice(code, bp);
+      else (Object.keys(d.fac || {})).forEach(function (k) { (d.fac[k] || []).forEach(function (r) { if (String(r.code) === String(code)) r.price = bp; }); });
+    });
+    /* drop the per-factor snapshots the setFacPrice calls just pushed,
+       so one undo returns to the exact pre-reset state */
+    if (d.undoFac && d.undoFac.length > stackLen) d.undoFac.length = stackLen;
+    d.facPrice = {};
+    /* manual پیشنهاد overrides on items without an analysis: back to base */
+    Object.keys(d.price || {}).forEach(function (k) {
+      if (!(d.fac && d.fac[k] && d.fac[k].length) && d.price[k] && d.price[k].p != null) delete d.price[k].p;
+    });
+    save();
+    T('قیمت‌ها به قیمت پایه برگشت (' + n + ' عامل)');
+    if (window.AN16) {
+      if (AN16._facShown) AN16.facPage();
+      else if (AN16.key) AN16.renderSheet(AN16.key);
+      else AN16.page();
+    }
+  };
+  /* place the button right after the undo button wherever it appears */
+  setInterval(function () {
+    var mb = document.querySelector('#moduleBody');
+    if (!mb || mb.querySelector('.an29-basebtn')) return;
+    var btns = mb.querySelectorAll('button');
+    for (var i = 0; i < btns.length; i++) {
+      if ((btns[i].textContent || '').indexOf('برگرداندن تغییر قیمت') >= 0) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn sm an29-basebtn';
+        b.textContent = '🏷 بازگردانی به قیمت پایه';
+        b.onclick = function () { W.resetToBase(); };
+        btns[i].parentNode.insertBefore(b, btns[i].nextSibling);
+        return;
+      }
+    }
+  }, 800);
+})();
+</script>
 
 
 </body></html>
