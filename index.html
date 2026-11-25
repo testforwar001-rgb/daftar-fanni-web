@@ -9530,6 +9530,71 @@ input,select,textarea{max-width:100%}
   }, 600);
 })();
 </script>
+<script id="df-fix33">
+/* df-fix33 (final38): one-topic-one-place for صورت‌وضعیت (his note
+   2026-11-25: «صورت وضعیت جای دیگه هم داریم تو نرم افزار»). The
+   project-control finance tab keeps only the imported financial
+   SUMMARY; the documents themselves live in the main صورت‌وضعیت
+   module — this patch adds the clarifying subtitle, a live count of
+   the main module's documents for the active contract, and a direct
+   jump button into it. */
+(function () {
+  'use strict';
+  var W = {};
+  window.AN33 = W;
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function faD(s) { return String(s).replace(/[0-9]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'[+c]; }); }
+  W.goSV = function () {
+    try {
+      var ct = (db.contracts || []).find(function (c) { return c.projectId === activeId; });
+      if (ct) activeProject = ct.id;
+      page = 'engineering'; render();
+      setTimeout(function () {
+        if (window.SV12 && SV12.go) { SV12.go('sv:dash'); return; }
+        var b = document.querySelector('[data-k="sv:dash"], [onclick*="sv:dash"]');
+        if (b) b.click();
+      }, 350);
+    } catch (e) { }
+  };
+  function patch() {
+    if (!window.AN32 || !AN32.renderTab || AN32.__an33) return;
+    AN32.__an33 = true;
+    var orig = AN32.renderTab;
+    AN32.renderTab = function () {
+      var r = orig.apply(this, arguments);
+      try {
+        if (AN32.tab !== 'fin') return r;
+        var host = document.getElementById('an32body');
+        if (!host || host.querySelector('.an33-svbar')) return r;
+        var panels = host.querySelectorAll('.panel');
+        var target = null;
+        panels.forEach(function (pn) { var h = pn.querySelector('h3'); if (h && h.textContent.indexOf('صورت‌وضعیت‌ها') >= 0) target = pn; });
+        if (!target) return r;
+        var h3 = target.querySelector('h3');
+        if (h3 && !target.querySelector('.an33-sub')) {
+          var sub = document.createElement('div');
+          sub.className = 'an33-sub';
+          sub.style.cssText = 'opacity:.75;font-size:.85rem;margin:-.2rem 0 .5rem';
+          sub.textContent = 'خلاصه مالی واردشده از کنترل پروژه — اسناد و جزئیات صورت‌وضعیت در بخش اصلی «صورت‌وضعیت» نرم‌افزار است.';
+          h3.after(sub);
+        }
+        var ct = (db.contracts || []).find(function (c) { return c.projectId === activeId; });
+        var nDocs = 0;
+        if (ct && db.sv && db.sv[ct.id] && Array.isArray(db.sv[ct.id].docs)) nDocs = db.sv[ct.id].docs.length;
+        var bar2 = document.createElement('div');
+        bar2.className = 'an33-svbar';
+        bar2.style.cssText = 'display:flex;gap:.6rem;align-items:center;margin-top:.7rem;flex-wrap:wrap';
+        bar2.innerHTML = '<span>بخش اصلی صورت‌وضعیت:' + (ct ? ' برای این پروژه ' + faD(nDocs) + ' سند ثبت شده است.' : ' قراردادی برای این پروژه پیدا نشد.') + '</span>' +
+          (ct ? '<button class="btn sm primary" onclick="AN33.goSV()">باز کردن صورت‌وضعیت‌ها</button>' : '');
+        target.appendChild(bar2);
+      } catch (e) { }
+      return r;
+    };
+  }
+  var iv = setInterval(patch, 500);
+  setTimeout(function () { clearInterval(iv); }, 30000);
+})();
+</script>
 
 
 </body></html>
