@@ -10165,6 +10165,11 @@ input,select,textarea{max-width:100%}
       nodes.forEach(function (n) { n.nodeValue = faDigits(n.nodeValue); });
       /* (2) wrap policy per column */
       body.querySelectorAll('table').forEach(function (tb) {
+        /* the official Table-5 form (.t5p) is a fixed layout that fits A4 portrait
+           by letting its cells shrink — the nowrap policy blows its min-content
+           width past the frame and the sides get clipped in print (his
+           2026-11-26 «آنالیز بد می‌افته تو چاپ»); exempt it like the margins */
+        if (tb.closest && tb.closest('.t5p')) return;
         var rows = tb.querySelectorAll('tr'); if (!rows.length) return;
         var wrapCols = {};
         Array.prototype.forEach.call(rows[0].children, function (c, i) { if (/شرح|ملاحظات|توضیحات/.test(c.textContent)) wrapCols[i] = 1; });
