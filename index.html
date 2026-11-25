@@ -10558,6 +10558,228 @@ html[data-df49="mini"] .muted,html[data-df49="violet"] .muted{color:var(--text2)
   setInterval(function () { try { inject(); } catch (e) {} }, 900);
 })();
 </script>
+<style id="df-fix50">
+/* df-fix50 — مدیریت ستون‌های جدول‌های mb-grid: مخفی‌کردن ستون، عرض دستی، دستگیره تغییر عرض.
+   قوانین واقعیِ مخفی/عرض در یک <style id="df50css"> ساخته‌شده با JS اعمال می‌شوند (فقط صفحه‌نمایش). */
+.df50-bar{display:flex;align-items:center;gap:.5rem;margin:.35rem 0}
+table.mb-grid th .df50-rz{position:absolute;top:0;bottom:0;inset-inline-end:0;width:10px;cursor:col-resize;touch-action:none;z-index:6}
+table.mb-grid th .df50-rz:hover{background:rgba(194,65,12,.25)}
+.df50-rows{max-height:56vh;overflow:auto}
+.df50-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;padding:.38rem 0;border-bottom:1px dashed var(--border)}
+.df50-row label{display:flex;align-items:center;gap:.45rem;flex:1;min-width:150px;cursor:pointer}
+.df50-row .df50-wlab{display:flex;align-items:center;gap:.35rem;color:var(--text3);font-size:.8rem;white-space:nowrap}
+.df50-row input[type=number]{width:92px}
+</style>
+<script id="df-fix50">
+/* df-fix50 — مدیریت ستون‌ها برای همه‌ی table.mb-grid ها (متره، برآورد، صورت‌وضعیت، تعدیل).
+   پیکربندی هر گرید با امضای سرفصل‌هایش در localStorage (df_colcfg50) نگه داشته می‌شود؛
+   روی همین دستگاه می‌ماند و به داده‌های پروژه دست نمی‌زند. */
+(function () {
+  if (window.__df50) return; window.__df50 = 1;
+  var LS = 'df_colcfg50';
+  var cfg = {};
+  try { cfg = JSON.parse(localStorage.getItem(LS) || '{}') || {}; } catch (e) { cfg = {}; }
+  if (!cfg || typeof cfg !== 'object') cfg = {};
+  var sigClass = {}, counter = 0, styleEl = null, dlg = null, dlgTable = null;
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function save() { try { localStorage.setItem(LS, JSON.stringify(cfg)); } catch (e) {} }
+  function headerRow(t) { return t.querySelector('thead tr') || t.querySelector('tr'); }
+  function sigOf(t) {
+    var tr = headerRow(t); if (!tr) return '';
+    var parts = [];
+    for (var i = 0; i < tr.children.length; i++) parts.push((tr.children[i].textContent || '').trim());
+    return parts.join('|');
+  }
+  function ensureStyle() {
+    if (!styleEl) { styleEl = document.createElement('style'); styleEl.id = 'df50css'; document.head.appendChild(styleEl); }
+    return styleEl;
+  }
+  function applyAll() {
+    var el = ensureStyle(), rules = [];
+    Object.keys(sigClass).forEach(function (sig) {
+      var c = cfg[sig]; if (!c) return;
+      var cls = sigClass[sig];
+      if (!document.querySelector('table.' + cls)) return;
+      (c.hidden || []).forEach(function (k) {
+        rules.push('.' + cls + ' th:nth-child(' + (k + 1) + '),.' + cls + ' td:nth-child(' + (k + 1) + '){display:none!important}');
+      });
+      var w = c.widths || {};
+      Object.keys(w).forEach(function (k) {
+        var px = parseInt(w[k], 10); if (!(px > 0)) return;
+        rules.push('.' + cls + ' th:nth-child(' + (+k + 1) + '),.' + cls + ' td:nth-child(' + (+k + 1) + '){width:' + px + 'px!important;min-width:' + px + 'px!important}');
+      });
+    });
+    el.textContent = rules.length ? '@media screen{\n' + rules.join('\n') + '\n}' : '';
+  }
+  /* ---------- drag resize on th handles ---------- */
+  function addHandles(table, sig) {
+    var tr = headerRow(table); if (!tr) return;
+    for (var i = 0; i < tr.children.length; i++) {
+      (function (th, idx) {
+        if (th.querySelector('.df50-rz')) return;
+        var h = document.createElement('span');
+        h.className = 'df50-rz'; h.title = 'بکشید تا عرض ستون عوض شود';
+        th.appendChild(h);
+        h.addEventListener('pointerdown', function (e) { onRzDown(e, table, th, idx, sig, h); });
+      })(tr.children[i], i);
+    }
+  }
+  function onRzDown(e, table, th, idx, sig, handle) {
+    e.preventDefault(); e.stopPropagation();
+    var startX = e.clientX, startW = th.offsetWidth, moved = false;
+    try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+    function mv(ev) {
+      if (Math.abs(ev.clientX - startX) > 4) moved = true;
+      /* در RTL لبه‌ی چپِ ستون دستگیره است؛ کشیدن به چپ ستون را پهن‌تر می‌کند */
+      var nw = Math.max(36, Math.min(600, Math.round(startW + (startX - ev.clientX))));
+      if (!cfg[sig]) cfg[sig] = { hidden: [], widths: {} };
+      if (!cfg[sig].widths) cfg[sig].widths = {};
+      cfg[sig].widths[idx] = nw;
+      applyAll();
+    }
+    function up() {
+      handle.removeEventListener('pointermove', mv);
+      handle.removeEventListener('pointerup', up);
+      handle.removeEventListener('pointercancel', up);
+      save();
+      if (moved) {
+        /* کلیکِ بعد از درگ نباید سورتِ df-fix28 را فعال کند */
+        var swallow = function (ev2) {
+          if (ev2.target && ev2.target.closest && ev2.target.closest('th') === th) { ev2.stopPropagation(); ev2.preventDefault(); }
+          document.removeEventListener('click', swallow, true);
+        };
+        document.addEventListener('click', swallow, true);
+        setTimeout(function () { document.removeEventListener('click', swallow, true); }, 400);
+      }
+    }
+    handle.addEventListener('pointermove', mv);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+  }
+  /* ---------- per-table toolbar ---------- */
+  function addToolbar(table) {
+    if (!table.parentNode) return;
+    var bar = document.createElement('div');
+    bar.className = 'df50-bar';
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn sm'; b.textContent = '🧩 ستون‌ها';
+    b.title = 'انتخاب ستون‌های نمایشی و عرض هر ستون';
+    b.onclick = function () { openDlg(table); };
+    bar.appendChild(b);
+    table.parentNode.insertBefore(bar, table);
+  }
+  /* ---------- config dialog ---------- */
+  function ensureDlg() {
+    if (dlg) return dlg;
+    dlg = document.createElement('dialog');
+    dlg.id = 'df50Dlg'; dlg.className = 'mb-d';
+    dlg.style.cssText = 'max-width:min(560px,94vw);width:100%';
+    document.body.appendChild(dlg);
+    return dlg;
+  }
+  function openDlg(table) {
+    if (!table) return;
+    var sig = sigOf(table); if (!sig) return;
+    dlgTable = table;
+    var c = cfg[sig] || { hidden: [], widths: {} };
+    var hidden = {}; (c.hidden || []).forEach(function (k) { hidden[k] = 1; });
+    var widths = c.widths || {};
+    var tr = headerRow(table), cells = tr ? tr.children : [], rows = '';
+    for (var i = 0; i < cells.length; i++) {
+      var name = (cells[i].textContent || '').trim() || ('ستون ' + (i + 1));
+      rows += '<div class="df50-row"><label><input type="checkbox" class="df50-vis" data-i="' + i + '" style="width:auto"' + (hidden[i] ? '' : ' checked') + '> ' + esc(name) + '</label>' +
+        '<span class="df50-wlab">عرض (px)<input type="number" class="df50-w" data-i="' + i + '" value="' + (widths[i] || '') + '" placeholder="خودکار" min="36" max="600"></span></div>';
+    }
+    var d = ensureDlg();
+    d.innerHTML = '<h3 style="margin:.1rem 0 .4rem">مدیریت ستون‌ها</h3>' +
+      '<div style="color:var(--text2);font-size:.83rem;margin-bottom:.4rem">تیک هر ستون یعنی در صفحه نمایش داده شود؛ عرض را هم می‌توانید این‌جا بنویسید یا با کشیدن لبه‌ی سرفصل ستون عوض کنید.</div>' +
+      '<div class="df50-rows">' + rows + '</div>' +
+      '<div style="display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap;margin-top:.8rem">' +
+      '<button type="button" class="btn" id="df50Reset">بازنشانی</button>' +
+      '<button type="button" class="btn" id="df50Close">بستن</button>' +
+      '<button type="button" class="btn primary" id="df50Apply">اعمال</button></div>';
+    d.querySelector('#df50Apply').onclick = function () {
+      var hid = [], wid = {};
+      d.querySelectorAll('.df50-vis').forEach(function (ch) { if (!ch.checked) hid.push(+ch.getAttribute('data-i')); });
+      d.querySelectorAll('.df50-w').forEach(function (inp) { var v = parseInt(inp.value, 10); if (v > 0) wid[+inp.getAttribute('data-i')] = Math.max(36, Math.min(600, v)); });
+      if (hid.length || Object.keys(wid).length) cfg[sig] = { hidden: hid, widths: wid }; else delete cfg[sig];
+      save(); applyAll(); d.close();
+    };
+    d.querySelector('#df50Reset').onclick = function () { delete cfg[sig]; save(); applyAll(); d.close(); };
+    d.querySelector('#df50Close').onclick = function () { d.close(); };
+    if (typeof d.showModal === 'function') d.showModal(); else d.setAttribute('open', '');
+  }
+  /* ---------- scanning ---------- */
+  function process(table) {
+    if (table.closest && table.closest('#pvm')) return;
+    var sig = sigOf(table); if (!sig) return;
+    if (!sigClass[sig]) sigClass[sig] = 'df50-t' + (++counter);
+    table.classList.add(sigClass[sig]);
+    if (!table.dataset.df50) {
+      table.dataset.df50 = '1';
+      addToolbar(table);
+      addHandles(table, sig);
+    }
+  }
+  function scan() {
+    var host = document.getElementById('content'); if (!host) return;
+    host.querySelectorAll('table.mb-grid').forEach(process);
+    applyAll();
+  }
+  var pending = null;
+  var mo = new MutationObserver(function () {
+    if (pending) return;
+    pending = setTimeout(function () { pending = null; try { scan(); } catch (e) {} }, 200);
+  });
+  (function start() {
+    if (document.body) { mo.observe(document.body, { childList: true, subtree: true }); try { scan(); } catch (e) {} }
+    else setTimeout(start, 300);
+  })();
+  window.DF50 = { applyAll: applyAll, openDlg: openDlg, cfg: cfg };
+})();
+</script>
+<style id="df-fix51">
+/* df-fix51 — جمع‌کردن کامل منوی کناری با دکمه «☰ منو» در هدر؛ در همه‌ی عرض‌ها کار می‌کند */
+.app.df51-noside{grid-template-columns:1fr!important}
+.app.df51-noside .side{display:none!important}
+#df51Btn.on{background:var(--soft)}
+</style>
+<script id="df-fix51">
+/* df-fix51 — دکمه‌ی «☰ منو» در هدر: منوی کناری را کامل جمع/باز می‌کند تا محیط کار
+   روی گوشی تمام‌عرض شود. وضعیت روی همین دستگاه ذخیره می‌شود (df_noside). */
+(function () {
+  if (window.__df51) return; window.__df51 = 1;
+  function state() { try { return localStorage.getItem('df_noside') === '1'; } catch (e) { return false; } }
+  function apply() {
+    var app = document.querySelector('.app'); if (!app) return;
+    var on = state();
+    app.classList.toggle('df51-noside', on);
+    var b = document.getElementById('df51Btn'); if (b) b.classList.toggle('on', on);
+  }
+  window.DF51 = {
+    toggle: function () {
+      try { localStorage.setItem('df_noside', state() ? '0' : '1'); } catch (e) {}
+      apply();
+    },
+    apply: apply
+  };
+  apply();
+  setInterval(function () {
+    try {
+      var host = document.querySelector('header.top .tr') || document.querySelector('.tr');
+      if (host && !document.getElementById('df51Btn')) {
+        var b = document.createElement('button');
+        b.id = 'df51Btn'; b.type = 'button'; b.className = 'btn sm ghost';
+        b.textContent = '☰ منو';
+        b.title = 'جمع‌کردن / بازکردن منوی کناری';
+        b.onclick = function () { window.DF51.toggle(); };
+        host.insertBefore(b, host.firstChild);
+      }
+      apply();
+    } catch (e) {}
+  }, 700);
+})();
+</script>
 
 
 </body></html>
