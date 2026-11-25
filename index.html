@@ -9930,6 +9930,71 @@ input,select,textarea{max-width:100%}
   }, 800);
 })();
 </script>
+<script id="df-fix43">
+/* df-fix43 — paper orientation control for report dialogs (his spec 2026-11-25):
+   in «گزارشات برآورد» (AN23) and «گزارشات صورت‌وضعیت» (SV41) the user picks the
+   orientation UP FRONT — خودکار (the report's designed base) / افقی Landscape /
+   عمودی Portrait — and the choice applies to ALL pages of the report at once,
+   so a report never mixes portrait and landscape pages. Implemented by
+   normalising the .page sections' ls class in the built fragment. */
+(function () {
+  'use strict';
+  var W = { ori: 'auto' };
+  window.AN43 = W;
+  function applyOri(html, mode) {
+    if (!html || mode === 'auto') return html;
+    if (mode === 'l') return html.replace(/class="page( an27)?"/g, 'class="page ls$1"');
+    return html.replace(/class="page ls( an27)?"/g, 'class="page$1"');
+  }
+  W.applyOri = applyOri;
+  function oriRow(name, cur) {
+    function r(v, t) { return '<label style="display:inline-flex;gap:.35rem;align-items:center;cursor:pointer"><input type="radio" name="' + name + '" value="' + v + '"' + (cur === v ? ' checked' : '') + ' style="width:auto"> ' + t + '</label>'; }
+    return '<div style="display:flex;gap:1.1rem;align-items:center;flex-wrap:wrap;margin:.2rem 0 .55rem"><span>جهت کاغذ:</span>' + r('auto', 'خودکار (مبنای گزارش)') + r('l', 'افقی — Landscape') + r('p', 'عمودی — Portrait') + '</div>';
+  }
+  setInterval(function () {
+    try {
+      /* --- SV41: wrap build() so every fragment honours SV41.ori --- */
+      if (window.SV41 && SV41.build && !SV41.__an43) {
+        var b0 = SV41.build;
+        SV41.ori = 'auto';
+        SV41.build = function (n, s) { return applyOri(b0.apply(this, arguments), SV41.ori); };
+        var o0 = SV41.open;
+        SV41.open = function () {
+          o0.apply(this, arguments);
+          var dlg = document.getElementById('sv41Dlg'); if (!dlg || dlg.querySelector('[name=sv41ori]')) return;
+          var h = dlg.querySelector('h3'); if (!h) return;
+          var div = document.createElement('div'); div.innerHTML = oriRow('sv41ori', SV41.ori);
+          h.after(div.firstChild);
+          dlg.querySelectorAll('[name=sv41ori]').forEach(function (r) { r.onchange = function () { SV41.ori = r.value; }; });
+        };
+        SV41.__an43 = 1;
+      }
+      /* --- AN23: wrap show() AFTER AN27 wrapped it; capture showPreview and normalise --- */
+      if (window.AN23 && AN23.show && AN23.__an27 && !AN23.__an43) {
+        var s0 = AN23.show;
+        AN23.ori = 'auto';
+        AN23.show = function (n) {
+          if (AN23.ori === 'auto') return s0.apply(this, arguments);
+          var cap = null, orig = window.showPreview;
+          window.showPreview = function (h, t) { cap = { h: h, t: t }; };
+          try { s0.apply(this, arguments); } finally { window.showPreview = orig; }
+          if (cap) orig(applyOri(cap.h, AN23.ori), cap.t);
+        };
+        var op0 = AN23.open;
+        AN23.open = function () {
+          op0.apply(this, arguments);
+          var dlg = document.getElementById('an23Dlg'); if (!dlg || dlg.querySelector('[name=an43ori]')) return;
+          var h = dlg.querySelector('h3') || dlg.firstChild; if (!h) return;
+          var div = document.createElement('div'); div.innerHTML = oriRow('an43ori', AN23.ori);
+          h.after(div.firstChild);
+          dlg.querySelectorAll('[name=an43ori]').forEach(function (r) { r.onchange = function () { AN23.ori = r.value; }; });
+        };
+        AN23.__an43 = 1;
+      }
+    } catch (e) {}
+  }, 700);
+})();
+</script>
 
 
 </body></html>
