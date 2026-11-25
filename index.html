@@ -10453,6 +10453,84 @@ input,select,textarea{max-width:100%}
   }, 700);
 })();
 </script>
+<style id="df-fix49">
+/* df-fix49 — پوسته‌های قابل انتخاب در تنظیمات (فقط ظاهر؛ منطق و داده دست‌نخورده) */
+html[data-df49="mini"]{--bg:#f7f7f5;--surface:#ffffff;--surface2:#f4f4f1;--surface3:#ececf0;--border:#e8e8e4;--border2:#c9c9c2;--text:#17181c;--text2:#55565e;--text3:#a7abb6;--primary:#2f5cff;--primary-h:#1e46d8;--primary-fg:#fff;--soft:#eef2ff;--side:#ffffff;--side-text:#3c3f47;--side-on:#eef2ff;--ok:#12915f;--okbg:#e7f7ef;--warn:#a86a00;--warnbg:#fdf3e0;--warnbr:#ecd9a8;--bad:#d92d20;--badbg:#fdecec;--shadow:0 1px 2px rgba(16,18,20,.05),0 8px 22px rgba(16,18,20,.06)}
+html[data-df49="glass"]{--bg:#171310;--surface:rgba(46,38,31,.78);--surface2:rgba(58,48,40,.8);--surface3:rgba(74,62,52,.85);--border:rgba(255,235,210,.16);--border2:rgba(255,235,210,.32);--text:#f3efe9;--text2:#cfc2b2;--text3:#9a8b7a;--primary:#ff6a2b;--primary-h:#e85d1d;--primary-fg:#fff;--soft:rgba(255,106,43,.16);--side:rgba(30,24,20,.85);--side-text:#e8dccb;--side-on:#ff6a2b;--ok:#4ade80;--okbg:rgba(74,222,128,.13);--warn:#ffb03a;--warnbg:rgba(255,176,58,.13);--warnbr:rgba(255,176,58,.35);--bad:#ff7a6b;--badbg:rgba(255,110,90,.13);--shadow:0 18px 40px rgba(0,0,0,.42)}
+html[data-df49="glass"] body{background:radial-gradient(900px 520px at 108% -10%,rgba(255,106,43,.30),transparent 55%),radial-gradient(760px 560px at -12% 108%,rgba(255,150,60,.14),transparent 55%),linear-gradient(155deg,#171310,#1d1712 48%,#14100e)}
+html[data-df49="glass"] .side,html[data-df49="glass"] .top,html[data-df49="glass"] .card,html[data-df49="glass"] .panel,html[data-df49="glass"] .stat,html[data-df49="glass"] dialog{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+html[data-df49="violet"]{--bg:#f4f4fa;--surface:#ffffff;--surface2:#f1f0fa;--surface3:#e6e3f7;--border:#e4e2f2;--border2:#c6c0e8;--text:#232038;--text2:#5d5878;--text3:#a09abb;--primary:#7c5cff;--primary-h:#6747e8;--primary-fg:#fff;--soft:#efeaff;--side:#ffffff;--side-text:#454166;--side-on:#efeaff;--ok:#12a594;--okbg:#e6f7f3;--warn:#b97d0a;--warnbg:#fdf3e0;--warnbr:#ecd9a8;--bad:#e5484d;--badbg:#fdecec;--shadow:0 1px 2px rgba(50,40,120,.05),0 10px 26px rgba(80,60,180,.09)}
+html[data-df49="violet"] body{background:radial-gradient(700px 420px at 105% -8%,rgba(124,92,255,.14),transparent 55%),radial-gradient(640px 460px at -10% 105%,rgba(56,189,248,.12),transparent 55%),#f4f4fa}
+html[data-df49="navy"]{--bg:#141a33;--surface:#1d2547;--surface2:#232c55;--surface3:#2c3768;--border:#2e3968;--border2:#46539c;--text:#eef0ff;--text2:#b9c0e8;--text3:#7e88bd;--primary:#5b8cff;--primary-h:#3f6fe8;--primary-fg:#fff;--soft:#263367;--side:#171f42;--side-text:#c6cdf2;--side-on:#2b3a75;--ok:#3ddc97;--okbg:rgba(61,220,151,.12);--warn:#ffb03a;--warnbg:rgba(255,176,58,.12);--warnbr:rgba(255,176,58,.35);--bad:#ff7a6b;--badbg:rgba(255,110,90,.12);--shadow:0 14px 34px rgba(2,6,24,.5)}
+html[data-df49="navy"] body{background:radial-gradient(760px 480px at 105% -10%,rgba(124,92,255,.20),transparent 55%),linear-gradient(150deg,#1b2450,#10162e)}
+html[data-df49="teal"]{--bg:#f6f7f4;--surface:#ffffff;--surface2:#eef2ee;--surface3:#e0e9e1;--border:#e2e8e1;--border2:#b9cabd;--text:#1d2420;--text2:#55645a;--text3:#97a69b;--primary:#0e7a5f;--primary-h:#0a5f4a;--primary-fg:#fff;--soft:#e2f2ec;--side:#0c3230;--side-text:#d7e8e2;--side-on:#14524c;--ok:#0e7a5f;--okbg:#e6f5ef;--warn:#b97d0a;--warnbg:#fdf3e0;--warnbr:#ecd9a8;--bad:#d92d20;--badbg:#fdecec;--shadow:0 1px 2px rgba(10,40,35,.05),0 8px 22px rgba(10,40,35,.07)}
+/* موشن و نرمی مشترک همه پوسته‌های جدید */
+html[data-df49] .nav button,html[data-df49] .subnav .gi button{transition:transform .28s cubic-bezier(.34,1.45,.64,1),background .22s,box-shadow .25s,color .22s}
+html[data-df49] .nav button:hover,html[data-df49] .subnav .gi button:hover{transform:scale(1.045)}
+html[data-df49] .nav button:active,html[data-df49] .subnav .gi button:active{transform:scale(.98)}
+html[data-df49] .nav button i{transition:transform .28s cubic-bezier(.34,1.45,.64,1);display:inline-block}
+html[data-df49] .nav button:hover i{transform:scale(1.18)}
+html[data-df49] .card,html[data-df49] .panel,html[data-df49] .stat{border-radius:18px;transition:transform .3s cubic-bezier(.22,.8,.32,1),box-shadow .3s}
+html[data-df49] .card:hover{transform:translateY(-3px)}
+html[data-df49] .btn{border-radius:11px;transition:transform .25s cubic-bezier(.34,1.45,.64,1),box-shadow .25s,background .2s}
+html[data-df49] .btn:hover{transform:scale(1.03)}
+html[data-df49] input,html[data-df49] select,html[data-df49] textarea{border-radius:10px}
+html[data-df49] dialog{border-radius:18px}
+html[data-df49] .side{border-radius:0}
+html[data-df49="mini"] .nav button.on{color:#2f5cff;font-weight:700}
+html[data-df49="violet"] .nav button.on{color:#7c5cff;font-weight:700}
+html[data-df49="teal"] .nav button.on{color:#ffd9a0}
+html[data-df49="glass"] .nav button.on{color:#fff;font-weight:700}
+/* کارت انتخاب پوسته در تنظیمات */
+.df49-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px}
+.df49-sw{display:flex;flex-direction:column;gap:8px;align-items:flex-start;border:2px solid var(--border);background:var(--surface);border-radius:14px;padding:12px;cursor:pointer;font-family:inherit;text-align:right;transition:transform .25s cubic-bezier(.34,1.45,.64,1),border-color .2s;width:100%}
+.df49-sw:hover{transform:scale(1.04)}
+.df49-sw.on{border-color:var(--primary)}
+.df49-sw .dots{display:flex;gap:5px}
+.df49-sw .dots i{width:18px;height:18px;border-radius:50%;border:1px solid rgba(0,0,0,.12);display:block}
+.df49-sw b{font-size:.9rem;color:var(--text)}
+.df49-sw span{font-size:.75rem;color:var(--text3)}
+</style>
+<script id="df-fix49">
+/* df-fix49 — انتخاب پوسته از تنظیمات؛ انتخاب روی همین دستگاه ذخیره می‌شود */
+(function () {
+  if (window.__df49) return; window.__df49 = 1;
+  var THEMES = [
+    { id: '', name: 'گرم (فعلی)', desc: 'پوسته پیش‌فرض برنامه', dots: ['#fdf3e7', '#2e1a0c', '#c2410c'] },
+    { id: 'mini', name: 'روشن مینیمال', desc: 'سفید و تمیز، لهجه آبی — مثل اپ‌های امروزی', dots: ['#f7f7f5', '#ffffff', '#2f5cff'] },
+    { id: 'glass', name: 'تیره شیشه‌ای', desc: 'شیشه‌ای تیره با لهجه نارنجی', dots: ['#171310', '#2e2620', '#ff6a2b'] },
+    { id: 'violet', name: 'روشن بنفش', desc: 'روشن با لهجه بنفش و هاله رنگی ملایم', dots: ['#f4f4fa', '#ffffff', '#7c5cff'] },
+    { id: 'navy', name: 'سرمه‌ای', desc: 'تیره سرمه‌ای حرفه‌ای', dots: ['#141a33', '#171f42', '#5b8cff'] },
+    { id: 'teal', name: 'سبز تیره', desc: 'روشن با منوی سبز تیره و لهجه نارنجی', dots: ['#f6f7f4', '#0c3230', '#0e7a5f'] }
+  ];
+  function cur() { try { return localStorage.getItem('df_theme49') || ''; } catch (e) { return ''; } }
+  function apply(id) {
+    if (id) document.documentElement.setAttribute('data-df49', id);
+    else document.documentElement.removeAttribute('data-df49');
+    document.querySelectorAll('.df49-sw').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-t') === id); });
+  }
+  window.DF49 = {
+    themes: THEMES,
+    set: function (id) { try { localStorage.setItem('df_theme49', id); } catch (e) {} apply(id); if (window.toast) toast(id ? 'پوسته عوض شد' : 'پوسته پیش‌فرض فعال شد'); }
+  };
+  apply(cur());
+  document.addEventListener('DOMContentLoaded', function () { apply(cur()); });
+  function inject() {
+    var c = document.getElementById('content');
+    if (!c || document.getElementById('df49card')) return;
+    if (!c.textContent || c.textContent.indexOf('همگام‌سازی') < 0) return;
+    var card = document.createElement('div');
+    card.className = 'panel'; card.id = 'df49card';
+    var h = '<h3 style="margin-bottom:4px">🎨 پوسته و ظاهر</h3><div style="color:var(--text2);font-size:.85rem">یکی از نمونه‌ها رو انتخاب کن؛ همون لحظه روی کل برنامه اعمال می‌شه و روی همین دستگاه می‌مونه.</div><div class="df49-grid">';
+    THEMES.forEach(function (t) {
+      h += '<button type="button" class="df49-sw' + (cur() === t.id ? ' on' : '') + '" data-t="' + t.id + '" onclick="DF49.set(this.getAttribute(\'data-t\'))"><span class="dots">' + t.dots.map(function (d) { return '<i style="background:' + d + '"></i>'; }).join('') + '</span><b>' + t.name + '</b><span>' + t.desc + '</span></button>';
+    });
+    card.innerHTML = h + '</div>';
+    c.insertBefore(card, c.firstChild);
+  }
+  setInterval(function () { try { inject(); } catch (e) {} }, 900);
+})();
+</script>
 
 
 </body></html>
