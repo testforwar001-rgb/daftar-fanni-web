@@ -8227,32 +8227,40 @@ input,select,textarea{max-width:100%}
 })();
 </script>
 <script id="df-fix26">
-/* df-fix26 (final32): «بالاسری» tab inside the ضرایب section (his request
-   2026-11-25). He enters the overhead items with their percentages; the
-   unit coefficient is the CASCADING product he chose: each percentage
-   applies on the amount already increased by the previous ones —
-   ضریب واحد = Π(1 + p/100)  (e.g. 10% then 20% → 1.10 × 1.20 = 1.32).
-   Data: db.mb[contractId].overhead = {items:[{id,name,pct}]}.
+/* df-fix26 (final32, formula corrected in final33 per his official form):
+   «بالاسری» tab inside the ضرایب section. The items and percentages follow
+   the official جدول ۶ ـ تجزیه بهای هزینه بالاسری (his PDF, ستاره صبا
+   sample): the percentages are shares of the FINAL price, so
+   ضریب بالاسری = 100 / (100 − P₀), P₀ = sum of percentages.
+   Sample check: 6 + 1.5 + 0.5 + 6 + 1.5 + 7.78 = 23.28 → ۱/۳۰۳۴ ✓.
+   Data: db.mb[contractId].overhead = {items:[{id,name,pct}], coef}.
    «ثبت در فهرست ضرایب» registers/updates ONE coefficient titled «بالاسری»
-   (type کلی, side پیشنهاد) in d.coefs — applying it stays with the
-   ضرایب page's own ثبت flow («آیا اعمال شود؟»). */
+   (type کلی, side پیشنهاد) in d.coefs; چاپ جدول ۶ prints the official form. */
 (function () {
   'use strict';
   var W = { tab: 'coef' };
   window.AN26 = W;
+  var SEED = ['سود', 'مالیات بر سود', 'هزینه های دفتر مرکزی', 'هزینه های مستمر کارگاه', 'هزینه ضمانت نامه ها', 'بیمه'];
+  var OLDSEED = ['سود', 'هزینه‌های دفتر مرکزی', 'بیمان', 'بیمه', 'مالیات و عوارض', 'هزینه‌های بانکی و تضامین', 'هزینه‌های پیش‌بینی‌نشده'];
   function D() { try { return (typeof db !== 'undefined' && db && db.mb && activeProject) ? (db.mb[activeProject] || null) : null; } catch (e) { return null; } }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function faNum(x, dec) {
+    if (!isFinite(x)) return '—';
     var s = (Math.round(x * Math.pow(10, dec)) / Math.pow(10, dec)).toFixed(dec);
     return s.replace(/[0-9]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'[+c]; }).replace('.', '٫');
   }
   function num(v) { var n = parseFloat(String(v == null ? '' : v).replace(/[۰-۹]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c); }).replace(/٫/g, '.').replace(/,/g, '')); return isNaN(n) ? 0 : n; }
   function oh(d) {
-    if (!d.overhead) d.overhead = { items: ['سود', 'هزینه‌های دفتر مرکزی', 'بیمان', 'بیمه', 'مالیات و عوارض', 'هزینه‌های بانکی و تضامین', 'هزینه‌های پیش‌بینی‌نشده'].map(function (n, i) { return { id: 'oh' + i, name: n, pct: 0 }; }) };
-    if (!Array.isArray(d.overhead.items)) d.overhead.items = [];
+    if (!d.overhead || !Array.isArray(d.overhead.items)) {
+      d.overhead = { items: SEED.map(function (n, i) { return { id: 'oh' + i, name: n, pct: 0 }; }) };
+    } else if (d.overhead.items.length === OLDSEED.length && d.overhead.items.every(function (it, i) { return it.name === OLDSEED[i] && !num(it.pct); })) {
+      d.overhead.items = SEED.map(function (n, i) { return { id: 'oh' + i, name: n, pct: 0 }; });
+    }
     return d.overhead;
   }
-  function product(d) { return oh(d).items.reduce(function (p, it) { return p * (1 + num(it.pct) / 100); }, 1); }
+  function sumPct(d) { return oh(d).items.reduce(function (s, it) { return s + num(it.pct); }, 0); }
+  function coefOf(d) { var s = sumPct(d); return s >= 100 ? Infinity : 100 / (100 - s); }
+  W.sumPct = sumPct; W.coefOf = coefOf;
   function tabsHtml() {
     return '<div class="an26-tabs" style="display:flex;gap:.4rem;margin-bottom:.7rem">' +
       '<button class="btn' + (W.tab === 'coef' ? ' primary' : '') + '" onclick="AN26.showCoef()">فهرست ضرایب پروژه</button>' +
@@ -8272,52 +8280,48 @@ input,select,textarea{max-width:100%}
     var d = D();
     if (!d) { mb.innerHTML = tabsHtml() + '<div class="notice">ابتدا پروژه و پیمان را انتخاب کنید.</div>'; return; }
     var o = oh(d);
-    var run = 1, sumPct = 0;
     var rows = o.items.map(function (it, i) {
-      var p = num(it.pct); sumPct += p; run *= (1 + p / 100);
       return '<tr><td>' + (i + 1) + '</td>' +
         '<td><input value="' + esc(it.name) + '" oninput="AN26.f(' + i + ',\'name\',this.value)" style="width:100%"></td>' +
         '<td><input type="number" step="0.01" class="an26-pct" value="' + (it.pct == null ? '' : it.pct) + '" oninput="AN26.f(' + i + ',\'pct\',this.value)" style="width:90px"></td>' +
-        '<td class="an26-part">' + faNum(1 + p / 100, 4) + '</td>' +
-        '<td class="an26-run">' + faNum(run, 4) + '</td>' +
         '<td><button class="btn danger" onclick="AN26.del(' + i + ')">✕</button></td></tr>';
     }).join('');
+    var s = sumPct(d), cf = coefOf(d);
     mb.innerHTML = tabsHtml() +
-      '<div style="font-weight:700;font-size:1.05rem;margin-bottom:.2rem">آنالیز ضریب بالاسری</div>' +
-      '<p class="muted" style="margin:.1rem 0 .6rem">هر درصد روی مبلغِ افزایش‌یافته با درصدهای قبلی حساب می‌شود (ضرب متوالی). ضریب واحد = حاصل‌ضرب (۱ + درصد) همه آیتم‌ها.</p>' +
-      '<div class="mb-wrap"><table class="mb-grid"><thead><tr><th>ردیف</th><th>شرح آیتم بالاسری</th><th>درصد</th><th>ضریب جزئی</th><th>ضریب تجمعی</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div style="font-weight:700;font-size:1.05rem;margin-bottom:.2rem">آنالیز ضریب بالاسری ـ جدول ۶</div>' +
+      '<p class="muted" style="margin:.1rem 0 .6rem">درصدها سهم از مبلغ نهایی پیمان‌اند؛ ضریب بالاسری = ۱۰۰ ÷ (۱۰۰ − مجموع درصدها).</p>' +
+      '<div class="mb-wrap"><table class="mb-grid"><thead><tr><th>ردیف</th><th>بخش های مختلف هزینه بالاسری</th><th>درصد</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div class="mb-tools" style="margin-top:.6rem"><button class="btn" onclick="AN26.add()">＋ آیتم تازه</button></div>' +
       '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:.8rem">' +
-      '<div class="k" style="border:1px solid var(--hatch-widget-border,#ccc);border-radius:10px;padding:.6rem 1rem">مجموع ساده درصدها<b id="an26Sum" style="display:block;font-size:1.1rem">' + faNum(sumPct, 2) + '٪</b></div>' +
-      '<div class="k" style="border:2px solid #2e7d32;border-radius:10px;padding:.6rem 1rem">ضریب واحد بالاسری<b id="an26Coef" style="display:block;font-size:1.3rem">' + faNum(run, 4) + '</b></div></div>' +
+      '<div class="k" style="border:1px solid #bbb;border-radius:10px;padding:.6rem 1rem">جمع درصدها (P₀)<b id="an26Sum" style="display:block;font-size:1.1rem">' + faNum(s, 2) + '</b></div>' +
+      '<div class="k" style="border:2px solid #2e7d32;border-radius:10px;padding:.6rem 1rem">ضریب بالاسری = 100/(100−P₀)<b id="an26Coef" style="display:block;font-size:1.3rem">' + faNum(cf, 4) + '</b></div></div>' +
       '<div class="mb-tools" style="margin-top:.8rem"><button class="btn primary" onclick="AN26.register()">✔ ثبت ضریب بالاسری در فهرست ضرایب</button>' +
+      '<button class="btn" onclick="AN26.print6()">🖨 چاپ جدول ۶</button>' +
       '<span class="muted">اعمال روی ردیف‌ها از همان صفحه ضرایب با دکمه ثبت انجام می‌شود.</span></div>';
   }
   W.f = function (i, f, v) {
     var d = D(); if (!d) return;
     var it = oh(d).items[i]; if (!it) return;
-    it[f] = (f === 'pct') ? v : v;
+    it[f] = v;
     save();
     if (f === 'pct') W.calc();
   };
   W.calc = function () {
     var d = D(); if (!d) return;
     var inputs = document.querySelectorAll('.an26-pct');
-    var run = 1, sum = 0;
-    var parts = document.querySelectorAll('.an26-part'), runs = document.querySelectorAll('.an26-run');
-    inputs.forEach(function (inp, i) {
-      var p = num(inp.value); sum += p; run *= (1 + p / 100);
-      if (parts[i]) parts[i].textContent = faNum(1 + p / 100, 4);
-      if (runs[i]) runs[i].textContent = faNum(run, 4);
-    });
-    var c = document.getElementById('an26Coef'); if (c) c.textContent = faNum(run, 4);
-    var s = document.getElementById('an26Sum'); if (s) s.textContent = faNum(sum, 2) + '٪';
+    var sum = 0;
+    inputs.forEach(function (inp) { sum += num(inp.value); });
+    var cf = sum >= 100 ? Infinity : 100 / (100 - sum);
+    var c = document.getElementById('an26Coef'); if (c) c.textContent = faNum(cf, 4);
+    var s = document.getElementById('an26Sum'); if (s) s.textContent = faNum(sum, 2);
   };
   W.add = function () { var d = D(); if (!d) return; oh(d).items.push({ id: 'oh' + Date.now().toString(36), name: '', pct: 0 }); save(); page(); };
   W.del = function (i) { var d = D(); if (!d) return; oh(d).items.splice(i, 1); save(); page(); };
   W.register = function () {
     var d = D(); if (!d) return;
-    var val = Math.round(product(d) * 10000) / 10000;
+    var cf = coefOf(d);
+    if (!isFinite(cf)) { toast('مجموع درصدها باید کمتر از ۱۰۰ باشد.'); return; }
+    var val = Math.round(cf * 10000) / 10000;
     d.coefs = d.coefs || [];
     var c = d.coefs.find(function (x) { return x.title === 'بالاسری'; });
     if (!c) {
@@ -8328,7 +8332,28 @@ input,select,textarea{max-width:100%}
     save();
     toast('ضریب بالاسری ' + faNum(val, 4) + ' در فهرست ضرایب ثبت شد.');
   };
-  /* wrap the ضرایب page tab + keep the tab bar after in-page re-renders */
+  W.print6 = function () {
+    var d = D(); if (!d) return;
+    var o = oh(d), s = sumPct(d), cf = coefOf(d);
+    var proj = (db.projects || []).find(function (p) { return p.id === activeId; }) || {};
+    var today = '';
+    try { today = new Date().toLocaleDateString('fa-IR'); } catch (e) { }
+    var rows = o.items.map(function (it, i) {
+      return '<tr><td>' + faNum(i + 1, 0) + '</td><td style="text-align:right">' + esc(it.name) + '</td><td>' + faNum(num(it.pct), 2) + '</td></tr>';
+    }).join('');
+    var html = '<div dir="rtl"><section class="page an26p6" style="width:210mm;min-height:297mm;padding:12mm;background:#fff;color:#000;font-family:Tahoma">' +
+      '<style>.an26p6 table{width:100%;border-collapse:collapse}.an26p6 td,.an26p6 th{border:1px solid #000;padding:5px 8px;text-align:center;font-size:12px}.an26p6 .hd{display:flex;justify-content:space-between;font-size:12px;line-height:2}</style>' +
+      '<div style="text-align:center;font-weight:700;font-size:15px">«جدول ۶ ـ تجزیه بهای هزینه بالاسری»</div>' +
+      '<div class="hd"><div>نام پروژه : ' + esc(proj.name || '') + '<br>نام پیمانکار : گروه فنی و مهندسی پشتیبان<br>تاریخ : ' + esc(today) + '</div>' +
+      '<div>کد مدرک :<br>نام دستگاه اجرایی :<br>نام مهندس مشاور :</div></div>' +
+      '<div style="border-top:3px double #000;margin:4px 0 10px"></div>' +
+      '<table><thead><tr><th style="width:60px">ردیف</th><th>بخش های مختلف هزینه بالاسری</th><th style="width:110px">درصد</th></tr></thead><tbody>' + rows +
+      '<tr><td colspan="2" style="text-align:left;font-weight:700">جمع P₀</td><td style="font-weight:700">' + faNum(s, 2) + '</td></tr></tbody></table>' +
+      '<div style="margin-top:14px;font-size:13px">ضریب بالاسری = 100 / (100 − P₀) = <b>' + faNum(cf, 4) + '</b></div>' +
+      '<div style="margin-top:60px;font-size:12px">مهر و امضای پیمانکار</div>' +
+      '</section></div>';
+    showPreview(html, 'جدول ۶ ـ تجزیه بهای هزینه بالاسری');
+  };
   var iv = setInterval(function () {
     if (typeof TABS !== 'undefined' && TABS['mb:coef'] && !W._orig) {
       W._orig = TABS['mb:coef'];
@@ -8337,7 +8362,366 @@ input,select,textarea{max-width:100%}
     var mb = document.querySelector('#moduleBody');
     if (mb && W.tab === 'coef' && !mb.querySelector('.an26-tabs') && mb.querySelector('[onclick*="cAdd"]')) injectTabs();
   }, 700);
-  setTimeout(function () { /* keep the injector for the session */ }, 0);
+})();
+</script>
+<script id="df-fix27">
+/* df-fix27 (final33): the گزارشات برآورد reports rebuilt to the OFFICIAL
+   forms from his PDF «Pages_from_gheymat_-_Copy.pdf» (ستاره صبا tender —
+   spec: GHEYBAT-SPEC.md). Intercepts AN23.show/xls for:
+   ۱ دفترچه = برگه مالی | ۳ خلاصه مالی کل = جدول ۴ | ۵ الف | ۶ ب (تجهیز) |
+   ۷ پ | ۹ جدول ۲ = خلاصه ارقام و ضرایب | ۱۰ جدول ۳ = مقایسه بر حسب فصل |
+   ۱۱ جدول ۱ (نزولی) + جدول ۲ (۸۰٪) | ۱۴ جدول ۶ (بالاسری) | ۱۵ جدول ۶ خام |
+   ۱۷ جدول ۴. Everything else stays with df-fix23. */
+(function () {
+  'use strict';
+  var W = {};
+  window.AN27 = W;
+  var CH = {
+    'ابنیه': { '01': 'عملیات تخریب و برچیدن', '02': 'عملیات خاکی با دست', '03': 'عملیات خاکی با ماشین', '04': 'عملیات بنایی با سنگ', '05': 'قالب بندی غیر فولادی', '06': 'قالب بندی فولادی', '07': 'کارهای فولادی با میلگرد', '08': 'بتن درجا', '09': 'کارهای فولادی سنگین', '11': 'آجرکاری و شفته ریزی', '12': 'بتن پیش ساخته و بلوک چینی', '13': 'عایق کاری رطوبتی', '14': 'عایق کاری حرارتی و پوشش های مقاوم در برابر آتش', '16': 'کارهای فولادی سبک', '17': 'کارهای آلومینیومی', '18': 'اندودکاری و بندکشی', '19': 'کارهای چوبی', '20': 'کاشی کاری با کاشی های سرامیکی', '21': 'فرش موزاییک و کفپوش بتنی', '22': 'کارهای سنگی با سنگ پلاک', '23': 'کارهای پلاستیکی و پلیمری', '24': 'شیشه و نصب آن', '25': 'رنگ آمیزی', '28': 'حمل و نقل', '29': 'کارهای دستمزدی' },
+    'تأسیسات مکانیکی': { '01': 'لوله های فولادی', '03': 'لوله های پی.وی.سی و پلی پروپیلن', '04': 'لوله های پلی اتیلن', '07': 'شیرها', '08': 'قطعه انبساط (Expansion Joint)', '09': 'لرزه گیر (Flexible Connection)', '11': 'صافی', '16': 'آب گرم کن', '19': 'کانال هوا، دریچه هوا و دودکش', '20': 'هواکش', '24': 'الکتروپمپ', '25': 'عایق', '29': 'لوازم بهداشتی، شیرهای بهداشتی', '30': 'وسایل آتش نشانی', '33': 'مخازن و مبدلها', '34': 'بستها و تکیه گاهها' },
+    'تأسیسات برقی': { '01': 'چراغهای فضای داخلی - غیر صنعتی', '03': 'چراغهای صنعتی', '04': 'چراغهای فضای آزاد', '05': 'چراغهای مخصوص', '06': 'سیم ها', '07': 'کابلهای فشار ضعیف', '11': 'کلیدها و پریزها', '12': 'لوله های فولادی', '13': 'لوله های پلی وینیل کلراید (PVC)', '14': 'وسایل فشارضعیف تابلویی', '15': 'وسایل اندازه گیری', '22': 'وسایل ارتباطی', '23': 'سیستم احضار و در بازکن', '24': 'سیستم آنتن تلویزیون', '26': 'وسایل اعلام حریق', '27': 'وسایل صوتی', '28': 'وسایل متفرقه', '29': 'سیستم شبکه های اطلاع رسانی' }
+  };
+  function D() { try { return (typeof db !== 'undefined' && db && db.mb && activeProject) ? (db.mb[activeProject] || null) : null; } catch (e) { return null; } }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function faD(s) { return String(s).replace(/[0-9]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'[+c]; }); }
+  function money(x) { return faD(String(Math.round(x)).replace(/\B(?=(\d{3})+(?!\d))/g, '٬')); }
+  function coef4(x) { if (!isFinite(x)) return '—'; return faD((Math.round(x * 10000) / 10000).toFixed(4)).replace('.', '٫'); }
+  function pct2(x) { return faD((Math.round(x * 100) / 100).toFixed(2)).replace('.', '٫'); }
+  function pct4(x) { return faD((Math.round(x * 10000) / 10000).toFixed(4)).replace('.', '٫'); }
+  function qtyF(x) { return faD(String(Math.round(x * 1000) / 1000)).replace('.', '٫'); }
+  function today() { try { return new Date().toLocaleDateString('fa-IR'); } catch (e) { return ''; } }
+  function projName() { var p = (db.projects || []).find(function (x) { return x.id === activeId; }); return p ? (p.name || '') : ''; }
+  function projCode() { var p = (db.projects || []).find(function (x) { return x.id === activeId; }); return p ? (p.code || '') : ''; }
+  /* ---------- data layer (aggEst-equivalent) ---------- */
+  function evalRow(r) {
+    var v = { N: 1, X: 1, Y: 1, Z: 1, W: 0 };
+    ['N', 'X', 'Y', 'Z', 'W'].forEach(function (k) { var n = parseFloat(r[k]); if (!isNaN(n)) v[k] = n; else if (r[k] === '' || r[k] == null) v[k] = (k === 'W' ? 0 : 1); });
+    var f = String(r.formula || 'N*X*Y*Z+W').replace(/[^NX YZW0-9.+*/() -]/g, '');
+    try { var out = Function('N', 'X', 'Y', 'Z', 'W', 'return (' + f + ')')(v.N, v.X, v.Y, v.Z, v.W); return isFinite(out) ? out : 0; } catch (e) { return 0; }
+  }
+  var BANKS = [['bk_abn', 'ابنیه'], ['bk_mech', 'تأسیسات مکانیکی'], ['bk_elec', 'تأسیسات برقی']];
+  function bankItem(code) {
+    for (var i = 0; i < BANKS.length; i++) {
+      var arr = (db.mod && db.mod[BANKS[i][0]]) || [];
+      var it = arr.find(function (x) { return String(x.code) === String(code); });
+      if (it) return { code: it.code, desc: it.desc, unit: it.unit, price: +it.price || 0, reshte: BANKS[i][1], bank: BANKS[i][0], year: it.year || '' };
+    }
+    return null;
+  }
+  function chapterOf(it) {
+    var c = String(it.code || '');
+    var ch = (it.bank === 'bk_mech' || it.bank === 'bk_elec') ? c.slice(2, 4) : c.slice(0, 2);
+    if (!/^\d{2}$/.test(ch)) ch = c.replace(/\D/g, '').slice(0, 2) || '00';
+    return ch;
+  }
+  function chTitle(reshte, ch) { return (CH[reshte] && CH[reshte][ch]) || ('فصل ' + faD(ch)); }
+  function items(d) {
+    var map = {};
+    (d.rows || []).forEach(function (r) {
+      var key = String(r.code || '') + '|' + (r.fj || 'ف');
+      if (!map[key]) map[key] = { key: key, code: String(r.code || ''), fj: r.fj || 'ف', qty: 0 };
+      map[key].qty += evalRow(r);
+    });
+    return Object.keys(map).map(function (k) {
+      var a = map[k];
+      var bi = bankItem(a.code);
+      var st = !bi ? (d.stars || []).find(function (s) { return String(s.code) === a.code; }) : null;
+      var it = bi || (st ? { code: st.code, desc: st.desc, unit: st.unit, price: +st.price || 0, reshte: st.reshte || 'ابنیه', bank: '', year: '' } : { code: a.code, desc: '', unit: '', price: 0, reshte: 'ابنیه', bank: '' });
+      var pr = (d.price || {})[k] || {};
+      var b = (pr.b != null) ? +pr.b : it.price;
+      var p = (pr.p != null) ? +pr.p : b;
+      var cB = pr.coefB || 1, cP = pr.coefP || 1;
+      return { key: k, code: a.code, fj: a.fj, desc: it.desc, unit: it.unit, reshte: it.reshte, bank: it.bank, star: !!st, ch: chapterOf(it), qty: a.qty, b: b, p: p, cB: cB, cP: cP, rawB: a.qty * b, rawP: a.qty * p, totB: a.qty * b * cB, totP: a.qty * p * cP, year: it.year || '' };
+    }).filter(function (x) { return x.qty !== 0 || x.rawB !== 0; });
+  }
+  function byReshte(its) {
+    var m = {};
+    its.forEach(function (x) { (m[x.reshte] = m[x.reshte] || []).push(x); });
+    return ['ابنیه', 'تأسیسات مکانیکی', 'تأسیسات برقی'].filter(function (r) { return m[r]; }).map(function (r) { return { reshte: r, items: m[r] }; });
+  }
+  function byChapter(list) {
+    var m = {};
+    list.forEach(function (x) { (m[x.ch] = m[x.ch] || []).push(x); });
+    return Object.keys(m).sort().map(function (ch) { return { ch: ch, items: m[ch] }; });
+  }
+  function sum(list, f) { return list.reduce(function (s, x) { return s + f(x); }, 0); }
+  function tajhiz(d, its) {
+    if (d.tajhiz && (d.tajhiz.b || d.tajhiz.p)) return { b: +d.tajhiz.b || 0, p: +d.tajhiz.p || 0 };
+    var t = its.filter(function (x) { return (x.desc || '').indexOf('تجهیز') >= 0; });
+    return { b: sum(t, function (x) { return x.totB; }), p: sum(t, function (x) { return x.totP; }) };
+  }
+  function yearOf(its) { var y = its.find(function (x) { return x.year; }); return y ? String(y.year) : '۱۴۰۴'; }
+  /* ---------- frames ---------- */
+  var CSS = '<style>.an27 table{width:100%;border-collapse:collapse}.an27 td,.an27 th{border:1px solid #000;padding:4px 6px;text-align:center;font-size:11px}.an27 th{background:#eee;font-weight:700}.an27 .band td{background:#ddd;font-weight:700;text-align:right}.an27 .sum td{font-weight:700;background:#f3f3f3}.an27 .hd{display:flex;justify-content:space-between;font-size:11.5px;line-height:1.9}.an27 .tt{font-weight:700;font-size:13.5px}.an27 .sig{display:flex;justify-content:space-between;margin-top:26px;font-size:11.5px}</style>';
+  function headA(title, reshte, year) {
+    return '<div class="hd"><div><span class="tt">' + esc(title) + '</span><br>پروژه : ' + esc(projName()) + (reshte ? '<br>رشته : ' + esc(reshte) : '') + '<br>فهرست بهای واحد پایه سال : ' + esc(year) + '</div>' +
+      '<div>کد مدرک :<br>کد پروژه : ' + esc(projCode()) + '<br>محل اجرا :<br>تاریخ : ' + esc(today()) + '</div></div>' +
+      '<div style="border-top:3px double #000;margin:3px 0 6px"></div><div style="font-size:10.5px">مبالغ به ریال</div>';
+  }
+  function headO(title) {
+    return '<div style="text-align:center" class="tt">' + esc(title) + '</div>' +
+      '<div class="hd"><div>نام پروژه : ' + esc(projName()) + '<br>نام پیمانکار : گروه فنی و مهندسی پشتیبان<br>کد پروژه : ' + esc(projCode()) + ' &nbsp; تاریخ : ' + esc(today()) + '</div>' +
+      '<div>کد مدرک :<br>نام دستگاه اجرایی :<br>نام مهندس مشاور :</div></div>' +
+      '<div style="border-top:3px double #000;margin:3px 0 6px"></div><div style="font-size:10.5px">مبالغ به ریال</div>';
+  }
+  var NOTE = '<div style="font-size:10.5px;margin-top:6px">توضیح: بهای واحد ردیفها با احتساب ضرایب فهرست بها، بجز ضریب بالاسری و هزینه تجهیز و برچیدن کارگاه می باشد</div>';
+  var SIG = '<div class="sig"><span>مهر و امضای مهندس مشاور</span><span>مهر و امضای پیمانکار</span></div>';
+  function page(html, ls) { return '<section class="page' + (ls ? ' ls' : '') + ' an27" style="background:#fff;color:#000;padding:9mm;font-family:Tahoma">' + CSS + html + '</section>'; }
+  function wrapPages(pages) { return '<div dir="rtl">' + pages.join('') + '</div>'; }
+  /* ---------- جدول (الف): per-reshte chapter table ---------- */
+  function alefData(d) {
+    var its = items(d);
+    return byReshte(its).map(function (g) {
+      var chs = byChapter(g.items).map(function (c) {
+        var raw = sum(c.items, function (x) { return x.rawB; });
+        var wc = sum(c.items, function (x) { return x.totB; });
+        var pr = sum(c.items, function (x) { return x.totP; });
+        return { ch: c.ch, title: chTitle(g.reshte, c.ch), raw: raw, wc: wc, pr: pr, coef: wc ? pr / wc : 0 };
+      });
+      return { reshte: g.reshte, chs: chs, raw: sum(chs, function (c) { return c.raw; }), wc: sum(chs, function (c) { return c.wc; }), pr: sum(chs, function (c) { return c.pr; }) };
+    });
+  }
+  function alefPages(d) {
+    var data = alefData(d), yr = yearOf(items(d));
+    return data.map(function (g) {
+      var rows = g.chs.map(function (c) {
+        return '<tr><td>' + faD(c.ch.replace(/^0/, '')) + '</td><td style="text-align:right">' + esc(c.title) + '</td><td>' + money(c.raw) + '</td><td>' + money(c.wc) + '</td><td>' + money(c.pr) + '</td><td>' + coef4(c.coef) + '</td></tr>';
+      }).join('');
+      return page(headA('جدول (الف): مبلغ و ضرایب پیشنهادی جزء برای هر فصل', g.reshte, yr) +
+        '<table><thead><tr><th>فصل</th><th>عنوان فصول</th><th>برآورد فصل (اقلام پایه و غیرپایه)</th><th>برآورد فصل پس از اعمال تمامی ضرایب</th><th>مبلغ پیشنهادی پیمانکار با احتساب تمامی ضرایب و هزینه های مورد نظر</th><th>ضریب پیشنهادی جزء</th></tr></thead><tbody>' + rows +
+        '<tr class="sum"><td colspan="2">جمع</td><td>' + money(g.raw) + '</td><td>' + money(g.wc) + '</td><td>' + money(g.pr) + '</td><td style="background:#bbb"></td></tr></tbody></table>', true);
+    });
+  }
+  /* ---------- جدول (ب): تجهیز و برچیدن کارگاه ---------- */
+  function bePages(d) {
+    var its = items(d), t = tajhiz(d, its);
+    return [page(headA('جدول (ب) : مبلغ پیشنهادی جزء برای تجهیز و برچیدن کارگاه', null, yearOf(its)) +
+      '<table><thead><tr><th>عنوان</th><th>مبلغ برآورد تجهیز و برچیدن کارگاه</th><th>مبلغ پیشنهادی پیمانکار با احتساب تمامی ضرایب و هزینه های مورد نظر</th><th>ضریب پیشنهادی جزء</th></tr></thead>' +
+      '<tbody><tr><td>تجهیز و برچیدن کارگاه</td><td>' + money(t.b) + '</td><td>' + money(t.p) + '</td><td>' + coef4(t.b ? t.p / t.b : 0) + '</td></tr></tbody></table>', true)];
+  }
+  /* ---------- جدول (پ): per-reshte summary ---------- */
+  function pePages(d) {
+    var its = items(d), gs = byReshte(its), t = tajhiz(d, its);
+    var rows = '', tb = 0, tp = 0, i = 0;
+    gs.forEach(function (g) {
+      var wc = sum(g.items, function (x) { return x.totB; });
+      var pr = sum(g.items, function (x) { return x.totP; });
+      tb += wc; tp += pr; i++;
+      rows += '<tr><td>' + faD(i) + '</td><td style="text-align:right">' + esc(g.reshte) + '</td><td>' + money(wc) + '</td><td>' + money(pr) + '</td><td>' + coef4(wc ? pr / wc : 0) + '</td></tr>';
+    });
+    if (t.b || t.p) { tb += t.b; tp += t.p; rows += '<tr><td></td><td style="text-align:right">تجهیز و برچیدن کارگاه بطور مقطوع</td><td>' + money(t.b) + '</td><td>' + money(t.p) + '</td><td>' + coef4(t.b ? t.p / t.b : 0) + '</td></tr>'; }
+    rows += '<tr class="sum"><td colspan="2">جمع</td><td>' + money(tb) + '</td><td>' + money(tp) + '</td><td>' + coef4(tb ? tp / tb : 0) + '</td></tr>';
+    return [page(headA('جدول (پ) : مبلغ پیشنهادی برای هر رشته ، تجهیز و برچیدن کارگاه و ضریب پیشنهادی کل', null, yearOf(its)) +
+      '<table><thead><tr><th>ردیف</th><th>عنوان</th><th>مبلغ رشته پس از اعمال تمامی ضرایب</th><th>مبلغ پیشنهادی پیمانکار با احتساب تمامی ضرایب و هزینه های مورد نظر</th><th>ضریب پیشنهادی کل</th></tr></thead><tbody>' + rows + '</tbody></table>', true)];
+  }
+  /* ---------- جدول ۱: نزولی بهای کل ---------- */
+  function t1Pages(d) {
+    var its = items(d).slice().sort(function (a, b) { return b.totB - a.totB; });
+    var rows = its.map(function (x, i) {
+      return '<tr><td>' + faD(i + 1) + '</td><td>' + esc(x.reshte) + '</td><td style="text-align:right">' + esc(chTitle(x.reshte, x.ch)) + '</td><td>' + faD(x.code) + (x.star ? '٭' : '') + '</td><td style="text-align:right">' + esc(x.desc) + '</td><td>' + money(x.totB) + '</td><td>' + money(x.totP) + '</td></tr>';
+    }).join('');
+    return [page(headO('جدول ۱. ردیفهای مورداستفاده در فهرست یا فهرست های مورد عمل به ترتیب نزولی بهای کل ردیفها') +
+      '<table><thead><tr><th>شماره</th><th>فهرست بهای رشته</th><th>عنوان فصل</th><th>شماره ردیف</th><th>شرح کامل ردیف</th><th>بهای کل ردیف</th><th>بهای کل پیشنهادی</th></tr></thead><tbody>' + rows + '</tbody></table>' + NOTE + SIG, true)];
+  }
+  /* ---------- جدول ۲: حداقل ۸۰٪ ---------- */
+  function t2Pages(d) {
+    var its = items(d), gs = byReshte(its), pages = [], grand = 0;
+    gs.forEach(function (g) {
+      var tot = sum(g.items, function (x) { return x.totB; });
+      var sorted = g.items.slice().sort(function (a, b) { return b.totB - a.totB; });
+      var cum = 0, picked = [];
+      sorted.forEach(function (x) { if (cum < tot * 0.8) { picked.push(x); cum += x.totB; } });
+      grand += cum;
+      var rows = picked.map(function (x, i) {
+        return '<tr><td>' + faD(i + 1) + '</td><td>' + faD(x.ch.replace(/^0/, '')) + '</td><td style="text-align:right">' + esc(chTitle(x.reshte, x.ch)) + '</td><td>' + faD(x.code) + (x.star ? '٭' : '') + '</td><td style="text-align:right">' + esc(x.desc) + '</td><td>' + esc(x.unit) + '</td><td>' + money(x.b * x.cB) + '</td><td>' + qtyF(x.qty) + '</td><td>' + money(x.totB) + '</td><td>' + money(x.p * x.cP) + '</td><td>' + pct2(tot ? x.totB / tot * 100 : 0) + '</td><td>' + money(x.totP) + '</td></tr>';
+      }).join('');
+      rows += '<tr class="sum"><td colspan="8">جمع رشته بریال :</td><td>' + money(cum) + '</td><td></td><td>' + pct2(tot ? cum / tot * 100 : 0) + '</td><td>' + money(sum(picked, function (x) { return x.totP; })) + '</td></tr>';
+      pages.push(page(headO('جدول ۲. ردیفهایی که در مجموع حایز حداقل ۸۰٪ درصد مبلغ برآورد هزینه کل کار هستند') +
+        '<div style="font-weight:700;margin:2px 0">فهرست بهای واحد پایه رشته ' + esc(g.reshte) + '</div>' +
+        '<table><thead><tr><th>شماره</th><th>شماره فصل</th><th>عنوان فصل</th><th>شماره ردیف</th><th>شرح کامل ردیف</th><th>واحد</th><th>بهای واحد</th><th>مقدار</th><th>بهای کل ردیف</th><th>بهای واحد پیشنهادی</th><th>درصد بهای ردیف نسبت به برآورد کل</th><th>بهای کل پیشنهادی</th></tr></thead><tbody>' + rows + '</tbody></table>' + NOTE + SIG, true));
+    });
+    return pages;
+  }
+  /* ---------- جدول شماره ۳: مقایسه بر حسب هر فصل ---------- */
+  function t3Pages(d) {
+    var its = items(d);
+    return byReshte(its).map(function (g) {
+      var totRaw = sum(g.items, function (x) { return x.rawB; });
+      var rows = byChapter(g.items).map(function (c, i) {
+        var paye = sum(c.items.filter(function (x) { return !x.star; }), function (x) { return x.rawB; });
+        var gh = sum(c.items.filter(function (x) { return x.star; }), function (x) { return x.rawB; });
+        var jam = paye + gh;
+        var pr = sum(c.items, function (x) { return x.totP; });
+        var diff = jam ? (pr - jam) / jam * 100 : 0;
+        return '<tr><td>' + faD(i + 1) + '</td><td>' + faD(c.ch.replace(/^0/, '')) + '</td><td style="text-align:right">' + esc(chTitle(g.reshte, c.ch)) + '</td><td>' + money(paye) + '</td><td>' + money(gh) + '</td><td>' + money(jam) + '</td><td>' + pct2(totRaw ? jam / totRaw * 100 : 0) + '</td><td>' + faD(c.items.length) + '</td><td>' + faD(c.items.filter(function (x) { return x.star; }).length) + '</td><td>' + money(pr) + '</td><td>' + (diff > 0 ? pct4(diff) : '') + '</td><td>' + (diff < 0 ? pct4(-diff) : '') + '</td></tr>';
+      }).join('');
+      return page(headO('جدول شماره ۳. مقایسه مبلغ پیشنهادی پیمانکار با مبلغ برآورد بر حسب هر فصل ـ رشته ' + g.reshte) +
+        '<table><thead><tr><th rowspan="2">شماره</th><th rowspan="2">شماره فصل</th><th rowspan="2">عنوان فصل</th><th colspan="3">برآورد فصل</th><th rowspan="2">درصد برآورد فصل نسبت به برآورد رشته</th><th rowspan="2">تعداد ردیفها</th><th rowspan="2">تعداد ردیفهایی که تجزیه بها لازم دارند</th><th rowspan="2">مبلغ پیشنهادی پیمانکار</th><th colspan="2">درصد پیشنهادی پیمانکار</th></tr>' +
+        '<tr><th>ردیفهای پایه</th><th>ردیفهای غیرپایه</th><th>جمع پایه و غیرپایه</th><th>اضافه</th><th>تخفیف</th></tr></thead><tbody>' + rows + '</tbody></table>' + NOTE + SIG, true);
+    });
+  }
+  /* ---------- جدول ۴: مقایسه بر حسب هر رشته و کل کار ---------- */
+  function t4Data(d) {
+    var its = items(d), gs = byReshte(its), t = tajhiz(d, its);
+    var rows = gs.map(function (g) { return { name: g.reshte, b: sum(g.items, function (x) { return x.totB; }), p: sum(g.items, function (x) { return x.totP; }) }; });
+    var sumB = sum(rows, function (r) { return r.b; }), sumP = sum(rows, function (r) { return r.p; });
+    var ohB = null, ohP = null;
+    var cB = (d.coefs || []).find(function (c) { return c.title === 'بالاسری' && (c.bp || []).indexOf('برآورد') >= 0; });
+    if (cB) ohB = (+cB.val - 1) * sumB;
+    if (window.AN26 && d.overhead) {
+      var appliedP = (d.coefs || []).some(function (c) { return c.title === 'بالاسری' && c.applied && (c.bp || []).indexOf('پیشنهاد') >= 0; });
+      if (!appliedP) { var cf = AN26.coefOf(d); if (isFinite(cf) && cf !== 1) ohP = (cf - 1) * sum(its, function (x) { return x.rawP; }); }
+    }
+    if (ohB != null || ohP != null) rows.push({ name: 'هزینه بالاسری', b: ohB || 0, p: ohP || 0 });
+    if (t.b || t.p) rows.push({ name: 'هزینه تجهیز و برچیدن کارگاه', b: t.b, p: t.p });
+    var totB = sum(rows, function (r) { return r.b; }), totP = sum(rows, function (r) { return r.p; });
+    return { rows: rows, totB: totB, totP: totP };
+  }
+  function t4Pages(d) {
+    var data = t4Data(d);
+    var body = data.rows.map(function (r, i) {
+      var diff = r.b ? (r.p - r.b) / r.b * 100 : 0;
+      return '<tr><td rowspan="2">' + faD(i + 1) + '</td><td rowspan="2" style="text-align:right">' + esc(r.name) + '</td><td>برآورد</td><td>' + money(r.b) + '</td><td rowspan="2">' + pct2(data.totB ? r.b / data.totB * 100 : 0) + '</td><td rowspan="2">' + (diff > 0 ? pct2(diff) : '') + '</td><td rowspan="2">' + (diff < 0 ? pct2(diff) : '') + '</td></tr>' +
+        '<tr><td>پیشنهادی</td><td>' + money(r.p) + '</td></tr>';
+    }).join('');
+    var dtot = data.totB ? (data.totP - data.totB) / data.totB * 100 : 0;
+    body += '<tr class="sum"><td rowspan="2">' + faD(data.rows.length + 1) + '</td><td rowspan="2" style="text-align:right">جمع (برآورد کل)</td><td>برآورد</td><td>' + money(data.totB) + '</td><td rowspan="2">' + pct2(100) + '</td><td rowspan="2">' + (dtot > 0 ? pct2(dtot) : '') + '</td><td rowspan="2">' + (dtot < 0 ? pct2(dtot) : '') + '</td></tr>' +
+      '<tr class="sum"><td>پیشنهادی</td><td>' + money(data.totP) + '</td></tr>';
+    return [page(headO('جدول ۴. مقایسه مبلغ پیشنهادی پیمانکار با مبلغ برآورد بر حسب هر رشته و کل کار') +
+      '<table><thead><tr><th>شماره</th><th>رشته</th><th></th><th>جمع فصلها</th><th>درصد نسبت به برآورد کل</th><th colspan="2">درصد پیشنهادی پیمانکار</th></tr><tr><th></th><th></th><th></th><th></th><th></th><th>اضافه</th><th>تخفیف</th></tr></thead><tbody>' + body + '</tbody></table>' + NOTE + SIG, true)];
+  }
+  /* ---------- خلاصه ارقام و ضرایب (تدکار جدول ۲) ---------- */
+  var ONES = ['', 'یک', 'دو', 'سه', 'چهار', 'پنج', 'شش', 'هفت', 'هشت', 'نه', 'ده', 'یازده', 'دوازده', 'سیزده', 'چهارده', 'پانزده', 'شانزده', 'هفده', 'هجده', 'نوزده'];
+  var TENS = ['', '', 'بیست', 'سی', 'چهل', 'پنجاه', 'شصت', 'هفتاد', 'هشتاد', 'نود'];
+  var HUNS = ['', 'یکصد', 'دویست', 'سیصد', 'چهارصد', 'پانصد', 'ششصد', 'هفتصد', 'هشتصد', 'نهصد'];
+  function three(n) { var p = []; var h = Math.floor(n / 100), t = Math.floor(n % 100 / 10), o = n % 10; if (h) p.push(HUNS[h]); if (n % 100 >= 20) { if (t) p.push(TENS[t]); if (o) p.push(ONES[o]); } else if (n % 100) p.push(ONES[n % 100]); return p.join(' و '); }
+  function toWords(n) {
+    n = Math.round(Math.abs(n)); if (n === 0) return 'صفر';
+    var scales = ['', ' هزار', ' میلیون', ' میلیارد', ' هزار میلیارد'];
+    var parts = [], s = 0;
+    while (n > 0 && s < scales.length) { var g = n % 1000; if (g) parts.unshift(three(g) + scales[s]); n = Math.floor(n / 1000); s++; }
+    return parts.join(' و ');
+  }
+  W.toWords = toWords;
+  function coefByTitle(d, kw, side) {
+    var c = (d.coefs || []).find(function (x) { return (x.title || '').indexOf(kw) >= 0 && (!side || (x.bp || []).indexOf(side) >= 0); });
+    return c ? +c.val : 1;
+  }
+  function kholasePages(d) {
+    var its = items(d), gs = byReshte(its), t = tajhiz(d, its);
+    var ohP = (window.AN26 && d.overhead) ? AN26.coefOf(d) : coefByTitle(d, 'بالاسری', 'پیشنهاد');
+    if (!isFinite(ohP)) ohP = 1;
+    var ohB = coefByTitle(d, 'بالاسری', 'برآورد');
+    var body = '';
+    gs.forEach(function (g) {
+      var rawB = sum(g.items, function (x) { return x.rawB; }), rawP = sum(g.items, function (x) { return x.rawP; });
+      var totB = sum(g.items, function (x) { return x.totB; }), totP = sum(g.items, function (x) { return x.totP; });
+      function crow(side, raw, tot, oh) {
+        return '<td>' + money(raw) + '</td><td>' + coef4(coefByTitle(d, 'منطقه', side)) + '</td><td>' + coef4(coefByTitle(d, 'ارتفاع', side)) + '</td><td>' + coef4(coefByTitle(d, 'طبقات', side)) + '</td><td>' + coef4(coefByTitle(d, 'صعوبت', side)) + '</td><td>' + coef4(oh) + '</td><td></td><td>' + money(tot) + '</td>';
+      }
+      body += '<tr><td rowspan="2" style="text-align:right">' + esc(g.reshte) + '</td><td>برآوردی</td>' + crow('برآورد', rawB, totB, ohB) + '</tr>' +
+        '<tr><td>پیشنهادی</td>' + crow('پیشنهاد', rawP, totP, ohP) + '</tr>';
+    });
+    var totB = sum(its, function (x) { return x.totB; }) + t.b;
+    var totP = sum(its, function (x) { return x.totP; }) + t.p;
+    var dpct = totB ? (totP - totB) / totB * 100 : 0;
+    var html = headO('خلاصه ارقام و ضرایب پیشنهادی شرکت') +
+      '<table><thead><tr><th>نام دفترچه فهرست بها</th><th></th><th>بدون ضرایب ـ جمع خالص</th><th>منطقه ای</th><th>ارتفاع</th><th>طبقات</th><th>صعوبت</th><th>بالاسری</th><th>مبلغ تجهیز</th><th>جمع با احتساب ضرایب</th></tr></thead><tbody>' + body + '</tbody></table>' +
+      '<div style="margin-top:14px;font-size:12px;line-height:2.1">' +
+      'جمع کل با احتساب ضرایب (برآوردی) : <b>' + money(totB) + '</b> &nbsp; جمع کل به حروف با احتساب ضرایب برآوردی : ' + toWords(totB) + ' ریال<br>' +
+      'جمع کل با احتساب ضرایب (پیشنهادی) : <b>' + money(totP) + '</b> &nbsp; جمع کل به حروف با احتساب ضرایب پیشنهادی : ' + toWords(totP) + ' ریال<br>' +
+      'درصد پیشنهادی : <b>٪' + pct4(dpct) + '</b></div>' + SIG;
+    return [page(html, true)];
+  }
+  /* ---------- برگه مالی (دفترچه) ---------- */
+  function bargePages(d) {
+    var its = items(d), gs = byReshte(its), yr = yearOf(its);
+    var projB = 0, projP = 0;
+    gs.forEach(function (g) { projB += sum(g.items, function (x) { return x.rawB; }); projP += sum(g.items, function (x) { return x.rawP; }); });
+    return gs.map(function (g, gi) {
+      var totB = sum(g.items, function (x) { return x.rawB; }), totP = sum(g.items, function (x) { return x.rawP; });
+      var n = 0, body = '';
+      byChapter(g.items).forEach(function (c) {
+        body += '<tr class="band"><td colspan="13">' + faD(c.ch.replace(/^0/, '')) + ' ـ ' + esc(chTitle(g.reshte, c.ch)) + '</td></tr>';
+        c.items.slice().sort(function (a, b) { return String(a.code).localeCompare(String(b.code)); }).forEach(function (x) {
+          n++;
+          var arsh = x.rawB ? (x.rawP - x.rawB) / x.rawB * 100 : 0;
+          body += '<tr><td>' + faD(n) + '</td><td>' + (x.star ? '٭' : '') + '</td><td>' + faD(x.code) + '</td><td style="text-align:right">' + esc(x.desc) + '</td><td>' + esc(x.unit) + '</td><td>' + money(x.b) + '</td><td>' + qtyF(x.qty) + '</td><td>' + money(x.rawB) + '</td><td>' + pct2(totB ? x.rawB / totB * 100 : 0) + '</td><td>' + money(x.p) + '</td><td>' + money(x.rawP) + '</td><td>' + pct2(totP ? x.rawP / totP * 100 : 0) + '</td><td>' + (arsh ? pct2(arsh) : '') + '</td></tr>';
+        });
+        body += '<tr class="sum"><td colspan="7">جمع فصل بریال :</td><td>' + money(sum(c.items, function (x) { return x.rawB; })) + '</td><td></td><td></td><td>' + money(sum(c.items, function (x) { return x.rawP; })) + '</td><td></td><td></td></tr>';
+      });
+      body += '<tr class="sum"><td colspan="7">جمع دفترچه بریال :</td><td>' + money(totB) + '</td><td></td><td></td><td>' + money(totP) + '</td><td></td><td></td></tr>';
+      if (gi === gs.length - 1) body += '<tr class="sum"><td colspan="7">جمع پروژه بریال :</td><td>' + money(projB) + '</td><td></td><td></td><td>' + money(projP) + '</td><td></td><td></td></tr>';
+      return page('<div style="text-align:center" class="tt">« برگه مالی »</div>' + headO('فهرست بهای واحد پایه رشته ' + g.reshte + ' سال ' + yr) +
+        '<table><thead><tr><th>ردیف</th><th>*</th><th>شماره</th><th>شرح کامل</th><th>واحد</th><th>بهای واحد ف</th><th>مقدار</th><th>قیمت فهرست بها</th><th>٪ف</th><th>بهای واحد ب</th><th>قیمت پیشنهادی</th><th>٪ب</th><th>٪ارشد</th></tr></thead><tbody>' + body + '</tbody></table>', true);
+    });
+  }
+  /* ---------- جدول ۶ (بالاسری) ---------- */
+  function t6Pages(d, blank) {
+    var items6 = [], s = 0, cf = 1;
+    if (!blank && window.AN26 && d.overhead) {
+      items6 = (d.overhead.items || []).map(function (it) { return { name: it.name, pct: parseFloat(it.pct) || 0 }; });
+      s = AN26.sumPct(d); cf = AN26.coefOf(d);
+    } else { items6 = ['سود', 'مالیات بر سود', 'هزینه های دفتر مرکزی', 'هزینه های مستمر کارگاه', 'هزینه ضمانت نامه ها', 'بیمه'].map(function (n) { return { name: n, pct: null }; }); }
+    var rows = items6.map(function (it, i) {
+      return '<tr><td>' + faD(i + 1) + '</td><td style="text-align:right">' + esc(it.name) + '</td><td>' + (it.pct == null ? '' : pct2(it.pct)) + '</td></tr>';
+    }).join('');
+    var html = '<div style="text-align:center" class="tt">«جدول ۶ ـ تجزیه بهای هزینه بالاسری»</div>' +
+      '<div class="hd"><div>نام پروژه : ' + esc(projName()) + '<br>نام پیمانکار : گروه فنی و مهندسی پشتیبان<br>تاریخ : ' + esc(today()) + '</div><div>کد مدرک :<br>نام دستگاه اجرایی :<br>نام مهندس مشاور :</div></div>' +
+      '<div style="border-top:3px double #000;margin:3px 0 8px"></div>' +
+      '<table><thead><tr><th style="width:60px">ردیف</th><th>بخش های مختلف هزینه بالاسری</th><th style="width:110px">درصد</th></tr></thead><tbody>' + rows +
+      '<tr class="sum"><td colspan="2" style="text-align:left">جمع P₀</td><td>' + (blank ? '' : pct2(s)) + '</td></tr></tbody></table>' +
+      (blank ? '' : '<div style="margin-top:12px;font-size:12.5px">ضریب بالاسری = 100 / (100 − P₀) = <b>' + coef4(cf) + '</b></div>') +
+      '<div style="margin-top:50px;font-size:11.5px">مهر و امضای پیمانکار</div>';
+    return [page(html, false)];
+  }
+  /* ---------- dispatch ---------- */
+  var HANDLES = { 1: 1, 3: 1, 5: 1, 6: 1, 7: 1, 9: 1, 10: 1, 11: 1, 14: 1, 15: 1, 17: 1 };
+  W.handles = function (n) { return !!HANDLES[n]; };
+  function pagesFor(n, d) {
+    if (n === 1) return bargePages(d);
+    if (n === 3 || n === 17) return t4Pages(d);
+    if (n === 5) return alefPages(d);
+    if (n === 6) return bePages(d);
+    if (n === 7) return pePages(d);
+    if (n === 9) return kholasePages(d);
+    if (n === 10) return t3Pages(d);
+    if (n === 11) return t1Pages(d).concat(t2Pages(d));
+    if (n === 14) return t6Pages(d, false);
+    if (n === 15) return t6Pages(d, true);
+    return null;
+  }
+  W.show = function (n) {
+    var d = D(); if (!d) return;
+    var pages = pagesFor(n, d);
+    if (pages && pages.length) showPreview(wrapPages(pages), 'گزارش برآورد');
+  };
+  function aoaFor(n, d) {
+    var its = items(d);
+    if (n === 5) { var out = []; alefData(d).forEach(function (g) { out.push([g.reshte]); out.push(['فصل', 'عنوان فصول', 'برآورد فصل', 'برآورد فصل پس از اعمال تمامی ضرایب', 'مبلغ پیشنهادی پیمانکار', 'ضریب پیشنهادی جزء']); g.chs.forEach(function (c) { out.push([c.ch, c.title, Math.round(c.raw), Math.round(c.wc), Math.round(c.pr), Math.round(c.coef * 10000) / 10000]); }); out.push(['جمع', '', Math.round(g.raw), Math.round(g.wc), Math.round(g.pr), '']); }); return out; }
+    if (n === 6) { var t = tajhiz(d, its); return [['عنوان', 'مبلغ برآورد تجهیز و برچیدن کارگاه', 'مبلغ پیشنهادی پیمانکار', 'ضریب پیشنهادی جزء'], ['تجهیز و برچیدن کارگاه', Math.round(t.b), Math.round(t.p), t.b ? Math.round(t.p / t.b * 10000) / 10000 : 0]]; }
+    if (n === 7) { var o = []; var tb = 0, tp = 0; byReshte(its).forEach(function (g, i) { var wc = sum(g.items, function (x) { return x.totB; }), pr = sum(g.items, function (x) { return x.totP; }); tb += wc; tp += pr; o.push([i + 1, g.reshte, Math.round(wc), Math.round(pr), wc ? Math.round(pr / wc * 10000) / 10000 : 0]); }); var t2 = tajhiz(d, its); if (t2.b || t2.p) { tb += t2.b; tp += t2.p; o.push(['', 'تجهیز و برچیدن کارگاه بطور مقطوع', Math.round(t2.b), Math.round(t2.p), t2.b ? Math.round(t2.p / t2.b * 10000) / 10000 : 0]); } o.push(['جمع', '', Math.round(tb), Math.round(tp), tb ? Math.round(tp / tb * 10000) / 10000 : 0]); return o; }
+    if (n === 11) { var s = its.slice().sort(function (a, b) { return b.totB - a.totB; }); return [['شماره', 'رشته', 'عنوان فصل', 'شماره ردیف', 'شرح کامل ردیف', 'بهای کل ردیف', 'بهای کل پیشنهادی']].concat(s.map(function (x, i) { return [i + 1, x.reshte, chTitle(x.reshte, x.ch), x.code, x.desc, Math.round(x.totB), Math.round(x.totP)]; })); }
+    if (n === 14) { var o2 = [['ردیف', 'بخش های مختلف هزینه بالاسری', 'درصد']]; if (d.overhead) (d.overhead.items || []).forEach(function (it, i) { o2.push([i + 1, it.name, parseFloat(it.pct) || 0]); }); if (window.AN26) { o2.push(['جمع P₀', '', Math.round(AN26.sumPct(d) * 100) / 100]); o2.push(['ضریب بالاسری', '100/(100-P₀)', Math.round(AN26.coefOf(d) * 10000) / 10000]); } return o2; }
+    if (n === 1 || n === 10) { var o3 = [['رشته', 'فصل', 'شماره', 'شرح', 'واحد', 'بهای واحد ف', 'مقدار', 'قیمت فهرست بها', 'بهای واحد ب', 'قیمت پیشنهادی']]; its.forEach(function (x) { o3.push([x.reshte, x.ch, x.code, x.desc, x.unit, Math.round(x.b), Math.round(x.qty * 1000) / 1000, Math.round(x.rawB), Math.round(x.p), Math.round(x.rawP)]); }); return o3; }
+    if (n === 3 || n === 17 || n === 9) { var o4 = [['رشته', 'برآورد', 'پیشنهاد']]; t4Data(d).rows.forEach(function (r) { o4.push([r.name, Math.round(r.b), Math.round(r.p)]); }); return o4; }
+    return null;
+  }
+  W.xls = function (n) {
+    var d = D(); if (!d) return;
+    var aoa = aoaFor(n, d);
+    if (aoa) dl('گزارش-' + n + '.xlsx', makeXlsx([{ name: 'گزارش', aoa: aoa }]), XLSX_T);
+  };
+  var iv = setInterval(function () {
+    if (window.AN23 && AN23.show && !AN23.__an27) {
+      AN23.__an27 = true;
+      var oShow = AN23.show, oXls = AN23.xls;
+      AN23.show = function (n) { if (W.handles(n)) { W.show(n); return; } return oShow.apply(this, arguments); };
+      AN23.xls = function (n) { if (W.handles(n)) { W.xls(n); return; } return oXls.apply(this, arguments); };
+      clearInterval(iv);
+    }
+  }, 400);
+  setTimeout(function () { clearInterval(iv); }, 40000);
 })();
 </script>
 
