@@ -9647,6 +9647,20 @@ input,select,textarea{max-width:100%}
 #engSub .gi .sh,#engSub .sh{color:#f3d9b8!important;opacity:.65!important}
 #engSub .gi button.lk{color:#f3d9b8!important;opacity:.6!important}
 </style>
+<style id="df-fix38">
+/* df-fix38 (final42): synchronize the collapsed rail's animation with
+   the page shift (his words 2026-11-25: «سرعت منوی کرکره‌ای با حالت
+   فلش صفحه یکی نشده، یک ثانیه زودتر میاد تو منو»). One registered
+   CSS variable drives BOTH the grid track and the sidebar width, so
+   a single transition moves the menu and the page in perfect sync:
+   in = .35s after .18s (df-fix14's hover-in timing), out = .5s
+   after .45s (its hover-out timing). The sidebar's own width
+   transitions are disabled here so nothing can drift apart. */
+@property --railw{syntax:'<length>';inherits:true;initial-value:56px}
+.app.min{--railw:56px;grid-template-columns:var(--railw) 1fr!important;transition:--railw .5s ease .45s}
+.app.min:has(>.side:hover),.app.min:has(>.side:focus-within){--railw:245px;transition:--railw .35s ease .18s}
+.app.min .side{width:auto!important;justify-self:stretch!important;transition:none!important}
+</style>
 
 
 </body></html>
