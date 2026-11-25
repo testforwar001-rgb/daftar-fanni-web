@@ -8341,16 +8341,17 @@ input,select,textarea{max-width:100%}
     var rows = o.items.map(function (it, i) {
       return '<tr><td>' + faNum(i + 1, 0) + '</td><td style="text-align:right">' + esc(it.name) + '</td><td>' + faNum(num(it.pct), 2) + '</td></tr>';
     }).join('');
-    var html = '<div dir="rtl"><section class="page an26p6" style="width:210mm;min-height:297mm;padding:12mm;background:#fff;color:#000;font-family:Tahoma">' +
-      '<style>.an26p6 table{width:100%;border-collapse:collapse}.an26p6 td,.an26p6 th{border:1px solid #000;padding:5px 8px;text-align:center;font-size:12px}.an26p6 .hd{display:flex;justify-content:space-between;font-size:12px;line-height:2}</style>' +
+    var html = '<div dir="rtl"><section class="page an26p6" style="width:210mm;min-height:297mm;padding:12mm;background:#fff;color:#000;font-family:B Nazanin,B Mitra,Vazirmatn,Tahoma,serif">' +
+      '<style>.an26p6 table{width:100%;border-collapse:collapse;border:2.2px solid #000}.an26p6 th{border-bottom:3.5px double #000}.an26p6 td,.an26p6 th{border:1px solid #000;padding:5px 8px;text-align:center;font-size:12px}.an26p6 .hd{display:flex;justify-content:space-between;font-size:12px;line-height:2}</style>' +
       '<div style="text-align:center;font-weight:700;font-size:15px">«جدول ۶ ـ تجزیه بهای هزینه بالاسری»</div>' +
       '<div class="hd"><div>نام پروژه : ' + esc(proj.name || '') + '<br>نام پیمانکار : گروه فنی و مهندسی پشتیبان<br>تاریخ : ' + esc(today) + '</div>' +
       '<div>کد مدرک :<br>نام دستگاه اجرایی :<br>نام مهندس مشاور :</div></div>' +
-      '<div style="border-top:3px double #000;margin:4px 0 10px"></div>' +
+      '<div style="border-top:4.5px double #000;margin:4px 0 10px"></div>' +
       '<table><thead><tr><th style="width:60px">ردیف</th><th>بخش های مختلف هزینه بالاسری</th><th style="width:110px">درصد</th></tr></thead><tbody>' + rows +
       '<tr><td colspan="2" style="text-align:left;font-weight:700">جمع P₀</td><td style="font-weight:700">' + faNum(s, 2) + '</td></tr></tbody></table>' +
       '<div style="margin-top:14px;font-size:13px">ضریب بالاسری = 100 / (100 − P₀) = <b>' + faNum(cf, 4) + '</b></div>' +
-      '<div style="margin-top:60px;font-size:12px">مهر و امضای پیمانکار</div>' +
+      '<div style="margin-top:60px;font-size:12.5px;font-weight:700">مهر و امضای پیمانکار</div>' +
+      '<div style="display:flex;justify-content:space-between;border-top:1.2px solid #000;margin-top:26px;padding-top:5px;font-size:11.5px"><span style="font-weight:700">گروه فنی و مهندسی پشتیبان</span><span>صفحه: ۱</span><span></span></div>' +
       '</section></div>';
     showPreview(html, 'جدول ۶ ـ تجزیه بهای هزینه بالاسری');
   };
@@ -8452,22 +8453,40 @@ input,select,textarea{max-width:100%}
   }
   function yearOf(its) { var y = its.find(function (x) { return x.year; }); return y ? String(y.year) : '۱۴۰۴'; }
   /* ---------- frames ---------- */
-  var CSS = '<style>.an27 table{width:100%;border-collapse:collapse}.an27 td,.an27 th{border:1px solid #000;padding:4px 6px;text-align:center;font-size:11px}.an27 th{background:#eee;font-weight:700}.an27 .band td{background:#ddd;font-weight:700;text-align:right}.an27 .sum td{font-weight:700;background:#f3f3f3}.an27 .hd{display:flex;justify-content:space-between;font-size:11.5px;line-height:1.9}.an27 .tt{font-weight:700;font-size:13.5px}.an27 .sig{display:flex;justify-content:space-between;margin-top:26px;font-size:11.5px}</style>';
+  var FONT = "'B Nazanin','B Mitra','Vazirmatn',Tahoma,serif";
+  var CSS = '<style>' +
+    '.an27{font-family:' + FONT + '}' +
+    '.an27 table{width:100%;border-collapse:collapse;border:2.2px solid #000}' +
+    '.an27 td,.an27 th{border:1px solid #000;padding:5px 7px;text-align:center;font-size:12.5px;line-height:1.7}' +
+    '.an27 th{font-weight:700;font-size:12.5px;border-bottom:3.5px double #000}' +
+    '.an27 .band td{font-weight:700;text-align:right;background:#e4e4e4}' +
+    '.an27 .sum td{font-weight:700;border-top:2px solid #000}' +
+    '.an27 .hd{display:flex;justify-content:space-between;font-size:12.5px;line-height:2}' +
+    '.an27 .tt{font-weight:700;font-size:15px}' +
+    '.an27 .rule{border-top:4.5px double #000;margin:4px 0 7px}' +
+    '.an27 .sig{display:flex;justify-content:space-between;margin-top:34px;font-size:12.5px;font-weight:700}' +
+    '.an27 .foot{display:flex;justify-content:space-between;align-items:flex-end;border-top:1.2px solid #000;margin-top:30px;padding-top:5px;font-size:11.5px}' +
+    '.an27 .stamp{font-weight:700;font-size:12.5px}' +
+    '</style>';
   function headA(title, reshte, year) {
     return '<div class="hd"><div><span class="tt">' + esc(title) + '</span><br>پروژه : ' + esc(projName()) + (reshte ? '<br>رشته : ' + esc(reshte) : '') + '<br>فهرست بهای واحد پایه سال : ' + esc(year) + '</div>' +
       '<div>کد مدرک :<br>کد پروژه : ' + esc(projCode()) + '<br>محل اجرا :<br>تاریخ : ' + esc(today()) + '</div></div>' +
-      '<div style="border-top:3px double #000;margin:3px 0 6px"></div><div style="font-size:10.5px">مبالغ به ریال</div>';
+      '<div class="rule"></div><div style="font-size:10.5px">مبالغ به ریال</div>';
   }
   function headO(title) {
     return '<div style="text-align:center" class="tt">' + esc(title) + '</div>' +
       '<div class="hd"><div>نام پروژه : ' + esc(projName()) + '<br>نام پیمانکار : گروه فنی و مهندسی پشتیبان<br>کد پروژه : ' + esc(projCode()) + ' &nbsp; تاریخ : ' + esc(today()) + '</div>' +
       '<div>کد مدرک :<br>نام دستگاه اجرایی :<br>نام مهندس مشاور :</div></div>' +
-      '<div style="border-top:3px double #000;margin:3px 0 6px"></div><div style="font-size:10.5px">مبالغ به ریال</div>';
+      '<div class="rule"></div><div style="font-size:10.5px">مبالغ به ریال</div>';
   }
   var NOTE = '<div style="font-size:10.5px;margin-top:6px">توضیح: بهای واحد ردیفها با احتساب ضرایب فهرست بها، بجز ضریب بالاسری و هزینه تجهیز و برچیدن کارگاه می باشد</div>';
   var SIG = '<div class="sig"><span>مهر و امضای مهندس مشاور</span><span>مهر و امضای پیمانکار</span></div>';
-  function page(html, ls) { return '<section class="page' + (ls ? ' ls' : '') + ' an27" style="background:#fff;color:#000;padding:9mm;font-family:Tahoma">' + CSS + html + '</section>'; }
-  function wrapPages(pages) { return '<div dir="rtl">' + pages.join('') + '</div>'; }
+  function page(html, ls) { return '<section class="page' + (ls ? ' ls' : '') + ' an27" style="background:#fff;color:#000;padding:10mm;font-family:' + FONT + '">' + CSS + html + '</section>'; }
+  function footHtml(n) { return '<div class="foot"><span class="stamp">گروه فنی و مهندسی پشتیبان</span><span>صفحه: ' + faD(n) + '</span><span></span></div>'; }
+  function wrapPages(pages) {
+    var withFoot = pages.map(function (p, i) { return p.replace('</section>', footHtml(i + 1) + '</section>'); });
+    return '<div dir="rtl"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">' + withFoot.join('') + '</div>';
+  }
   /* ---------- جدول (الف): per-reshte chapter table ---------- */
   function alefData(d) {
     var its = items(d);
@@ -8668,7 +8687,7 @@ input,select,textarea{max-width:100%}
     }).join('');
     var html = '<div style="text-align:center" class="tt">«جدول ۶ ـ تجزیه بهای هزینه بالاسری»</div>' +
       '<div class="hd"><div>نام پروژه : ' + esc(projName()) + '<br>نام پیمانکار : گروه فنی و مهندسی پشتیبان<br>تاریخ : ' + esc(today()) + '</div><div>کد مدرک :<br>نام دستگاه اجرایی :<br>نام مهندس مشاور :</div></div>' +
-      '<div style="border-top:3px double #000;margin:3px 0 8px"></div>' +
+      '<div class="rule"></div>' +
       '<table><thead><tr><th style="width:60px">ردیف</th><th>بخش های مختلف هزینه بالاسری</th><th style="width:110px">درصد</th></tr></thead><tbody>' + rows +
       '<tr class="sum"><td colspan="2" style="text-align:left">جمع P₀</td><td>' + (blank ? '' : pct2(s)) + '</td></tr></tbody></table>' +
       (blank ? '' : '<div style="margin-top:12px;font-size:12.5px">ضریب بالاسری = 100 / (100 − P₀) = <b>' + coef4(cf) + '</b></div>') +
@@ -8892,6 +8911,233 @@ input,select,textarea{max-width:100%}
       }
     }
   }, 800);
+})();
+</script>
+<script id="df-fix30">
+/* df-fix30 (final36): «بسته گزارش» + «چک‌لیست مناقصه» (his requests
+   2026-11-25). Package: in the گزارشات برآورد dialog he picks WHICH of
+   the 18 reports are prepared and in WHAT ORDER (saved per contract in
+   d.rptPkg); «تهیه بسته» renders them all, in order, into ONE print
+   preview. Checklist: per-contract tender readiness at a glance. */
+(function () {
+  'use strict';
+  var W = {};
+  window.AN30 = W;
+  var REPORTS = ['دفترچه فهرست مقادیر', 'خلاصه مالی رشته‌ها', 'خلاصه مالی کل', 'خلاصه مالی کلی بخش‌ها',
+    'جدول الف (بخشنامه ۱۰۰/۷۶۵۷۴)', 'جدول ب (بخشنامه ۱۰۰/۷۶۵۷۴)', 'جدول پ (بخشنامه ۱۰۰/۷۶۵۷۴)',
+    'جدول ۱ (بخشنامه ۹۶/۱۲۳۲۵۷۹)', 'جدول ۲ (بخشنامه ۹۶/۱۲۳۲۵۷۹)', 'جدول ۳ (بخشنامه ۹۶/۱۲۳۲۵۷۹)', 'جدول ۴ (بخشنامه ۹۶/۱۲۳۲۵۷۹)',
+    'جدول ۵ (بخشنامه ۹۶/۱۲۳۲۵۷۹)', 'جدول ۵ (فرم خام)', 'جدول ۶ (بخشنامه ۹۶/۱۲۳۲۵۷۹)', 'جدول ۶ (فرم خام)',
+    'مقایسه بهای واحد برآورد و پیشنهاد', 'مقایسه کلی برآورد و پیشنهاد', 'ردیف های پایه ردیف تجمیعی'];
+  W.REPORTS = REPORTS;
+  function D() { try { return (typeof db !== 'undefined' && db && db.mb && activeProject) ? (db.mb[activeProject] || null) : null; } catch (e) { return null; } }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function faD(s) { return String(s).replace(/[0-9]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'[+c]; }); }
+  function pkg(d) { if (!Array.isArray(d.rptPkg)) d.rptPkg = REPORTS.map(function (_, i) { return i + 1; }); return d.rptPkg; }
+  /* ---------- package dialog ---------- */
+  W.openPkg = function () {
+    var d = D(); if (!d) return;
+    var old = document.getElementById('an30Dlg'); if (old) old.remove();
+    var sel = pkg(d).slice();
+    var el = document.createElement('dialog');
+    el.id = 'an30Dlg'; el.className = 'mb-d';
+    el.style.cssText = 'max-width:min(560px,96vw);width:100%';
+    function rowsHtml() {
+      var chosen = sel.map(function (n, i) {
+        return '<div style="display:flex;gap:.45rem;align-items:center;padding:.34rem 0;border-bottom:1px dashed var(--border,#ddd)">' +
+          '<b style="min-width:1.6rem;text-align:center">' + faD(i + 1) + '</b><span style="flex:1">' + esc(REPORTS[n - 1]) + '</span>' +
+          '<button class="btn sm" onclick="AN30.pkgMove(' + i + ',-1)">↑</button>' +
+          '<button class="btn sm" onclick="AN30.pkgMove(' + i + ',1)">↓</button>' +
+          '<button class="btn sm" onclick="AN30.pkgDel(' + i + ')">✕</button></div>';
+      }).join('');
+      var rest = REPORTS.map(function (r, i) { return i + 1; }).filter(function (n) { return sel.indexOf(n) < 0; }).map(function (n) {
+        return '<div style="display:flex;gap:.45rem;align-items:center;padding:.34rem 0;border-bottom:1px dashed var(--border,#ddd);opacity:.75">' +
+          '<span style="flex:1">' + esc(REPORTS[n - 1]) + '</span>' +
+          '<button class="btn sm" onclick="AN30.pkgAdd(' + n + ')">+ افزودن</button></div>';
+      }).join('');
+      return '<h4 style="margin:.4rem 0 .2rem">گزارش‌های بسته (به ترتیب تهیه):</h4>' + (chosen || '<div style="opacity:.7">بسته خالی است.</div>') +
+        (rest ? '<h4 style="margin:.8rem 0 .2rem">بقیه گزارش‌ها:</h4>' + rest : '');
+    }
+    el.innerHTML = '<div class="mb-card" style="margin:0"><h3 style="margin:.1rem 0 .5rem">📦 بسته گزارش</h3>' +
+      '<div style="font-size:.85rem;opacity:.8">مشخص کنید کدام جداول و با چه ترتیبی در بسته تهیه شوند. انتخاب‌ها برای همین قرارداد ذخیره می‌شود.</div>' +
+      '<div id="an30List" style="max-height:52vh;overflow:auto"></div>' +
+      '<div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.8rem;flex-wrap:wrap">' +
+      '<button class="btn" onclick="document.getElementById(\'an30Dlg\').close()">بستن</button>' +
+      '<button class="btn" onclick="AN30.openCheck()">📋 چک‌لیست مناقصه</button>' +
+      '<button class="btn primary" onclick="AN30.buildPkg()">🖨 تهیه و چاپ بسته</button></div></div>';
+    document.body.appendChild(el);
+    el.querySelector('#an30List').innerHTML = rowsHtml();
+    el.showModal();
+    W._sel = sel; W._rerender = function () { var l = document.getElementById('an30List'); if (l) l.innerHTML = rowsHtml(); };
+  };
+  function commit() { var d = D(); if (d) { d.rptPkg = W._sel.slice(); save(); } }
+  W.pkgMove = function (i, dir) { var j = i + dir; if (j < 0 || j >= W._sel.length) return; var t = W._sel[i]; W._sel[i] = W._sel[j]; W._sel[j] = t; commit(); W._rerender(); };
+  W.pkgDel = function (i) { W._sel.splice(i, 1); commit(); W._rerender(); };
+  W.pkgAdd = function (n) { W._sel.push(n); commit(); W._rerender(); };
+  /* ---------- build the package: capture each report's preview HTML ---------- */
+  W.buildPkg = function () {
+    var d = D(); if (!d) return;
+    var list = pkg(d);
+    if (!list.length) { try { toast('بسته خالی است؛ اول گزارش‌ها را انتخاب کنید.', 1); } catch (e) { } return; }
+    var dlg = document.getElementById('an30Dlg'); if (dlg) { dlg.close(); dlg.remove(); }
+    var captured = [];
+    var orig = window.showPreview;
+    window.showPreview = function (html) { captured.push(html); };
+    try {
+      list.forEach(function (n) { if (window.AN23) AN23.show(n); });
+    } finally { window.showPreview = orig; }
+    if (!captured.length) { try { toast('گزارشی تهیه نشد.', 1); } catch (e) { } return; }
+    orig.call(window, captured.join(''), 'بسته گزارش');
+  };
+  /* ---------- tender checklist ---------- */
+  function bankHas(code) {
+    var banks = ['bk_abn', 'bk_mech', 'bk_elec'];
+    for (var i = 0; i < banks.length; i++) { var a = (db.mod || {})[banks[i]] || []; if (a.some(function (x) { return String(x.code) === String(code); })) return true; }
+    return false;
+  }
+  W.openCheck = function () {
+    var d = D(); if (!d) return;
+    var old = document.getElementById('an30Chk'); if (old) old.remove();
+    var rows = d.rows || [];
+    var itemKeys = {};
+    rows.forEach(function (r) { itemKeys[String(r.code) + '|' + (r.fj || 'ف')] = 1; });
+    var facKeys = Object.keys(d.fac || {}).filter(function (k) { return (d.fac[k] || []).length; });
+    var listItems = Object.keys(itemKeys).filter(function (k) { return bankHas(k.split('|')[0]); });
+    var analysed = listItems.filter(function (k) { return facKeys.indexOf(k) >= 0; }).length;
+    var ohSum = (window.AN26 && d.overhead) ? AN26.sumPct(d) : 0;
+    var ohReg = (d.coefs || []).some(function (c) { return c.title === 'بالاسری'; });
+    var anyApplied = (d.coefs || []).some(function (c) { return c.applied; });
+    var taj = 0;
+    if (window.AN27) { /* reuse tajhiz logic via a probe item scan */ }
+    var tajRows = rows.filter(function (r) { return false; });
+    var hasTaj = (d.tajhiz && (d.tajhiz.b || d.tajhiz.p)) || (d.stars || []).some(function (s) { return (s.desc || '').indexOf('تجهیز') >= 0; });
+    var items = [
+      { ok: rows.length > 0, t: 'متره وارد شده (' + faD(rows.length) + ' ردیف)', go: "MB10.go('mb:metre')" },
+      { ok: listItems.length > 0 && analysed >= listItems.length, t: 'آنالیز همه آیتم‌های فهرست‌بهایی (' + faD(analysed) + ' از ' + faD(listItems.length) + ')', go: "AN16.page()" },
+      { ok: ohSum > 0, t: 'درصدهای بالاسری وارد شده (جمع: ' + faD(ohSum) + '٪)', go: "MB10.go('mb:coef');setTimeout(function(){AN26.showOH()},400)" },
+      { ok: ohReg, t: 'ضریب بالاسری در فهرست ضرایب ثبت شده', go: "MB10.go('mb:coef')" },
+      { ok: anyApplied, t: 'ضرایب روی برآورد اعمال شده‌اند', go: "MB10.go('mb:coef')" },
+      { ok: !!hasTaj, t: 'مبلغ تجهیز و برچیدن کارگاه مشخص است', go: "MB10.go('mb:est')" },
+      { ok: Array.isArray(d.rptPkg) && d.rptPkg.length > 0, t: 'بسته گزارش تعریف شده (' + faD((d.rptPkg || []).length) + ' گزارش)', go: "AN30.openPkg()" }
+    ];
+    var html = items.map(function (it) {
+      return '<div style="display:flex;gap:.5rem;align-items:center;padding:.42rem 0;border-bottom:1px dashed var(--border,#ddd)">' +
+        '<span style="font-size:1.05rem">' + (it.ok ? '✅' : '⬜') + '</span><span style="flex:1">' + esc(it.t) + '</span>' +
+        (it.ok ? '' : '<button class="btn sm" onclick="document.getElementById(\'an30Chk\').close();' + it.go + '">رفتن</button>') + '</div>';
+    }).join('');
+    var el = document.createElement('dialog');
+    el.id = 'an30Chk'; el.className = 'mb-d';
+    el.style.cssText = 'max-width:min(520px,96vw);width:100%';
+    el.innerHTML = '<div class="mb-card" style="margin:0"><h3 style="margin:.1rem 0 .5rem">📋 چک‌لیست مناقصه</h3>' + html +
+      '<div style="display:flex;justify-content:flex-end;margin-top:.8rem"><button class="btn" onclick="document.getElementById(\'an30Chk\').close()">بستن</button></div></div>';
+    document.body.appendChild(el);
+    el.showModal();
+  };
+  /* ---------- entry buttons inside the گزارشات برآورد dialog ---------- */
+  var iv = setInterval(function () {
+    if (window.AN23 && AN23.open && !AN23.__an30) {
+      AN23.__an30 = true;
+      var oOpen = AN23.open;
+      AN23.open = function () {
+        var r = oOpen.apply(this, arguments);
+        var dlg = document.getElementById('an23Dlg');
+        if (dlg && !dlg.querySelector('.an30-pkgbtn')) {
+          var row = dlg.querySelector('div[style*="justify-content:flex-end"]');
+          if (row) {
+            var b = document.createElement('button');
+            b.className = 'btn an30-pkgbtn';
+            b.textContent = '📦 بسته گزارش';
+            b.onclick = function () { dlg.close(); dlg.remove(); W.openPkg(); };
+            row.insertBefore(b, row.firstChild);
+            var c = document.createElement('button');
+            c.className = 'btn an30-pkgbtn';
+            c.textContent = '📋 چک‌لیست';
+            c.onclick = function () { dlg.close(); dlg.remove(); W.openCheck(); };
+            row.insertBefore(c, row.firstChild);
+          }
+        }
+        return r;
+      };
+      clearInterval(iv);
+    }
+  }, 400);
+  setTimeout(function () { clearInterval(iv); }, 40000);
+})();
+</script>
+<script id="df-fix31">
+/* df-fix31 (final36): global search (suggestion ۵, approved 2026-11-25).
+   A 🔍 button in the header opens a search dialog over projects,
+   contracts, contractors and the price-bank items/factors; picking a
+   result jumps to it. */
+(function () {
+  'use strict';
+  var W = {};
+  window.AN31 = W;
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function normQ(s) {
+    return String(s || '').replace(/[۰-۹]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c); }).replace(/ي/g, 'ی').replace(/ك/g, 'ک').trim().toLowerCase();
+  }
+  var BANKS = [['bk_abn', 'ابنیه'], ['bk_mech', 'تأسیسات مکانیکی'], ['bk_elec', 'تأسیسات برقی'], ['bk_lab', 'نیروی انسانی'], ['bk_equ', 'ماشین‌آلات'], ['bk_mat', 'مصالح'], ['bk_mac', 'حمل']];
+  function search(q) {
+    q = normQ(q);
+    if (q.length < 2) return [];
+    var out = [];
+    (db.projects || []).forEach(function (p) {
+      if (normQ(p.name).indexOf(q) >= 0 || normQ(p.code).indexOf(q) >= 0) out.push({ k: 'پروژه', t: p.name || '', s: p.code || '', act: "AN31.goProject('" + p.id + "')" });
+    });
+    (db.contracts || []).forEach(function (c) {
+      if (normQ(c.name).indexOf(q) >= 0 || normQ(c.title).indexOf(q) >= 0 || normQ(c.no).indexOf(q) >= 0) out.push({ k: 'قرارداد', t: c.name || c.title || '', s: c.no || '', act: "AN31.goContract('" + c.id + "','" + (c.projectId || '') + "')" });
+    });
+    (db.contractors || []).forEach(function (c) {
+      if (normQ(c.name).indexOf(q) >= 0) out.push({ k: 'پیمانکار', t: c.name || '', s: c.nid || c.code || '', act: "AN31.goPage('contracts')" });
+    });
+    BANKS.forEach(function (b) {
+      ((db.mod || {})[b[0]] || []).forEach(function (it) {
+        if (normQ(it.code).indexOf(q) >= 0 || normQ(it.desc).indexOf(q) >= 0) out.push({ k: 'بانک ' + b[1], t: String(it.code) + ' ـ ' + (it.desc || ''), s: it.price ? String(it.price) : '', act: "AN31.goPage('cbanks')" });
+      });
+    });
+    return out.slice(0, 40);
+  }
+  W.goProject = function (pid) { activeId = pid; closeDlg(); try { go('projects'); } catch (e) { } };
+  W.goContract = function (cid, pid) { if (pid) activeId = pid; activeProject = cid; closeDlg(); try { go('engineering'); } catch (e) { } };
+  W.goPage = function (p) { closeDlg(); try { go(p); } catch (e) { } };
+  function closeDlg() { var el = document.getElementById('an31Dlg'); if (el) { el.close(); el.remove(); } }
+  W.open = function () {
+    closeDlg();
+    var el = document.createElement('dialog');
+    el.id = 'an31Dlg'; el.className = 'mb-d';
+    el.style.cssText = 'max-width:min(560px,96vw);width:100%';
+    el.innerHTML = '<div class="mb-card" style="margin:0"><h3 style="margin:.1rem 0 .5rem">🔍 جستجوی سراسری</h3>' +
+      '<input id="an31q" type="text" placeholder="نام پروژه، قرارداد، پیمانکار، کد یا شرح آیتم…" style="width:100%" oninput="AN31.render(this.value)">' +
+      '<div id="an31res" style="max-height:55vh;overflow:auto;margin-top:.5rem"></div>' +
+      '<div style="display:flex;justify-content:flex-end;margin-top:.7rem"><button class="btn" onclick="document.getElementById(\'an31Dlg\').close()">بستن</button></div></div>';
+    document.body.appendChild(el);
+    el.showModal();
+    var inp = el.querySelector('#an31q');
+    if (inp) inp.focus();
+  };
+  W.render = function (q) {
+    var box = document.getElementById('an31res');
+    if (!box) return;
+    var res = search(q);
+    box.innerHTML = res.length ? res.map(function (r) {
+      return '<div style="display:flex;gap:.5rem;align-items:center;padding:.42rem 0;border-bottom:1px dashed var(--border,#ddd)">' +
+        '<span class="tag" style="white-space:nowrap">' + esc(r.k) + '</span><span style="flex:1">' + esc(r.t) + '</span>' +
+        (r.s ? '<span style="opacity:.75">' + esc(r.s) + '</span>' : '') +
+        '<button class="btn sm" onclick="' + r.act + '">رفتن</button></div>';
+    }).join('') : (normQ(q).length >= 2 ? '<div style="opacity:.7;padding:.5rem 0">موردی پیدا نشد.</div>' : '');
+  };
+  var iv = setInterval(function () {
+    var host = document.querySelector('header.top .tr') || document.querySelector('.tr');
+    if (host && !document.getElementById('an31Btn')) {
+      var b = document.createElement('button');
+      b.id = 'an31Btn'; b.type = 'button'; b.className = 'btn sm';
+      b.textContent = '🔍 جستجو';
+      b.onclick = function () { W.open(); };
+      host.insertBefore(b, host.firstChild);
+      clearInterval(iv);
+    }
+  }, 700);
+  setTimeout(function () { clearInterval(iv); }, 30000);
 })();
 </script>
 
