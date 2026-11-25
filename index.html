@@ -10481,6 +10481,19 @@ html[data-df49="mini"] .nav button.on{color:#2f5cff;font-weight:700}
 html[data-df49="violet"] .nav button.on{color:#7c5cff;font-weight:700}
 html[data-df49="teal"] .nav button.on{color:#ffd9a0}
 html[data-df49="glass"] .nav button.on{color:#fff;font-weight:700}
+/* خوانایی در پوسته‌های روشن: چند رنگِ پوسته تیره (کرم/سفیدِ منوی مهندسی و برند)
+   هاردکد شده‌اند و روی سایدبار سفید گم می‌شدند — این‌جا برای mini/violet اصلاح می‌شوند */
+html[data-df49="mini"] .brand,html[data-df49="violet"] .brand{color:var(--text)}
+html[data-df49="mini"] .brand small,html[data-df49="violet"] .brand small{color:var(--text3)}
+html[data-df49="mini"] .subnav .gh,html[data-df49="violet"] .subnav .gh{color:var(--text)!important}
+html[data-df49="mini"] #engSub,html[data-df49="violet"] #engSub{color:var(--text2)!important}
+html[data-df49="mini"] #engSub .gh,html[data-df49="violet"] #engSub .gh{color:var(--text)!important}
+html[data-df49="mini"] #engSub .gi button,html[data-df49="violet"] #engSub .gi button{color:var(--text2)!important}
+html[data-df49="mini"] #engSub .gi button.lk,html[data-df49="violet"] #engSub .gi button.lk{color:var(--text3)!important}
+html[data-df49="mini"] #engSub .gi .sh,html[data-df49="mini"] #engSub .sh,html[data-df49="violet"] #engSub .gi .sh,html[data-df49="violet"] #engSub .sh{color:var(--text3)!important;opacity:.9!important}
+html[data-df49="mini"] #engSub .gi button:hover,html[data-df49="mini"] #engSub .gi button.on,html[data-df49="violet"] #engSub .gi button:hover,html[data-df49="violet"] #engSub .gi button.on{background:var(--side-on)!important;color:var(--primary)!important;font-weight:700}
+html[data-df49="mini"] .nav .subnav .gi button.on,html[data-df49="mini"] .nav .subnav .gi button:hover,html[data-df49="violet"] .nav .subnav .gi button.on,html[data-df49="violet"] .nav .subnav .gi button:hover{color:var(--primary)}
+html[data-df49="mini"] .muted,html[data-df49="violet"] .muted{color:var(--text2)}
 /* کارت انتخاب پوسته در تنظیمات */
 .df49-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px}
 .df49-sw{display:flex;flex-direction:column;gap:8px;align-items:flex-start;border:2px solid var(--border);background:var(--surface);border-radius:14px;padding:12px;cursor:pointer;font-family:inherit;text-align:right;transition:transform .25s cubic-bezier(.34,1.45,.64,1),border-color .2s;width:100%}
