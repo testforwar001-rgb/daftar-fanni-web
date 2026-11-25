@@ -10143,6 +10143,9 @@ input,select,textarea{max-width:100%}
     'table.r23-sig,table.r23-sig td,table.t5-sig,table.t5-sig td{border:0!important}' +
     'table.r23-sig td{height:auto!important;max-height:none!important;padding:6mm 2mm 0!important;vertical-align:top!important}' +
     '.df46-sig{display:flex;justify-content:space-between;gap:4mm;margin-top:8mm;font-family:\'B Nazanin\',\'B Mitra\',Vazirmatn,Tahoma,serif;font-size:12.5px;font-weight:700;color:#000}' +
+    'section.page.df46-flex{display:flex;flex-direction:column;min-height:282mm;box-sizing:border-box}' +
+    'section.page.ls.df46-flex{min-height:195mm}' +
+    'section.page.df46-flex .sig,section.page.df46-flex .df46-sig,section.page.df46-flex table.r23-sig{margin-top:auto}' +
     '.pkg-cont .page,.page.pkg-cont{page-break-after:auto!important}' +
     '@page{margin-top:11mm!important;margin-bottom:11mm!important}' +
     '@page{@bottom-left{content:"صفحه: " counter(page);font-size:10px}}' +
@@ -10177,6 +10180,13 @@ input,select,textarea{max-width:100%}
       try { var mbd = (db.mb || {})[activeProject]; if (mbd && mbd.rpt && mbd.rpt.riz) sigCfg = mbd.rpt.riz; } catch (e) {}
       var sigHtml = '<div class="df46-sig">' + sigRoles.filter(function (r) { return sigCfg[r[0]] !== false && sigCfg[r[0]] !== 0; }).map(function (r) { return '<span>مهر و امضای ' + r[2] + (sigCfg[r[1]] ? ' ـ ' + escH(sigCfg[r[1]]) : '') + '</span>'; }).join('') + '</div>';
       body.querySelectorAll('section.page').forEach(function (sec) { if (!sec.querySelector('table.t5-sig,table.r23-sig,.sig') && sec.textContent.indexOf('امض') < 0) sec.insertAdjacentHTML('beforeend', sigHtml); });
+      /* the dialog's signature ticks rule EVERY sheet: hide the cells/spans of
+         unticked parties in the built-in signature blocks too */
+      var offRoles = sigRoles.filter(function (r) { return sigCfg[r[0]] === false || sigCfg[r[0]] === 0; }).map(function (r) { return r[2]; });
+      if (offRoles.length) body.querySelectorAll('table.r23-sig td,table.t5-sig td,.sig span,.sig div').forEach(function (el) {
+        var t = (el.textContent || '').trim();
+        if (offRoles.some(function (role) { return t.indexOf(role) >= 0 && t.length < 60; })) el.style.display = 'none';
+      });
       /* (1) flow footers out, fixed bands in */
       body.querySelectorAll('.foot').forEach(function (el) { el.remove(); });
       var proj = '';
@@ -10266,7 +10276,19 @@ input,select,textarea{max-width:100%}
     w.document.open(); w.document.write(html); w.document.close();
     return true;
   }
-  window.__df47 = { openPrint: openPrint };
+  /* pin the signature row to the bottom of every one-page sheet (his rule:
+     the signature sits in one fixed place on all sheets). Measured in the
+     laid-out preview document; long multi-page sheets keep flow order. */
+  function anchorSigs(pvm) {
+    try {
+      var f = pvm.querySelector('iframe'); if (!f || !f.contentDocument) return;
+      f.contentDocument.querySelectorAll('section.page:not(.t5p)').forEach(function (sec) {
+        var lim = sec.classList.contains('ls') ? 756 : 1085;
+        if (sec.offsetHeight && sec.offsetHeight <= lim) sec.classList.add('df46-flex');
+      });
+    } catch (e) {}
+  }
+  window.__df47 = { openPrint: openPrint, anchorSigs: anchorSigs };
   setInterval(function () {
     try {
       if (typeof window.showPreview !== 'function' || !window.showPreview.__df46 || window.showPreview.__df47) return;
@@ -10275,15 +10297,69 @@ input,select,textarea{max-width:100%}
         var r = orig.call(window, html, title);
         setTimeout(function () {
           var pvm = document.getElementById('pvm'); if (!pvm) return;
+          anchorSigs(pvm);
           var btn = pvm.querySelector('#pvp'); if (!btn || btn.__df47) return;
           var nb = btn.cloneNode(true); nb.__df47 = 1;
-          nb.addEventListener('click', function () { if (!openPrint(pvm)) { var f = pvm.querySelector('iframe'); if (f && f.contentWindow) f.contentWindow.print(); } });
+          nb.addEventListener('click', function () { anchorSigs(pvm); if (!openPrint(pvm)) { var f = pvm.querySelector('iframe'); if (f && f.contentWindow) f.contentWindow.print(); } });
           btn.replaceWith(nb);
         }, 80);
         return r;
       };
       w.__df46 = 1; w.__df47 = 1;
       window.showPreview = w;
+    } catch (e) {}
+  }, 700);
+})();
+</script>
+<script id="df-fix48">
+/* df-fix48 — signature-party ticks in the report dialogs (his rule, 2026-11-25):
+   «تیک داشته باشه کدوم ها داخل گزارش باشه» — checkboxes choose which of the
+   project parties (پیمانکار/ناظر/مشاور/کارفرما/مدیریت طرح) sign each report.
+   Stored in db.mb[cid].rpt.riz (the same flags the signature builders and the
+   df-fix46 print finisher already read), so the ticks rule every sheet. */
+(function () {
+  'use strict';
+  var ROLES = [['sigCon', 'پیمانکار'], ['sigSup', 'ناظر'], ['sigCons', 'مشاور'], ['sigEmp', 'کارفرما'], ['sigMgmt', 'مدیریت طرح']];
+  function cfg() {
+    try {
+      var d = (db.mb || {})[activeProject]; if (!d) return null;
+      d.rpt = d.rpt || {}; d.rpt.riz = d.rpt.riz || {};
+      return d.rpt.riz;
+    } catch (e) { return null; }
+  }
+  function rowHtml() {
+    var c = cfg() || {};
+    return '<span style="font-weight:700">امضاها:</span>' + ROLES.map(function (r) {
+      var on = c[r[0]] !== false && c[r[0]] !== 0;
+      return '<label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" data-sig="' + r[0] + '" ' + (on ? 'checked' : '') + ' style="width:auto;margin:0">' + r[1] + '</label>';
+    }).join('');
+  }
+  function inject(dlg, anchor) {
+    if (!dlg || dlg.querySelector('[data-sig]')) return;
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin:8px 0;font-size:.86rem';
+    row.innerHTML = rowHtml();
+    row.addEventListener('change', function (ev) {
+      var k = ev.target && ev.target.getAttribute && ev.target.getAttribute('data-sig'); if (!k) return;
+      var c = cfg(); if (!c) return;
+      c[k] = ev.target.checked; try { save(); } catch (e) {}
+    });
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(row, anchor.nextSibling);
+    else dlg.insertBefore(row, dlg.firstChild);
+  }
+  window.__df48 = { inject: inject };
+  setInterval(function () {
+    try {
+      if (window.AN23 && AN23.open && !AN23.open.__df48) {
+        var o23 = AN23.open;
+        AN23.open = function () { var r = o23.apply(this, arguments); setTimeout(function () { inject(document.getElementById('an23Dlg'), document.getElementById('df46pg')); }, 60); return r; };
+        AN23.open.__df48 = 1;
+      }
+      if (window.SV41 && SV41.open && !SV41.open.__df48) {
+        var o41 = SV41.open;
+        SV41.open = function () { var r = o41.apply(this, arguments); setTimeout(function () { var dlg = document.getElementById('sv41Dlg'); inject(dlg, dlg && dlg.querySelector('.sv41-hd')); }, 60); return r; };
+        SV41.open.__df48 = 1;
+      }
     } catch (e) {}
   }, 700);
 })();
