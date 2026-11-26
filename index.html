@@ -8503,14 +8503,14 @@ input,select,textarea{max-width:100%}
   var CSS = '<style>' +
     '.an27{font-family:' + FONT + '}' +
     '.an27 table{width:100%;border-collapse:collapse;border:2.2px solid #000}' +
-    '.an27 td,.an27 th{border:1px solid #000;padding:5px 7px;text-align:center;font-size:12.5px;line-height:1.7}' +
-    '.an27 th{font-weight:700;font-size:12.5px;border-bottom:3.5px double #000}' +
+    '.an27 td,.an27 th{border:1px solid #000;padding:3.5px 6px;text-align:center;font-size:12px;line-height:1.45}' +
+    '.an27 th{font-weight:700;font-size:12px;border-bottom:3.5px double #000}' +
     '.an27 .band td{font-weight:700;text-align:right;background:#e4e4e4}' +
     '.an27 .sum td{font-weight:700;border-top:2px solid #000}' +
-    '.an27 .hd{display:flex;justify-content:center;gap:14mm;border:1.8px solid #000;padding:2mm 3.5mm;font-size:12.5px;line-height:1.9}.an27 .hd>div{text-align:right}' +
+    '.an27 .hd{display:flex;justify-content:center;gap:14mm;border:1.8px solid #000;padding:2mm 3.5mm;font-size:12px;line-height:1.6}.an27 .hd>div{text-align:right}' +
     '.an27 .tt{font-weight:700;font-size:15px}' +
     '.an27 .rule{border-top:4.5px double #000;margin:4px 0 7px}' +
-    '.an27 .sig{display:flex;justify-content:space-between;margin-top:16px;font-size:12.5px;font-weight:700}' +
+    '.an27 .sig{display:flex;justify-content:space-between;margin-top:10px;font-size:12px;font-weight:700}' +
     '.an27 .foot{display:flex;justify-content:space-between;align-items:flex-end;border-top:1.2px solid #000;margin-top:12px;padding-top:5px;font-size:11.5px}' +
     '.an27 .stamp{font-weight:700;font-size:12.5px}' +
     '@page{size:A4 portrait;margin:5mm}@page ls{size:A4 landscape;margin:5mm}' +
@@ -10399,7 +10399,7 @@ input,select,textarea{max-width:100%}
      Two hidden clones lay the body out at landscape width (1085px) and at
      portrait width (756px); the decisions are then applied by index. */
   function measure(html, styles, cb) {
-    var res = { rot: [], flexL: [], flexP: [], flexS: [] };
+    var res = { rot: [], flexL: [], flexP: [], flexS: [], fitL: {}, fitP: {} };
     function clone(width, done) {
       var fr = document.createElement('iframe');
       fr.style.cssText = 'position:absolute;left:-9999px;top:0;width:' + width + 'px;height:300px;visibility:hidden';
@@ -10425,10 +10425,19 @@ input,select,textarea{max-width:100%}
     }
     clone(1085, function (cd) {
       cd.querySelectorAll('section.page.ls:not(.t5p)').forEach(function (sec, i) {
-        if (sec.offsetHeight && sec.offsetHeight <= 756) { res.rot.push(i); res.flexL.push(i); }
+        if (!sec.offsetHeight) return;
+        if (sec.offsetHeight <= 756) { res.rot.push(i); res.flexL.push(i); }
+        /* an official form (برگه مالی…) that overflows its page by a modest
+           amount is one page by design — shrink it slightly to fit instead
+           of spilling its totals/signatures onto a second sheet */
+        else if (sec.classList.contains('an27') && sec.offsetHeight <= 1096) { res.fitL[i] = +(748 / sec.offsetHeight).toFixed(3); res.flexL.push(i); }
       });
       clone(756, function (cd2) {
-        cd2.querySelectorAll('section.page:not(.ls):not(.t5p)').forEach(function (sec, i) { if (sec.offsetHeight && sec.offsetHeight <= 1085) res.flexP.push(i); });
+        cd2.querySelectorAll('section.page:not(.ls):not(.t5p)').forEach(function (sec, i) {
+          if (!sec.offsetHeight) return;
+          if (sec.offsetHeight <= 1085) res.flexP.push(i);
+          else if (sec.classList.contains('an27') && sec.offsetHeight <= 1573) { res.fitP[i] = +(1074 / sec.offsetHeight).toFixed(3); res.flexP.push(i); }
+        });
         cd2.querySelectorAll('.df46-sheet').forEach(function (sec, i) { if (sec.offsetHeight && sec.offsetHeight <= 1085) res.flexS.push(i); });
         cb(res);
       });
@@ -10438,6 +10447,7 @@ input,select,textarea{max-width:100%}
     var doc = new DOMParser().parseFromString(html, 'text/html');
     var ls = doc.querySelectorAll('section.page.ls:not(.t5p)');
     res.flexL.forEach(function (i) { if (ls[i]) ls[i].classList.add('df46-flex'); });
+    Object.keys(res.fitL || {}).forEach(function (k) { if (ls[k]) ls[k].style.zoom = res.fitL[k]; });
     res.rot.slice().sort(function (a, b) { return b - a; }).forEach(function (i) {
       var sec = ls[i]; if (!sec) return;
       var rot = doc.createElement('div'); rot.className = 'df47-rot';
@@ -10447,6 +10457,7 @@ input,select,textarea{max-width:100%}
     });
     var ps = doc.querySelectorAll('section.page:not(.ls):not(.t5p)');
     res.flexP.forEach(function (i) { if (ps[i]) ps[i].classList.add('df46-flex'); });
+    Object.keys(res.fitP || {}).forEach(function (k) { if (ps[k]) ps[k].style.zoom = res.fitP[k]; });
     var sh = doc.querySelectorAll('.df46-sheet');
     res.flexS.forEach(function (i) { if (sh[i]) sh[i].classList.add('df46-flex'); });
     return doc.body.innerHTML;
