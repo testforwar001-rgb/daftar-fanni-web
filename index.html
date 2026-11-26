@@ -6413,7 +6413,7 @@ input,select,textarea{max-width:100%}
   function num(v) { try { return pn(v); } catch (e) { var n = parseFloat(String(v == null ? '' : v).replace(/[۰-۹]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c); }).replace(/,/g, '')); return isFinite(n) ? n : 0; } }
   function E(s) { try { return esc(s == null ? '' : s); } catch (e) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); } }
   function fmtM(n) { try { return faR(n); } catch (e) { return String(Math.round(Number(n) || 0)); } }
-  function fmtQ(n) { return (Number(n) || 0).toLocaleString('fa-IR', { maximumFractionDigits: 4 }); }
+  function fmtQ(n) { n = Number(n) || 0; if (!n) return (0).toLocaleString('fa-IR'); var r = Math.round(n * 10000) / 10000; if (!r) r = Math.round(n * 1000000) / 1000000; return r.toLocaleString('fa-IR', { maximumFractionDigits: 6 }); }
   function T(m, err) { try { toast(m, err); } catch (e) {} }
   function SV() { try { save(); } catch (e) {} }
   function nid(p) { try { return uid(p || 'an'); } catch (e) { return (p || 'an') + Date.now().toString(36) + Math.floor(Math.random() * 1e5); } }
@@ -7064,6 +7064,10 @@ input,select,textarea{max-width:100%}
   function E(s) { try { return esc(s == null ? '' : s); } catch (e) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); } }
   function XE(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function fmtM(n) { try { return faR(n); } catch (e) { return String(Math.round(Number(n) || 0)); } }
+  /* quantities: round to 4 decimals, trailing zeros trimmed; a non-zero
+     value that would round to 0 (e.g. 0.000005) keeps up to 6 decimals
+     so it never displays as zero */
+  function fmtQ4(n) { n = Number(n) || 0; if (!n) return (0).toLocaleString('fa-IR'); var r = Math.round(n * 10000) / 10000; if (!r) r = Math.round(n * 1000000) / 1000000; return r.toLocaleString('fa-IR', { maximumFractionDigits: 6 }); }
   function faDec(n, dec) { return (Number(n) || 0).toLocaleString('fa-IR', { minimumFractionDigits: dec, maximumFractionDigits: dec }); }
   function T(m, err) { try { toast(m, err); } catch (e) {} }
   function D() {
@@ -7242,7 +7246,7 @@ input,select,textarea{max-width:100%}
       gl.forEach(function (x, i) {
         var amt = num(x.qty) * num(x.price) * (num(x.coef) || 1);
         gs += amt;
-        body += '<tr><td>' + faDec(i + 1, 0) + '</td><td>' + E(x.code) + '</td><td style="text-align:right">' + E(x.desc || '') + '</td><td>' + E(x.unit || '') + '</td><td>' + faDec(1, 2) + '</td><td>' + faDec(x.qty, 8) + '</td><td>' + faDec(x.price, 2) + '</td><td>' + faDec(num(x.coef) || 1, 4) + '</td><td>' + fmtM(amt) + '</td></tr>';
+        body += '<tr><td>' + faDec(i + 1, 0) + '</td><td>' + E(x.code) + '</td><td style="text-align:right">' + E(x.desc || '') + '</td><td>' + E(x.unit || '') + '</td><td>' + (1).toLocaleString('fa-IR', { maximumFractionDigits: 4 }) + '</td><td>' + fmtQ4(x.qty) + '</td><td>' + (Number(x.price) || 0).toLocaleString('fa-IR', { maximumFractionDigits: 2 }) + '</td><td>' + fmtQ4(num(x.coef) || 1) + '</td><td>' + fmtM(amt) + '</td></tr>';
       });
       total += gs;
       body += '<tr class="sm"><td colspan="8">جمع ' + E(g) + '</td><td>' + fmtM(gs) + '</td></tr>';
@@ -7942,7 +7946,7 @@ input,select,textarea{max-width:100%}
   function num(v) { try { return pn(v); } catch (e) { var n = parseFloat(String(v == null ? '' : v).replace(/[۰-۹]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c); }).replace(/,/g, '')); return isFinite(n) ? n : 0; } }
   function E(s) { try { return esc(s == null ? '' : s); } catch (e) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); } }
   function fmtM(n) { try { return faR(n); } catch (e) { return String(Math.round(Number(n) || 0)); } }
-  function fmtQ(n) { return (Number(n) || 0).toLocaleString('fa-IR', { maximumFractionDigits: 4 }); }
+  function fmtQ(n) { n = Number(n) || 0; if (!n) return (0).toLocaleString('fa-IR'); var r = Math.round(n * 10000) / 10000; if (!r) r = Math.round(n * 1000000) / 1000000; return r.toLocaleString('fa-IR', { maximumFractionDigits: 6 }); }
   function fmtP(n) { return (Number(n) || 0).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   function T(m, err) { try { toast(m, err); } catch (e) {} }
   function D() {
@@ -8152,7 +8156,7 @@ input,select,textarea{max-width:100%}
       gl.forEach(function (x, i) {
         var amt = num(x.qty) * num(x.price) * (num(x.coef) || 1);
         gs += amt;
-        body += '<tr><td>' + (i + 1) + '</td><td>' + E(x.code) + '</td><td style="text-align:right">' + E(x.desc || '') + '</td><td>' + E(x.unit || '') + '</td><td></td><td>' + fmtQ(x.qty) + '</td><td>' + fmtM(x.price) + '</td><td>' + fmtP(num(x.coef) || 1) + '</td><td>' + fmtM(amt) + '</td></tr>';
+        body += '<tr><td>' + (i + 1) + '</td><td>' + E(x.code) + '</td><td style="text-align:right">' + E(x.desc || '') + '</td><td>' + E(x.unit || '') + '</td><td></td><td>' + fmtQ(x.qty) + '</td><td>' + fmtM(x.price) + '</td><td>' + (num(x.coef) || 1).toLocaleString('fa-IR', { maximumFractionDigits: 4 }) + '</td><td>' + fmtM(amt) + '</td></tr>';
       });
       if (blank) for (var i2 = 0; i2 < 4; i2++) body += '<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
       total += gs;
