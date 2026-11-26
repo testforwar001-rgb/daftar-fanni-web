@@ -10211,6 +10211,110 @@ input,select,textarea{max-width:100%}
       Array.prototype.forEach.call(body.children, function (el) {
         if (el.querySelector && el.querySelector('.r23-h')) el.classList.add('df46-sheet');
       });
+      /* (6) SPLIT long Table-5 sheets (his 2026-11-26: «جدول ۵ آنالیزی که ۲
+         صفحه میشه رو نمیتونه تقسیم کنه پشت هم میاره»): a .t5p frame is a
+         fixed A4 box — when an item's factor rows overflow it, the table
+         spilled past the frame border and its totals/signatures landed on
+         top of the NEXT item's sheet. Now the rows are re-packed into as
+         many framed sheets as needed: header box + column headers repeat on
+         every sheet, a group band repeats when its group continues, and the
+         totals + signatures stay on the LAST sheet only. Budgets are
+         weighted row units calibrated in the sandbox print flow (33
+         single-line body rows fit one full sheet incl. totals+signatures;
+         a wrapped شرح عامل row weighs more). */
+      var T5_LAST = 30, T5_CONT = 35;
+      function t5RowW(tr) {
+        /* the شرح عامل column fits ~24 chars per line once the auto layout
+           squeezes it (measured: uniform ~25-char descriptions render two
+           lines tall, 35px vs 21px); each extra line weighs ≈ 0.67. The
+           ×1.15 covers the second-order squeeze: long descriptions widen
+           their own column and push واحد / کد عامل into wrapping too —
+           a uniform worst case measured ≈1.23× the naive estimate. */
+        var w = 1;
+        try {
+          var c = tr.children[2];
+          if (c) { var len = (c.textContent || '').trim().length; if (len > 24) w += 0.67 * (Math.ceil(len / 24) - 1); }
+        } catch (e) {}
+        return w * 1.15;
+      }
+      function splitT5(sec) {
+        var frame = sec.querySelector('.t5-frame'); if (!frame) return;
+        var table = frame.querySelector('table.t5'); if (!table) return;
+        var rows = Array.prototype.slice.call(table.rows);
+        var hdIdx = -1;
+        rows.forEach(function (tr, i) { if (hdIdx < 0 && tr.classList && tr.classList.contains('hd')) hdIdx = i; });
+        if (hdIdx < 0) return;
+        var groups = [], totals = [], cur = null;
+        rows.slice(hdIdx + 1).forEach(function (tr) {
+          var txt = (tr.textContent || '').replace(/\s+/g, ' ').trim();
+          if (tr.classList.contains('gb')) { cur = { gb: tr, items: [], sm: null }; groups.push(cur); }
+          else if (tr.classList.contains('sm')) {
+            if (/جمع واحد کار|جمع بهای واحد ردیف|اضافه یا تخفیف/.test(txt)) totals.push(tr);
+            else if (cur) cur.sm = tr;
+          } else if (cur) cur.items.push(tr);
+        });
+        if (!groups.length) return;
+        /* atoms: a group band is glued to its first row, and a group's جمع
+           row is glued to its last row — a sheet never ends on a lone band
+           and a subtotal never splits away from its rows */
+        var atoms = [];
+        groups.forEach(function (g, gi) {
+          g.items.forEach(function (tr, ii) {
+            var a = { g: gi, rows: [], w: 0, first: ii === 0 };
+            if (ii === 0) { a.rows.push(g.gb); a.w += t5RowW(g.gb); }
+            a.rows.push(tr); a.w += t5RowW(tr);
+            if (ii === g.items.length - 1 && g.sm) { a.rows.push(g.sm); a.w += t5RowW(g.sm); }
+            atoms.push(a);
+          });
+        });
+        var totalW = atoms.reduce(function (s, a) { return s + a.w; }, 0);
+        if (totalW <= T5_LAST) return;
+        var chunks = [[]], cw = [0];
+        atoms.forEach(function (a) {
+          var li = chunks.length - 1;
+          if (cw[li] > 0 && cw[li] + a.w > T5_CONT) { chunks.push([]); cw.push(0); li++; }
+          chunks[li].push(a); cw[li] += a.w;
+        });
+        /* rebalance: the LAST sheet must also fit its totals + signatures */
+        var guard = 0;
+        while (cw[chunks.length - 1] > T5_LAST && guard++ < 12) {
+          var last = chunks[chunks.length - 1], moved = [], mw = 0;
+          while (last.length > 1 && cw[chunks.length - 1] > T5_LAST) {
+            var a0 = last[0];
+            if (moved.length && mw + a0.w > T5_CONT) break;
+            moved.push(last.shift()); mw += a0.w; cw[chunks.length - 1] -= a0.w;
+          }
+          if (!moved.length) break;
+          chunks.splice(chunks.length - 1, 0, moved); cw.splice(chunks.length - 1, 0, mw);
+        }
+        if (chunks.length < 2) return;
+        var parent = sec.parentNode; if (!parent) return;
+        chunks.forEach(function (ch, ci) {
+          var clone = sec.cloneNode(true);
+          var cFrame = clone.querySelector('.t5-frame');
+          var cTable = cFrame.querySelector('table.t5');
+          Array.prototype.slice.call(cTable.rows).forEach(function (tr, i) { if (i > hdIdx) tr.remove(); });
+          var tbody = cTable.querySelector('tbody') || cTable;
+          var prevG = -1;
+          ch.forEach(function (a) {
+            if (a.g !== prevG && !a.first) tbody.appendChild(groups[a.g].gb.cloneNode(true));
+            a.rows.forEach(function (tr) { tbody.appendChild(tr.cloneNode(true)); });
+            prevG = a.g;
+          });
+          if (ci === chunks.length - 1) totals.forEach(function (tr) { tbody.appendChild(tr.cloneNode(true)); });
+          if (ci < chunks.length - 1) clone.querySelectorAll('.df46-sig').forEach(function (sg) { sg.remove(); });
+          var hw = cFrame.querySelector('.t5-hbox');
+          if (hw) {
+            var w2 = doc.createTreeWalker(hw, NodeFilter.SHOW_TEXT), tn;
+            while ((tn = w2.nextNode())) {
+              if (tn.nodeValue.indexOf('شماره صفحه') >= 0) { tn.nodeValue = tn.nodeValue.replace(/شماره صفحه:\s*[۰-۹0-9]+/, 'شماره صفحه: ' + faDigits(String(ci + 1))); break; }
+            }
+          }
+          parent.insertBefore(clone, sec);
+        });
+        sec.remove();
+      }
+      body.querySelectorAll('section.page.t5p').forEach(splitT5);
       /* (1) flow footers out, fixed bands in */
       body.querySelectorAll('.foot').forEach(function (el) { el.remove(); });
       var proj = '';
