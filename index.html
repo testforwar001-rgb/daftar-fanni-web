@@ -5948,8 +5948,9 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
       '<label>نوع شاخص <span style="display:inline-flex;gap:.7rem;margin-top:.2rem"><label style="font-weight:400"><input type="radio" name="svAdjMode" style="width:auto" ' + (A.mode !== 'reshte' ? 'checked' : '') + ' onchange="SV12.aSetMode(\'fasli\')"> فصلی</label><label style="font-weight:400"><input type="radio" name="svAdjMode" style="width:auto" ' + (A.mode === 'reshte' ? 'checked' : '') + ' onchange="SV12.aSetMode(\'reshte\')"> رشته‌ای</label></span></label>' +
       '<label>رشتهٔ پیمان <select onchange="SV12.aSetReshte(this.value)"><option value=""' + (!A.reshte ? ' selected' : '') + '>مشخص نشده</option>' + BORD.map(function (k) { return '<option value="' + k + '"' + (A.reshte === k ? ' selected' : '') + '>' + E(BN[k]) + '</option>'; }).join('') + '</select></label>' +
       '</div>' + (isLump(p) && A.mode !== 'reshte' ? '<div style="font-size:.85rem;color:#8a6d1a;background:#fdf6e0;border:1px solid #e8d48a;border-radius:8px;padding:.35rem .6rem;margin-top:.5rem">قرارداد سرجمع معمولاً با شاخص رشته‌ای محاسبه می‌شود.</div>' : '') + '</div>' +
-      '<div class="mb-card" style="margin-top:.7rem"><h4>جدول شاخص‌ها</h4>' +
+      '<div class="mb-card" id="svIdxTable" style="margin-top:.7rem"><h4>جدول شاخص‌ها</h4>' +
       (window.IDX_BANK ? '<div style="font-size:.85rem;background:#eef6ec;border:1px solid #b9d8b2;border-radius:8px;padding:.4rem .6rem;margin-bottom:.5rem">بانک شاخص‌های داخلی فعال است (فصلی ابنیه، تأسیسات مکانیکی و برقی برای ۱۴۰۴ و ۱۴۰۵، و شاخص رشته‌ای همهٔ رشته‌ها) — مقادیر بانک خودکار استفاده می‌شوند و ورود دستی شما روی آن‌ها اولویت دارد.</div>' : '') +
+      '<div class="mb-tools" style="margin-bottom:.5rem"><button class="btn" onclick="SV12.idxRef()">🔍 مرجع شاخص‌ها</button></div>' +
       '<div class="sv-tabs">' + BORD.map(function (k) { return '<button class="btn ' + (bank === k ? 'on' : '') + '" onclick="SV12.adjBank(\'' + k + '\')">' + E(BN[k]) + '</button>'; }).join('') + '</div>' +
       '<div class="sv-gridwrap"><table class="mb-grid" style="min-width:0"><thead><tr><th>فصل</th>' + quarters.map(function (q) { return '<th>' + E(q) + '</th>'; }).join('') + '</tr></thead><tbody>' + (idxRows || '<tr><td class="muted" style="padding:.6rem">فصلی نیست — فصل و دوره اضافه کنید.</td></tr>') + '</tbody></table></div>' +
       '<div class="mb-frow"><label>سال دورهٔ جدید <input type="text" id="svNewQY" value="' + (A.baseY || 1404) + '"></label>' +
@@ -5988,9 +5989,10 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
       }).join('');
       return '<tr><td><b>' + E(en.label) + '</b></td>' + cells + '</tr>';
     }).join('');
-    return '<h4 style="margin:.8rem 0 .3rem">شاخص‌های موردنیاز این تعدیل</h4>' +
+    return '<h4 id="svIdxGuide" style="margin:.8rem 0 .3rem">شاخص‌های موردنیاز این تعدیل</h4>' +
       '<div style="font-size:.85rem;margin-bottom:.4rem">شاخص مبنا و شاخص دورهٔ هر فصل را همین‌جا وارد کنید — مقادیر در همان جدول شاخص‌ها ذخیره می‌شود و محاسبه بلافاصله به‌روز می‌شود.</div>' +
-      '<div class="sv-gridwrap"><table class="mb-grid" style="min-width:0"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table></div>';
+      '<div class="sv-gridwrap"><table class="mb-grid" style="min-width:0"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table></div>' +
+      refNavHTML('entry');
   }
   function adjDetailHTML(p, A, r) {
     var rows = r.groups.map(function (g) {
@@ -6035,6 +6037,116 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
     var aoa = ta.value.split(/\r?\n/).filter(function (l) { return l.trim(); }).map(function (l) { return l.split('\t'); });
     var n = idxApplyAOA(aoa); SV(); adjPage(); T(n ? fmtQ(n) + ' شاخص وارد شد.' : 'داده‌ای خوانده نشد — قالب سطر اول دوره‌ها و ستون اول کد فصل است.', n ? 0 : 1); };
   G.idxExcel = function () { try { pickFile('.xlsx', async function (f) { try { var rows = await readXlsx(f); var n = idxApplyAOA(rows); SV(); adjPage(); T(n ? fmtQ(n) + ' شاخص از اکسل وارد شد.' : 'داده‌ای خوانده نشد.', n ? 0 : 1); } catch (e) { T('خواندن اکسل ناموفق بود.', 1); } }); } catch (e) { T('انتخاب فایل ممکن نشد.', 1); } };
+
+  /* ================= مراجع تعدیل: مرجع شاخص‌ها + ناوبری مشترک بانک‌ها =================
+     سه مرجع تعدیل (مرجع شاخص‌ها / بانک بخشنامه‌ها / ورود و بانک شاخص‌ها) از داخل همدیگر
+     قابل دسترسی‌اند؛ ردیف ناوبری مشترک در دیالوگ مرجع، صفحهٔ بانک بخشنامه‌ها و پنل ورود
+     شاخص‌های موردنیاز می‌نشیند و وضعیت صفحهٔ تعدیل زیر آن دست نمی‌خورد. */
+  function refNavHTML(cur) {
+    function btn(k, label, on) { return '<button class="btn' + (on ? ' on' : '') + '" onclick="SV12.refGo(\'' + k + '\')">' + label + '</button>'; }
+    return '<div class="mb-tools" style="border-top:1px dashed #d8c9ae;margin-top:.7rem;padding-top:.6rem"><span style="font-size:.82rem;color:#8a6d1a">مراجع تعدیل:</span>' +
+      btn('idx', '🔍 مرجع شاخص‌ها', cur === 'idx') + btn('bakhsh', '📚 بانک بخشنامه‌ها', cur === 'bakhsh') + btn('entry', '⌨️ ورود/بانک شاخص‌ها', cur === 'entry') + '</div>';
+  }
+  G.refGo = function (k) {
+    var dlg = document.getElementById('idxRefDlg'); if (dlg && dlg.open) dlg.close();
+    if (k === 'idx') { G.idxRef(); return; }
+    if (k === 'bakhsh') { G.go('sv:bakhsh'); return; }
+    G.go('sv:adj');
+    setTimeout(function () {
+      var A = ADJ();
+      if (A && A.list && A.list.length && !S.adjSel) { S.adjSel = A.list[A.list.length - 1].id; adjPage(); }
+      setTimeout(function () { var el = document.getElementById('svIdxGuide') || document.getElementById('svIdxTable'); if (el) el.scrollIntoView({ block: 'start' }); }, 80);
+    }, 80);
+  };
+  function refChName(bank, ch) { var bc = (typeof BANK_CH !== 'undefined' && BANK_CH[bank]) || {}; return bc[ch] || ADJ_FASL[Number(ch)] || ''; }
+  function refNorm(s) { return String(s == null ? '' : s).replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/ي/g, 'ی').replace(/ك/g, 'ک').toLowerCase().trim(); }
+  G.idxRef = function () {
+    var IB = window.IDX_BANK || null;
+    var A0 = null; try { A0 = ADJ(); } catch (e) { }
+    function chaptersOf(bank) { return IB && IB[bank] ? Object.keys(IB[bank]).filter(function (x) { return x !== '*'; }).sort() : []; }
+    function ridOfBank(bk) { if (!IB || !IB._reshte) return '1'; var nm = BN[bk] || ''; var hit = Object.keys(IB._reshte).find(function (r) { return (IB._reshte[r].name || '') === nm; }); return hit || '1'; }
+    var st = { mode: (A0 && A0.mode === 'reshte') ? 'reshte' : 'fasli', bank: S.adjBank || 'abn', ch: '18', rid: A0 && A0.reshte ? ridOfBank(A0.reshte) : '1', y: (A0 && A0.baseY) || 1404, q: (A0 && A0.baseQ) || 1, query: '' };
+    if (IB && chaptersOf(st.bank).indexOf(st.ch) < 0) { var c0 = chaptersOf(st.bank); if (c0.length) st.ch = c0[0]; }
+    var dlg = document.createElement('dialog'); dlg.id = 'idxRefDlg'; dlg.className = 'sv-d'; dlg.style.cssText = 'max-width:min(560px,94vw);width:100%'; document.body.appendChild(dlg);
+    function series() {
+      if (!IB) return null;
+      if (st.mode === 'reshte') { var r = (IB._reshte || {})[st.rid]; return r ? { label: 'شاخص رشته‌ای — دفترچه ' + st.rid + (r.name ? ' (' + r.name + ')' : ''), vals: r.vals || {} } : null; }
+      var vals = (IB[st.bank] || {})[st.ch]; if (!vals) return null;
+      return { label: 'شاخص فصلی ' + (BN[st.bank] || st.bank) + ' — فصل ' + st.ch + (refChName(st.bank, st.ch) ? ' (' + refChName(st.bank, st.ch) + ')' : ''), vals: vals };
+    }
+    function yearsOf(vals) { var ys = {}; ((IB && IB._meta && IB._meta.years) || []).forEach(function (y) { ys[y] = 1; }); Object.keys(vals || {}).forEach(function (k) { ys[Number(k.split('-')[0])] = 1; }); return Object.keys(ys).map(Number).sort(function (a, b) { return a - b; }); }
+    function ridBank() { var r = IB && IB._reshte && IB._reshte[st.rid]; if (!r) return null; var nm = r.name || ''; for (var k in BN) { if (nm === BN[k]) return k; } if (nm.indexOf('مکانیکی') >= 0) return 'mech'; if (nm.indexOf('برقی') >= 0) return 'elec'; return null; }
+    function manualOf(A) {
+      if (!A || !A.idx) return null; var key = qk(st.y, st.q), v = null;
+      if (st.mode === 'reshte') { if (A.reshte && ridBank() === A.reshte) v = ((A.idx[A.reshte] || {})['*'] || {})[key]; }
+      else v = ((A.idx[st.bank] || {})[st.ch] || {})[key];
+      return (v === '' || v == null) ? null : num(v);
+    }
+    function fbOf(vals) { var target = st.y * 4 + st.q, best = null; Object.keys(vals || {}).forEach(function (k) { var p = k.split('-').map(Number), t = p[0] * 4 + p[1]; if (t < target && vals[k] > 0 && (!best || t > best.t)) best = { t: t, y: p[0], q: p[1], v: vals[k] }; }); return best; }
+    function draw() {
+      var ctlEl = dlg.querySelector('#idxRefCtl'), resEl = dlg.querySelector('#idxRefRes');
+      if (!IB) { ctlEl.innerHTML = '<div class="notice">بانک شاخص‌ها بارگذاری نشده است.</div>'; resEl.innerHTML = ''; return; }
+      var ctl = '<div class="mb-frow">' +
+        '<label>نوع شاخص <span style="display:inline-flex;gap:.7rem;margin-top:.2rem">' +
+        '<label style="font-weight:400"><input type="radio" name="idxRefMode" style="width:auto" ' + (st.mode === 'fasli' ? 'checked' : '') + ' onchange="SV12.idxRefSet(\'mode\',\'fasli\')"> فصلی</label>' +
+        '<label style="font-weight:400"><input type="radio" name="idxRefMode" style="width:auto" ' + (st.mode === 'reshte' ? 'checked' : '') + ' onchange="SV12.idxRefSet(\'mode\',\'reshte\')"> رشته‌ای</label></span></label>';
+      if (st.mode === 'fasli') {
+        ctl += '<label>بانک <select onchange="SV12.idxRefSet(\'bank\',this.value)">' + BORD.map(function (k) { return '<option value="' + k + '"' + (st.bank === k ? ' selected' : '') + '>' + E(BN[k]) + '</option>'; }).join('') + '</select></label>' +
+          '<label>فصل <select onchange="SV12.idxRefSet(\'ch\',this.value)">' + chaptersOf(st.bank).map(function (ch) { return '<option value="' + E(ch) + '"' + (st.ch === ch ? ' selected' : '') + '>فصل ' + E(ch) + (refChName(st.bank, ch) ? ' — ' + E(refChName(st.bank, ch)) : '') + '</option>'; }).join('') + '</select></label>';
+      } else {
+        ctl += '<label>رشته / دفترچه <select onchange="SV12.idxRefSet(\'rid\',this.value)">' + Object.keys(IB._reshte || {}).sort(function (a, b) { return a - b; }).map(function (rid) { return '<option value="' + rid + '"' + (st.rid === rid ? ' selected' : '') + '>' + E(rid) + ' — ' + E((IB._reshte[rid] || {}).name || '') + '</option>'; }).join('') + '</select></label>';
+      }
+      var ser0 = series();
+      ctl += '<label>سال <select onchange="SV12.idxRefSet(\'y\',this.value)">' + yearsOf(ser0 ? ser0.vals : {}).map(function (y) { return '<option value="' + y + '"' + (st.y === y ? ' selected' : '') + '>' + fmtQ(y) + '</option>'; }).join('') + '</select></label>' +
+        '<label>سه‌ماهه <select onchange="SV12.idxRefSet(\'q\',this.value)">' + [1, 2, 3, 4].map(function (q) { return '<option value="' + q + '"' + (st.q === q ? ' selected' : '') + '>' + E(AQ[q - 1]) + '</option>'; }).join('') + '</select></label></div>';
+      ctlEl.innerHTML = ctl;
+      var A = null; try { A = ADJ(); } catch (e) { }
+      var ser = series(), res = '';
+      if (!ser) res = '<div class="notice">این فصل در بانک شاخص‌ها نیست.</div>';
+      else {
+        var key = qk(st.y, st.q), bv = ser.vals[key], man = manualOf(A);
+        res += '<div style="font-size:.88rem;color:#8a6d1a">' + E(ser.label) + ' — سه‌ماههٔ ' + E(AQ[st.q - 1]) + ' سال ' + fmtQ(st.y) + '</div>';
+        if (bv != null) res += '<div style="margin:.35rem 0"><span style="font-size:.92rem">مقدار بانک:</span> <b style="font-size:2rem;line-height:1.2">' + fmtQ(bv) + '</b></div>';
+        else { res += '<div style="margin:.35rem 0;color:#b3261e;font-weight:700;font-size:1.05rem">در بانک موجود نیست</div>';
+          var fb = fbOf(ser.vals); if (fb) res += '<div style="font-size:.9rem">آخرین شاخص موجود در بانک: <b>' + fmtQ(fb.v) + '</b> (سه‌ماههٔ ' + E(AQ[fb.q - 1]) + ' سال ' + fmtQ(fb.y) + ') — در تعدیل موقت از همین مقدار استفاده می‌شود.</div>'; }
+        if (man != null) res += '<div style="font-size:.95rem;background:#fdf6e0;border:1px solid #e8d48a;border-radius:8px;padding:.4rem .6rem;margin-top:.3rem">مقدار دستی این پیمان: <b>' + fmtQ(man) + '</b> — در محاسبه، مقدار دستی بر بانک اولویت دارد.</div>';
+        res += '<div style="display:flex;gap:.4rem;margin-top:.6rem">' + [1, 2, 3, 4].map(function (qq) { var v = ser.vals[qk(st.y, qq)]; return '<div style="flex:1;min-width:0;text-align:center;border:1px solid ' + (qq === st.q ? '#c2410c' : '#e3d5bd') + ';border-radius:8px;padding:.35rem .1rem' + (qq === st.q ? ';background:#fdeee2;font-weight:700' : '') + '"><div style="font-size:.72rem;color:#8a6d1a">سه‌ماههٔ ' + E(AQ[qq - 1]) + '</div><div>' + (v != null ? fmtQ(v) : '—') + '</div></div>'; }).join('') + '</div>';
+      }
+      resEl.innerHTML = res;
+    }
+    function drawHits() {
+      var box = dlg.querySelector('#idxRefHits'); var q = refNorm(st.query); if (!q || !IB) { box.innerHTML = ''; return; }
+      var hits = [];
+      if (st.mode === 'fasli') chaptersOf(st.bank).forEach(function (ch) { var nm = refChName(st.bank, ch); if (refNorm(ch).indexOf(q) >= 0 || refNorm(nm).indexOf(q) >= 0) hits.push({ k: 'ch', v: ch, t: 'فصل ' + ch + (nm ? ' — ' + nm : '') }); });
+      else Object.keys(IB._reshte || {}).forEach(function (rid) { var nm = (IB._reshte[rid] || {}).name || ''; if (refNorm(rid).indexOf(q) >= 0 || refNorm(nm).indexOf(q) >= 0) hits.push({ k: 'rid', v: rid, t: rid + ' — ' + nm }); });
+      hits = hits.slice(0, 12);
+      box.innerHTML = hits.length ? '<div class="mb-tools">' + hits.map(function (h) { return '<button class="btn" onclick="SV12.idxRefPick(\'' + h.k + '\',\'' + E(h.v) + '\')">' + E(h.t) + '</button>'; }).join('') + '</div>' : '<div class="muted" style="font-size:.85rem">موردی پیدا نشد.</div>';
+    }
+    S.idxRefCtl = { st: st, draw: draw, drawHits: drawHits, chaptersOf: chaptersOf };
+    dlg.innerHTML = '<h3 style="margin:.1rem 0 .5rem">🔍 مرجع شاخص‌ها</h3>' +
+      '<input type="text" id="idxRefQ" placeholder="جستجوی سریع: شماره یا نام فصل / رشته…" style="width:100%">' +
+      '<div id="idxRefHits" style="margin:.35rem 0"></div>' +
+      '<div id="idxRefCtl"></div><div id="idxRefRes" style="margin-top:.6rem"></div>' +
+      refNavHTML('idx') +
+      '<div class="mb-tools" style="justify-content:flex-end"><button class="btn" id="idxRefX">بستن</button></div>';
+    dlg.addEventListener('close', function () { dlg.remove(); if (S.idxRefCtl && S.idxRefCtl.st === st) S.idxRefCtl = null; });
+    dlg.querySelector('#idxRefQ').oninput = function () { st.query = this.value; drawHits(); };
+    dlg.querySelector('#idxRefX').onclick = function () { dlg.close(); };
+    draw(); dlg.showModal();
+  };
+  G.idxRefSet = function (f, v) {
+    var c = S.idxRefCtl; if (!c) return;
+    if (f === 'y' || f === 'q') c.st[f] = +v; else c.st[f] = v;
+    if (f === 'bank') { var ks = c.chaptersOf(v); if (ks.length && ks.indexOf(c.st.ch) < 0) c.st.ch = ks.indexOf('18') >= 0 ? '18' : ks[0]; }
+    if (f === 'mode') c.drawHits();
+    c.draw();
+  };
+  G.idxRefPick = function (kind, v) {
+    var c = S.idxRefCtl; if (!c) return;
+    if (kind === 'ch') c.st.ch = v; else c.st.rid = v;
+    c.st.query = ''; var inp = document.getElementById('idxRefQ'); if (inp) inp.value = '';
+    c.drawHits(); c.draw();
+  };
   G.adjNew = function () {
     var b = B(); if (!b) return; var A = ADJ(); if (!A) return; var docs = empDocs(b);
     if (!docs.length) { T('هنوز صورت‌وضعیت کارفرما ثبت نشده است.', 1); return; }
@@ -6742,6 +6854,7 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
       '<div class="sv-gridwrap"><table class="mb-grid" style="min-width:0"><thead><tr><th>شماره</th><th>تاریخ</th><th>موضوع و خلاصهٔ قاعده</th><th>منبع</th><th></th></tr></thead><tbody>' +
       (rows || '<tr><td colspan="5" class="muted" style="text-align:center;padding:.7rem">موردی یافت نشد.</td></tr>') + '</tbody></table></div>' +
       '<p class="muted" style="font-size:.8rem">مدخل‌های اولیه از پژوهش بخشنامه‌های تعدیل (دستورالعمل ۱۰۱/۱۷۳۰۷۳ و اصلاحیه‌ها) کاشته شده‌اند؛ ویرایش‌های شما در دادهٔ همگام ذخیره می‌شود و با به‌روزرسانی برنامه بازنویسی نمی‌شود.</p>' +
+      refNavHTML('bakhsh') +
       '</div></div>');
     var inp = document.getElementById('bakhshQ'); if (inp && q) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
   }
@@ -6792,10 +6905,11 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
       if (!window.__mb10done && (Date.now() - T0) < 6000) return false;
       window.__sv12nav = true;
       ENG_NAV.forEach(function (g) {
-        if (g.t === 'داشبورد و ابزارها' && !g.i.some(function (x) { return x[0] === 'sv:dash'; })) g.i.splice(1, 0, ['sv:dash', 'داشبورد صورت‌وضعیت ']);
-        if (g.t === 'صورت وضعیت' && !g.i.some(function (x) { return x[0] === 'sv:docs'; })) g.i.push(['sv:docs', 'صورت‌وضعیت و صورت‌جلسه ']);
+        if (g.t === 'داشبورد و ابزارها' && !g.i.some(function (x) { return x[0] === 'sv:dash' || x[0] === 'v14:dash'; })) g.i.splice(1, 0, ['sv:dash', 'داشبورد صورت‌وضعیت ']);
+        if (g.t === 'صورت وضعیت') g.i = [['sv:docs', 'صورت‌وضعیت و صورت‌جلسه'], ['chg', 'تغییر مقادیر']]; /* ساماندهی تب‌ها (دستور کاربر): مدخل‌های فیلتری svf:all/emp/sub و هدرهای بخشی که همه به همان صفحهٔ اسناد (sv:docs) می‌رسیدند از منو حذف شدند؛ هر مقصد فقط یک‌بار، با عنوان خود صفحه. مسیریابی کلیدهای قدیمی (v14:docs/demp/demp2/dsub و svf:*) در engGo و df-fix45 دست‌نخورده است تا لینک‌های ذخیره‌شده خطا ندهند. */
         if (g.t === 'تعدیل') g.i = [['sv:adj', 'تعدیل']]; /* فقط یک ورودی «تعدیل»: چهار مدخل قدیمی (v14:adj «فهرست بهایی»، x:fx «ارز»، x:tg «هدفمندی»، v14:adj2 «سرجمع») که همه به همین صفحه می‌رسیدند از منوی نمایشی حذف شدند؛ مسیریابی کلیدهای قدیمی در engGo دست‌نخورده است تا لینک‌های ذخیره‌شده خطا ندهند. */
-        if ((g.t === 'متره و برآورد' || g.t === 'برآورد') && !g.i.some(function (x) { return x[0] === 'sv:wbs'; })) g.i.push(['sv:wbs', 'ساختار شکست ']);
+        if (g.t === 'صورت جلسات کارگاهی') g.i = g.i.filter(function (x) { return x[0] !== 'v14:dmin' && x[0] !== 'svf:min'; }); /* «صورت‌جلسه احجام» مقصدش همان صفحهٔ اسناد صورت‌وضعیت است (یک موضوع در یک جا)؛ از گروه جلسات حذف شد و از صفحهٔ اسناد، با فیلتر خودش، در دسترس می‌ماند. */
+        /* «ساختار شکست» (sv:wbs) دیگر به گروه «متره و برآورد» افزوده نمی‌شود: آن گروه دقیقاً دو مدخل دارد؛ sv:wbs از داخل صفحات در دسترس است و مسیریابی کلیدش دست‌نخورده می‌ماند. */
       });
       return true;
     } catch (e) { return false; }
@@ -11078,7 +11192,10 @@ input,select,textarea{max-width:100%}
    old app no longer ships at all. */
 (function () {
   'use strict';
-  var MAP = { 'v14:dash': 'sv:dash', 'v14:adj': 'sv:adj', 'v14:adj2': 'sv:adj', 'v14:wbs': 'sv:wbs', 'v14:coef': 'sv:wbs', 'v14:docs': 'svf:all', 'v14:demp': 'svf:emp', 'v14:demp2': 'svf:emp', 'v14:dsub': 'svf:sub', 'v14:dmin': 'svf:min' };
+  var MAP = { 'v14:dash': 'sv:dash', 'v14:adj': 'sv:adj', 'v14:adj2': 'sv:adj', 'v14:wbs': 'sv:wbs', 'v14:coef': 'sv:wbs', 'v14:docs': 'svf:all', 'v14:demp': 'svf:emp', 'v14:demp2': 'svf:emp', 'v14:dsub': 'svf:sub', 'v14:dmin': 'svf:min', 'sv:wbs': 'sv:wbs' };
+  /* 'sv:wbs' self-map: since the nav cleanup (final75) it is no longer a displayed
+     menu item, so base engGo would miss it in ENG_NAV and fall into the dead v14
+     path; the wrapper must keep routing it natively (saved tabs / deep links). */
   function route(key) {
     if (!window.SV12) return;
     if (key.indexOf('svf:') === 0) {
@@ -11095,6 +11212,10 @@ input,select,textarea{max-width:100%}
       /* rewrite the menu once ENG_NAV + SV12 exist */
       if (typeof ENG_NAV !== 'undefined' && Array.isArray(ENG_NAV) && window.SV12 && !window.__sv45nav) {
         ENG_NAV.forEach(function (g) { (g.i || []).forEach(function (it) { if (MAP[it[0]]) it[0] = MAP[it[0]]; }); });
+        /* dedupe after the rewrite: no group may show the same key twice (e.g. the
+           v14:dash → sv:dash rewrite colliding with an sv:dash inserted elsewhere);
+           section headers ('h') are exempt */
+        ENG_NAV.forEach(function (g) { var seen = {}; g.i = (g.i || []).filter(function (it) { if (it[0] === 'h') return true; if (seen[it[0]]) return false; seen[it[0]] = 1; return true; }); });
         window.__sv45nav = 1;
         try { if (typeof render === 'function' && typeof page !== 'undefined' && page === 'engineering') render(); } catch (e) {}
       }
