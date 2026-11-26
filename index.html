@@ -8351,6 +8351,9 @@ input,select,textarea{max-width:100%}
       '<div class="t5-hl"><div>شماره صفحه: ۱</div><div>تاریخ گزارش: ' + E(todayFa()) + '</div></div></div>' +
       '<div class="t5-sec">بخش: ' + E(info.secs.join('، ')) + '</div>' +
       '<table class="t5">' +
+      /* df-fix55 (final76): colgroup ثابت جدول ۵ — شرح عامل پهن‌ترین ستون، ستون‌های عددی فشرده؛
+         عرض‌ها در همهٔ برگه‌های تقسیم‌شده (splitT5) یکسان می‌مانند چون colgroup داخل خود جدول است */
+      '<colgroup><col style="width:4%"><col style="width:8%"><col style="width:33%"><col style="width:7%"><col style="width:6%"><col style="width:10%"><col style="width:13%"><col style="width:6%"><col style="width:13%"></colgroup>' +
       '<tr><td colspan="9" class="band">شرح کار: ' + E(info.desc) + ' &nbsp;|&nbsp; شماره ردیف فهرست بها: ' + E(info.code) + '</td></tr>' +
       '<tr><td colspan="9" class="inf">واحد: ' + E(info.unit) + '</td></tr>' +
       '<tr class="hd"><td>ردیف</td><td>کد عامل</td><td>شرح عامل</td><td>واحد</td><td>مقیاس</td><td>مقدار/مقیاس</td><td>بهای واحد</td><td>ضریب</td><td>بهای کل</td></tr>' +
@@ -8370,8 +8373,8 @@ input,select,textarea{max-width:100%}
       '.t5-hr,.t5-hl{font-size:11px;line-height:2;min-width:52mm}' +
       '.t5-hl{text-align:left}' +
       '.t5-sec{padding:2mm 1mm 1mm;font-size:11px}' +
-      'table.t5{width:100%;border-collapse:collapse}' +
-      'table.t5 td{border:1px solid #666;padding:3.2px 5px;text-align:center}' +
+      'table.t5{width:100%;border-collapse:collapse;table-layout:fixed}' +
+      'table.t5 td{border:1px solid #666;padding:3.2px 5px;text-align:center;overflow:hidden}' +
       'table.t5 .band{background:#d9d9d9;font-weight:bold;text-align:right}' +
       'table.t5 .hd td{background:#bfbfbf;font-weight:bold}' +
       'table.t5 tr.gb td{background:#d9d9d9;font-weight:bold}' +
@@ -9266,7 +9269,7 @@ input,select,textarea{max-width:100%}
       '<div class="t5-hc">جدول ۵ ـ تجزیه بهای اقلام کار</div>' +
       '<div class="t5-hl"><div>شماره صفحه: </div><div>تاریخ گزارش: ' + E(todayFa()) + '</div></div></div>' +
       '<div class="t5-sec">بخش: ' + (row ? E(Object.keys(row.secs).join('، ')) : '') + '</div>' +
-      '<table class="t5"><tr><td colspan="9" class="band">شرح کار: ' + (row ? E(row.desc) : '') + ' &nbsp;|&nbsp; شماره ردیف فهرست بها: ' + (row ? E(row.code) : '') + '</td></tr>' +
+      '<table class="t5"><colgroup><col style="width:4%"><col style="width:8%"><col style="width:33%"><col style="width:7%"><col style="width:6%"><col style="width:10%"><col style="width:13%"><col style="width:6%"><col style="width:13%"></colgroup><tr><td colspan="9" class="band">شرح کار: ' + (row ? E(row.desc) : '') + ' &nbsp;|&nbsp; شماره ردیف فهرست بها: ' + (row ? E(row.code) : '') + '</td></tr>' +
       '<tr><td colspan="9" class="inf">واحد: ' + (row ? E(row.unit) : '') + '</td></tr>' +
       '<tr class="hd"><td>ردیف</td><td>کد عامل</td><td>شرح عامل</td><td>واحد</td><td>مقیاس</td><td>مقدار/مقیاس</td><td>بهای واحد</td><td>ضریب</td><td>بهای کل</td></tr>' +
       body +
@@ -9277,7 +9280,7 @@ input,select,textarea{max-width:100%}
       (sigs.length ? '<table class="t5 t5-sig"><tr>' + sigCells + '</tr></table>' : '') +
       '</div></section>';
   }
-  var T5CSS = '<style>@page{size:A4 portrait;margin:0}section.page.t5p{width:210mm;height:297mm;padding:7mm;background:#fff;color:#000;font-family:Tahoma,sans-serif;font-size:11.5px;box-sizing:border-box;page-break-after:always}.t5-frame{border:2.4px solid #000;outline:1px solid #000;outline-offset:3px;height:100%;display:flex;flex-direction:column;padding:4.5mm;box-sizing:border-box}.t5-hbox{border:1.6px solid #000;border-radius:9px;display:flex;justify-content:space-between;align-items:center;padding:3mm 4mm;gap:4mm}.t5-hc{font-size:15.5px;font-weight:bold;text-align:center;flex:1}.t5-hr,.t5-hl{font-size:11px;line-height:2;min-width:52mm}.t5-hl{text-align:left}.t5-sec{padding:2mm 1mm 1mm;font-size:11px}table.t5{width:100%;border-collapse:collapse}table.t5 td{border:1px solid #666;padding:3.2px 5px;text-align:center}table.t5 .band{background:#d9d9d9;font-weight:bold;text-align:right}table.t5 .hd td{background:#bfbfbf;font-weight:bold}table.t5 tr.gb td{background:#d9d9d9;font-weight:bold}table.t5 tr.sm td{background:#dde7ea;font-weight:bold}table.t5 .inf{text-align:right}.t5-flex{flex:1}table.t5-sig td{height:24mm;vertical-align:bottom;padding-bottom:2.5mm}.sgn{font-size:10.5px;margin-top:1mm}@media print{section.page.t5p{margin:0!important;box-shadow:none!important}}</style>';
+  var T5CSS = '<style>@page{size:A4 portrait;margin:0}section.page.t5p{width:210mm;height:297mm;padding:7mm;background:#fff;color:#000;font-family:Tahoma,sans-serif;font-size:11.5px;box-sizing:border-box;page-break-after:always}.t5-frame{border:2.4px solid #000;outline:1px solid #000;outline-offset:3px;height:100%;display:flex;flex-direction:column;padding:4.5mm;box-sizing:border-box}.t5-hbox{border:1.6px solid #000;border-radius:9px;display:flex;justify-content:space-between;align-items:center;padding:3mm 4mm;gap:4mm}.t5-hc{font-size:15.5px;font-weight:bold;text-align:center;flex:1}.t5-hr,.t5-hl{font-size:11px;line-height:2;min-width:52mm}.t5-hl{text-align:left}.t5-sec{padding:2mm 1mm 1mm;font-size:11px}table.t5{width:100%;border-collapse:collapse;table-layout:fixed}table.t5 td{border:1px solid #666;padding:3.2px 5px;text-align:center;overflow:hidden}table.t5 .band{background:#d9d9d9;font-weight:bold;text-align:right}table.t5 .hd td{background:#bfbfbf;font-weight:bold}table.t5 tr.gb td{background:#d9d9d9;font-weight:bold}table.t5 tr.sm td{background:#dde7ea;font-weight:bold}table.t5 .inf{text-align:right}.t5-flex{flex:1}table.t5-sig td{height:24mm;vertical-align:bottom;padding-bottom:2.5mm}.sgn{font-size:10.5px;margin-top:1mm}@media print{section.page.t5p{margin:0!important;box-shadow:none!important}}</style>';
   W.show = function (n) {
     var d = D(); if (!d) return;
     var title = REPORTS[n - 1];
@@ -12290,6 +12293,739 @@ body,button,input,select,textarea{font-family:'Yekan Bakh','Vazirmatn',Tahoma,sa
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
   window.DF54 = { inject: injectAll };
+})();
+</script>
+<script id="df-fix55">
+/* df-fix55 — final76: قالب واحد صورت‌وضعیت + فرم‌ساز WYSIWYG (سفارش‌های ۱۶:۱۳ تا ۱۶:۲۷ او)
+   A) یک قالب واحد (سربرگ/جدول/امضا) برای ریز متره، خلاصه متره، روکش مالی و پیوست کسورات انبار
+      هر سه نوع سند (min/sub/emp) + یک دیالوگ واحد «گزارشات صورت‌وضعیت» (توسعهٔ SV41.open)
+      با انتخاب زنجیره/سند/نسخه، جهت کاغذ و تیک امضاها؛ دکمهٔ «گزارش چاپی» صفحهٔ سند همان
+      دیالوگ را با «بستهٔ کامل» ازپیش‌انتخاب‌شده باز می‌کند.
+   B) رفع G2: جای امضای signFooterObj (بدون کلاس .sig) در بخش‌های چاپ سند با جای‌نگهدار
+      استاندارد .sig عوض می‌شود تا df-fix46 دقیقاً یک بلوک امضای استاندارد بگذارد.
+   C) عرض ستون‌ها ثابت و از قالب خوانده می‌شود: شرح پهن‌ترین، عددی‌ها فشرده، در همهٔ صفحات یکسان.
+   D) فرم‌ساز: قلم‌های uni:* در db.mod.frm_cfg (همگام) با اسکلت توکن‌دار؛ طراح روی خود برگه
+      (WYSIWYG) با دادهٔ نمایشی واقعی‌نما؛ ژنراتورها uniRender را مصرف می‌کنند؛ قالب خراب ←
+      بازگشت امن به اسکلت پیش‌فرض. جهت کاغذ جزئی از قالب است و پیش‌فرض دیالوگ چاپ می‌شود.
+   E) صفحه‌بندی تمیز A4: thead در چاپ تکرار می‌شود، ردیف‌ها وسط صفحه نمی‌شکنند.
+   اعداد دست نخورده‌اند: ردیف‌ها و جمع‌ها از همان printDoc فعلی df-fix12 و SV41.build می‌آیند
+   (منطق رندر ردیف/گروه‌بندی طبق SV-FORM-UNIFY-SPEC §۷٫۲ با ژنراتور فعلی می‌ماند)؛ این پارت
+   فقط لایهٔ ارائه و قالب را یکدست می‌کند. adjCalc/تطبیق/df-fix46/47 دست نخورده‌اند. */
+(function () {
+  'use strict';
+  function E(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function N(x) { var n = parseFloat(String(x == null ? '' : x).replace(/,/g, '')); return isNaN(n) ? 0 : n; }
+  function r6(x) { return Math.round(x * 1e6) / 1e6; }
+  function partial(r) { var f = [r.count, r.len, r.wid, r.hgt, r.wgt].map(Number).filter(function (v) { return v && !isNaN(v); }); return f.length ? r6(f.reduce(function (a, b) { return a * b; }, 1)) : 0; }
+  function toast55(m, e) { try { toast(m, e); } catch (x) {} }
+  function save55() { try { save(); } catch (x) {} }
+
+  /* ================= تعریف ستون‌های قالب واحد (کلید، عنوان پیش‌فرض، عرض ٪) ================= */
+  var COLS = {
+    riz: [['row', 'ردیف', 4], ['code', 'کد', 9], ['desc', 'شرح', 19], ['loc', 'شرح عملیات / محل', 25], ['n', 'تعداد', 5], ['x', 'طول', 5], ['y', 'عرض', 5], ['z', 'ارتفاع', 5], ['w', 'وزن', 5], ['partial', 'جزئی', 8], ['note', 'ملاحظات', 10]],
+    rizlump: [['row', 'ردیف', 5], ['act', 'فعالیت', 33], ['w', 'وزن ٪', 9], ['prev', 'پیشرفت قبلی ٪', 13], ['cum', 'پیشرفت تجمعی ٪', 14], ['per', 'پیشرفت دوره ٪', 12], ['amt', 'مبلغ دوره (ریال)', 14]],
+    kholase: [['row', 'ردیف', 4], ['bank', 'رشته', 8], ['code', 'کد', 8], ['desc', 'شرح', 26], ['unit', 'واحد', 6], ['qtyPrev', 'مقدار تا قبل', 10], ['qty', 'مقدار این دوره', 10], ['qtyCum', 'مقدار تجمعی', 10], ['price', 'بهای واحد (ریال)', 9], ['amt', 'مبلغ تجمعی (ریال)', 9]],
+    rookes: [['desc', 'شرح', 64], ['amt', 'مبلغ (ریال)', 36]],
+    whded: [['row', 'ردیف', 4], ['date', 'تاریخ', 10], ['taker', 'تحویل‌گیرنده', 13], ['desc', 'شرح کالا', 24], ['code', 'کد', 8], ['unit', 'واحد', 7], ['qty', 'مقدار', 9], ['price', 'قیمت واحد (ریال)', 12], ['amt', 'مبلغ (ریال)', 13]]
+  };
+  var HDR_FIELDS = [['employer', 'کارفرما:'], ['consultant', 'مشاور:'], ['contractor', 'پیمانکار:'], ['title', 'عنوان پروژه:'], ['contractNo', 'شماره قرارداد:'], ['contractDate', 'تاریخ قرارداد:'], ['no', 'شماره سند:'], ['date', 'تاریخ:'], ['party', 'پیمانکار جزء:'], ['ver', 'نسخه:'], ['subject', 'موضوع:']];
+  var SIG_FIELDS = [['sigCon', 'پیمانکار'], ['sigSup', 'ناظر'], ['sigCons', 'مشاور'], ['sigEmp', 'کارفرما'], ['sigMgmt', 'مدیریت طرح']];
+  var KIND_TITLE = { hdr: 'قالب واحد: سربرگ گزارش‌های صورت‌وضعیت', riz: 'قالب واحد: ریز متره', kholase: 'قالب واحد: خلاصه متره', rookes: 'قالب واحد: روکش مالی', whded: 'قالب واحد: پیوست کسورات انبار', sig: 'قالب واحد: بخش امضاها' };
+  var V14_MAP = { hdr: 'v14:rep:hdr', riz: 'v14:rep:m', kholase: 'v14:rep:s', rookes: 'v14:rep:f', whded: 'v14:rep:w', sig: 'v14:rep:foot' };
+  var KINDS = ['hdr', 'riz', 'kholase', 'rookes', 'whded', 'sig'];
+
+  var UNI_CSS = '.uni-hd{border:2px solid #000;padding:3mm 4mm;margin-bottom:3mm}' +
+    '.uni-title{text-align:center;font-weight:700;font-size:15px}' +
+    '.uni-sub{text-align:center;font-size:11.5px;margin-top:1mm}' +
+    '.uni-parties{display:flex;gap:4mm;flex-wrap:wrap;font-size:11.5px;border-top:1px solid #000;margin-top:2mm;padding-top:2mm}' +
+    '.uni-meta{display:flex;gap:4mm;flex-wrap:wrap;font-size:11.5px;margin-top:1mm}' +
+    '.uni-proj{font-size:12px;margin-top:1mm}' +
+    'section.page[data-uni] table{border-collapse:collapse;width:100%;border:2.2px solid #000;font-size:.84rem;table-layout:fixed}' +
+    'section.page[data-uni] th,section.page[data-uni] td{border:1px solid #000;padding:.26rem .4rem;overflow:hidden}' +
+    'section.page[data-uni] th{background:#eee;border-bottom:3.5px double #000}' +
+    'section.page[data-uni] tr{page-break-inside:avoid;break-inside:avoid}' +
+    'section.page[data-uni] thead{display:table-header-group}' +
+    'section.page[data-uni] tr.uni-band td{background:#f3ead2;font-weight:700}' +
+    'section.page[data-uni] tr.uni-tot td{font-weight:700;background:#f4f4f4}' +
+    '.uni-note{font-size:11.5px;margin:2mm 0}.uni-note:empty{display:none}.uni-sub:empty{display:none}' +
+    '.sv41.uni table{table-layout:fixed}' +
+    '.sv41.uni tr{page-break-inside:avoid;break-inside:avoid}' +
+    '.sv41.uni thead{display:table-header-group}';
+  var SV41_CSS = '.sv41{font-family:\'B Nazanin\',\'B Mitra\',Vazirmatn,Tahoma,serif;color:#000}.sv41 table{border-collapse:collapse;width:100%;border:2.2px solid #000;font-size:.86rem}.sv41 th,.sv41 td{border:1px solid #000;padding:.28rem .45rem}.sv41 th{background:#eee;border-bottom:3.5px double #000}.sv41 .band td{background:#ddd;font-weight:700}.sv41 .tot td{font-weight:700;background:#f4f4f4}.sv41-hd{margin-bottom:.5rem}.sv41 .page{background:#fff;padding:8mm}.sv41 h3{margin:.2rem 0 .5rem}.sv41 td{overflow-wrap:anywhere}.sv41 tr{page-break-inside:avoid;break-inside:avoid}@page{size:A4 portrait;margin:5mm}@page ls{size:A4 landscape;margin:5mm}.sv41 .page{page:portrait;page-break-after:always;break-after:page}.sv41 .page:last-child{page-break-after:auto;break-after:auto}.sv41 .page.ls{page:ls}';
+
+  /* ================= رکوردهای uni:* در db.mod.frm_cfg ================= */
+  function cfgArr() { try { db.mod = db.mod || {}; db.mod.frm_cfg = db.mod.frm_cfg || []; return db.mod.frm_cfg; } catch (e) { return []; } }
+  function cfgOf55(fid) { return cfgArr().find(function (c) { return c.fid === fid; }) || null; }
+  function colCfg(kind, rec) {
+    var defs = COLS[kind] || COLS.riz;
+    var f = (rec && rec.f) || {}, ord = (rec && rec.ord && rec.ord.length) ? rec.ord.slice() : defs.map(function (c) { return c[0]; });
+    defs.forEach(function (c) { if (ord.indexOf(c[0]) < 0) ord.push(c[0]); });
+    return ord.map(function (k) { var d = defs.find(function (c) { return c[0] === k; }); if (!d) return null; var o = f[k] || {}; return { k: k, l: (o.l != null && o.l !== '') ? o.l : d[1], w: (o.w != null && Number(o.w) > 0) ? Number(o.w) : d[2], hide: !!o.hide }; }).filter(Boolean);
+  }
+  function uniSkeleton(kind, rec) {
+    var title = (rec && rec.title) || '';
+    if (kind === 'hdr') {
+      return '<div class="uni-hd"><div class="uni-title">« {{form.title}} »</div>' +
+        '<div class="uni-sub">{{doc.sub}}</div>' +
+        '<div class="uni-parties"><span data-f="employer"><b>{{lbl.employer}}</b> {{proj.employer}}</span><span data-f="consultant"><b>{{lbl.consultant}}</b> {{proj.consultant}}</span><span data-f="contractor"><b>{{lbl.contractor}}</b> {{proj.contractor}}</span></div>' +
+        '<div class="uni-proj" data-f="title"><b>{{lbl.title}}</b> {{proj.name}}</div>' +
+        '<div class="uni-meta"><span data-f="contractNo"><b>{{lbl.contractNo}}</b> {{contract.no}}</span><span data-f="contractDate"><b>{{lbl.contractDate}}</b> {{contract.date}}</span><span data-f="no"><b>{{lbl.no}}</b> {{doc.no}}</span><span data-f="date"><b>{{lbl.date}}</b> {{doc.date}}</span><span data-f="party"><b>{{lbl.party}}</b> {{doc.party}}</span><span data-f="ver"><b>{{lbl.ver}}</b> {{doc.ver}}</span></div>' +
+        '<div class="uni-meta"><span data-f="subject"><b>{{lbl.subject}}</b> {{doc.subject}}</span></div></div>';
+    }
+    if (kind === 'sig') return '<div class="sig"></div>';
+    return '<section class="page" data-uni="' + kind + '" dir="rtl" style="font-family:inherit;padding:10mm;page-break-after:always">' +
+      '{{header}}' +
+      '<div class="uni-note">{{form.topNote}}</div>' +
+      '<table>{{cols}}<tbody>{{#rows}}<tr>{{cells}}</tr>{{/rows}}</tbody></table>' +
+      '{{extra}}' +
+      '<div class="uni-note">{{form.bottomNote}}</div>' +
+      '{{sig}}</section>';
+  }
+  function uniRec(kind) {
+    var fid = 'uni:' + kind, rec = cfgOf55(fid);
+    if (rec) { if (!rec.tpl) { rec.tpl = uniSkeleton(kind, rec); } return rec; }
+    rec = { fid: fid, f: {}, x: [], ord: [], title: '', topNote: '', bottomNote: '', fs: '', ff: '', pad: '', orient: '', version: 1 };
+    /* مهاجرت خواندنی از قلم یتیم v14:rep:* — v14 دست نمی‌خورد */
+    var old = cfgOf55(V14_MAP[kind]);
+    if (old) {
+      ['title', 'topNote', 'bottomNote', 'fs', 'ff', 'pad', 'orient', 'head', 'foot'].forEach(function (k) { if (old[k]) rec[k] = old[k]; });
+      if (old.ord && old.ord.length) rec.ord = old.ord.filter(function (k) { return (COLS[kind] || []).some(function (c) { return c[0] === k; }); });
+      if (old.f) Object.keys(old.f).forEach(function (k) { if ((COLS[kind] || []).some(function (c) { return c[0] === k; }) || kind === 'hdr' || kind === 'sig') rec.f[k] = old.f[k]; });
+      rec.migratedFrom = V14_MAP[kind];
+    }
+    if (kind === 'riz' || kind === 'kholase') rec.orient = 'landscape';
+    if (kind === 'rookes' || kind === 'whded') rec.orient = 'portrait';
+    rec.tpl = uniSkeleton(kind, rec);
+    cfgArr().push(rec);
+    return rec;
+  }
+  var TOK_SCALAR = ['form.title', 'form.topNote', 'form.bottomNote', 'doc.no', 'doc.date', 'doc.party', 'doc.ver', 'doc.subject', 'doc.sub', 'doc.typeLabel', 'proj.name', 'proj.employer', 'proj.consultant', 'proj.contractor', 'contract.no', 'contract.date', 'header', 'cols', 'extra', 'sig', 'cells'];
+  function tokAllowed(kind, t) {
+    if (t === '#rows' || t === '/rows') return true;
+    if (t.indexOf('lbl.') === 0) return true;
+    if (t.indexOf('r.') === 0) return true;
+    return TOK_SCALAR.indexOf(t) >= 0;
+  }
+  function tplValid(kind, tpl) {
+    if (!tpl || typeof tpl !== 'string') return false;
+    var ms = tpl.match(/\{\{[^}]+\}\}/g) || [];
+    for (var i = 0; i < ms.length; i++) { var t = ms[i].slice(2, -2).trim(); if (!tokAllowed(kind, t)) return false; }
+    return true;
+  }
+  function fillScalars(kind, tpl, model, rec) {
+    var tk = model.tokens || {};
+    var lbl = {};
+    var fields = kind === 'hdr' ? HDR_FIELDS : (kind === 'sig' ? SIG_FIELDS : []);
+    fields.forEach(function (fd) { var o = ((rec && rec.f) || {})[fd[0]] || {}; lbl[fd[0]] = (o.l != null && o.l !== '') ? o.l : fd[1]; });
+    return tpl.replace(/\{\{([^}]+)\}\}/g, function (m, raw) {
+      var t = raw.trim();
+      if (t[0] === '#' || t[0] === '/' || t === 'cells' || t.indexOf('r.') === 0) return m;
+      if (t.indexOf('lbl.') === 0) return E(lbl[t.slice(4)] || '');
+      if (t === 'form.title') return E(tk['form.title'] || (rec && rec.title) || '');
+      if (t === 'form.topNote') return E((rec && rec.topNote) || '');
+      if (t === 'form.bottomNote') return E((rec && rec.bottomNote) || '');
+      if (t === 'header') return model.headerHtml || '';
+      if (t === 'cols') return model.colsHtml || '';
+      if (t === 'extra') return model.extraHtml || '';
+      if (t === 'sig') return model.sigHtml != null ? model.sigHtml : '<div class="sig"></div>';
+      var v = tk[t]; return v == null ? '' : E(v);
+    });
+  }
+  /* uniRender(kind, model, recOverride) — رندرکنندهٔ مشترک قالب واحد.
+     model: {tokens, rows:[{k:val}] یا rowsHtml, extraHtml, headerHtml, sigHtml} */
+  function uniRender(kind, model, recOverride) {
+    model = model || {};
+    var rec = recOverride || uniRec(kind);
+    if (kind === 'sig') return '<div class="sig"></div>';
+    var tpl = (rec && rec.tpl && tplValid(kind, rec.tpl)) ? rec.tpl : uniSkeleton(kind, rec);
+    if (kind === 'hdr') {
+      var hdOut = fillScalars(kind, tpl, model, rec);
+      try {
+        var hdTmp = document.createElement('div'); hdTmp.innerHTML = hdOut;
+        hdTmp.querySelectorAll('[data-f]').forEach(function (el) {
+          var k = el.getAttribute('data-f'), o = ((rec && rec.f) || {})[k] || {};
+          var lblEl = el.querySelector('b');
+          var val = el.textContent.replace(lblEl ? lblEl.textContent : '', '').trim();
+          if (o.hide || ((k === 'party' || k === 'ver' || k === 'subject') && !val)) el.remove();
+        });
+        hdOut = hdTmp.innerHTML;
+      } catch (e) {}
+      return hdOut;
+    }
+    /* ستون‌ها از پیکربندی قالب (عنوان/عرض/مخفی/ترتیب) — colgroup ثابت برای همهٔ صفحات */
+    var cols = model.colsVis || colCfg(kind === 'riz' && model.variant === 'lump' ? 'rizlump' : kind, rec);
+    var vis = cols.filter(function (c) { return !c.hide; });
+    var tot = vis.reduce(function (s, c) { return s + c.w; }, 0) || 100;
+    model.colsHtml = '<colgroup class="uni-cg">' + vis.map(function (c) { return '<col style="width:' + (Math.round(c.w / tot * 1000) / 10) + '%">'; }).join('') + '</colgroup>' +
+      '<thead><tr>' + vis.map(function (c) { return '<th>' + E(c.l) + '</th>'; }).join('') + '</tr></thead>';
+    if (model.headerHtml == null) model.headerHtml = uniRender('hdr', model);
+    var out = fillScalars(kind, tpl, model, rec);
+    /* بلوک ردیف‌ها: یا از مدل داده‌ای (طراح/پیش‌نمایش) یا rowsHtml ژنراتور فعلی */
+    out = out.replace(/\{\{#rows\}\}([\s\S]*?)\{\{\/rows\}\}/, function (m, inner) {
+      if (model.rowsHtml != null) return model.rowsHtml;
+      return (model.rows || []).map(function (r) {
+        return inner.replace(/\{\{cells\}\}/g, vis.map(function (c) { return '<td>' + (r[c.k] == null ? '' : r[c.k]) + '</td>'; }).join(''))
+          .replace(/\{\{r\.([^}]+)\}\}/g, function (mm, k) { return r[k] == null ? '' : r[k]; });
+      }).join('');
+    });
+    return out;
+  }
+
+  /* ================= دادهٔ نمایشی واقعی‌نما (طراح بصری) ================= */
+  function demoModel(kind) {
+    var tk = { 'form.title': KIND_TITLE[kind].replace('قالب واحد: ', ''), 'doc.no': '۷', 'doc.date': '۱۴۰۵/۰۶/۳۰', 'doc.party': 'شرکت سمندیس', 'doc.ver': 'کارفرما', 'doc.subject': 'صورت‌وضعیت شماره ۷', 'doc.sub': 'فهرست بهای ابنیه سال ۱۴۰۴', 'doc.typeLabel': 'صورت‌وضعیت کارفرما', 'proj.name': 'ساختمان اداری تجاری صبا', 'proj.employer': 'شرکت ستاره عمران زمین', 'proj.consultant': 'پژوهش عمران راهوار', 'proj.contractor': 'شرکت سمندیس', 'contract.no': '1404/31/04/114', 'contract.date': '۱۴۰۴/۰۲/۱۵' };
+    var M = { tokens: tk, rows: [] };
+    if (kind === 'riz') M.rows = [
+      { row: '۱', code: '۰۷۰۱۰۲', desc: 'اجرای میلگرد', loc: 'فونداسیون · محور A', n: '۲', x: '۳/۵', y: '۴', z: '۰/۵', w: '', partial: '۱۴', note: '' },
+      { row: '۲', code: '۰۸۰۱۰۵', desc: 'بتن‌ریزی درجا', loc: 'ستون‌ها · طبقه اول', n: '۶', x: '۰/۴', y: '۰/۴', z: '۳', w: '', partial: '۲/۸۸', note: 'نقل از صورت جلسه شماره ۳' },
+      { row: '', code: '', desc: 'بتن‌ریزی درجا — مصالح پایکار', loc: '', n: '', x: '', y: '', z: '', w: '', partial: '', note: '' },
+      { row: '۳', code: '۰۸۰۱۰۵', desc: 'بتن‌ریزی درجا', loc: 'انبار مصالح', n: '۱۰', x: '', y: '', z: '', w: '', partial: '۱۰', note: '' }];
+    if (kind === 'kholase') M.rows = [
+      { row: '۱', bank: 'ابنیه', code: '۰۷۰۱۰۲', desc: 'اجرای میلگرد', unit: 'کیلوگرم', qtyPrev: '۱۰۰', qty: '۱۴', qtyCum: '۱۱۴', price: '۱٬۲۰۰٬۰۰۰', amt: '۱۳۶٬۸۰۰٬۰۰۰' },
+      { row: '۲', bank: 'ابنیه', code: '۰۸۰۱۰۵', desc: 'بتن‌ریزی درجا', unit: 'مترمکعب', qtyPrev: '۴۰', qty: '۲/۸۸', qtyCum: '۴۲/۸۸', price: '۸٬۵۰۰٬۰۰۰', amt: '۳۶۴٬۴۸۰٬۰۰۰' },
+      { row: '۳', bank: 'ابنیه', code: '۰۸۰۱۰۵', desc: 'بتن‌ریزی درجا (مصالح پایکار)', unit: 'مترمکعب', qtyPrev: '۰', qty: '۱۰', qtyCum: '۱۰', price: '۸٬۵۰۰٬۰۰۰', amt: '۸۵٬۰۰۰٬۰۰۰' }];
+    if (kind === 'rookes') M.rows = [
+      { desc: 'مبلغ ناخالص صورت‌وضعیت', amt: '۵۰۱٬۲۸۰٬۰۰۰' },
+      { desc: 'بیمه (۵٪)', amt: '۲۵٬۰۶۴٬۰۰۰-' },
+      { desc: 'جمع کارکرد', amt: '۴۴۱٬۱۲۸٬۰۰۰' },
+      { desc: 'جمع مصالح پایکار', amt: '۳۵٬۰۸۸٬۰۰۰' },
+      { desc: 'مبلغ قابل پرداخت', amt: '۴۷۶٬۲۱۶٬۰۰۰' }];
+    if (kind === 'whded') M.rows = [
+      { row: '۱', date: '۱۴۰۵/۰۶/۱۰', taker: 'انباردار', desc: 'سیمان تیپ ۲', code: '۴۱۰۱۰۱', unit: 'تن', qty: '۵', price: '۴٬۰۰۰٬۰۰۰', amt: '۲۰٬۰۰۰٬۰۰۰' }];
+    return M;
+  }
+
+  /* ================= مدل سند/پیمان برای توکن‌های سربرگ ================= */
+  function bucket55() { try { return (typeof db !== 'undefined' && db && activeProject && db.sv) ? db.sv[activeProject] : null; } catch (e) { return null; } }
+  function contract55() { try { var c = (typeof curContract === 'function') ? curContract() : null; if (c) return c; } catch (e) {} try { return (db.contracts || []).find(function (x) { return x.id === activeProject; }) || null; } catch (e) { return null; } }
+  function tokensFor(doc, subTxt, titleTxt) {
+    var c = contract55(), pr = null;
+    try { if (c && typeof projOf === 'function') pr = projOf(c.projectId); } catch (e) {}
+    var verLbl = { p: 'پیمانکار', c: 'مشاور', k: 'کارفرما' };
+    var tk = {
+      'form.title': titleTxt || '', 'doc.sub': subTxt || '',
+      'proj.name': (pr && pr.name) || (c && c.name) || '', 'proj.employer': (c && c.employer) || (pr && pr.employer) || '',
+      'proj.consultant': (c && c.consultant) || (pr && pr.consultant) || '', 'proj.contractor': (c && c.contractor) || '',
+      'contract.no': (c && c.contractNo) || '', 'contract.date': (c && c.contractDate) || '',
+      'doc.no': '', 'doc.date': '', 'doc.party': '', 'doc.ver': '', 'doc.subject': '', 'doc.typeLabel': ''
+    };
+    if (doc) {
+      tk['doc.no'] = doc.no || ''; tk['doc.date'] = doc.date || ''; tk['doc.party'] = doc.party || ''; tk['doc.subject'] = doc.subject || '';
+      tk['doc.typeLabel'] = doc.type === 'min' ? 'صورت‌جلسه احجام' : (doc.type === 'sub' ? 'صورت‌وضعیت پیمانکار جزء' : 'صورت‌وضعیت کارفرما');
+    }
+    return { tk: tk, verLbl: verLbl };
+  }
+  function docView55(d, ver) {
+    if (d && d.type === 'emp' && ver && ver !== 'k') { var v = (d.v || {})[ver]; if (v) return { rows: v.rows || [], snap: v.snap || {} }; }
+    return { rows: (d && d.rows) || [], snap: (d && d.snap) || {} };
+  }
+  function aggMap55(view) {
+    var m = {};
+    (view.rows || []).forEach(function (r) { if (!r.code) return; var k = r.code + '|' + (r.pk ? 'p' : 'k'); m[k] = r6((m[k] || 0) + partial(r)); });
+    return m;
+  }
+  function fmtQ55(x) { var v = r6(Number(x) || 0); return v.toLocaleString('fa-IR', { maximumFractionDigits: 6 }); }
+  function fmtM55(x) { return (Math.round(Number(x) || 0)).toLocaleString('fa-IR'); }
+
+  /* ================= بازسازی بخش‌های چاپ سند (printDoc) روی قالب واحد ================= */
+  var REP_MARK = 'padding:12mm 10mm';
+  function cellsOf(tr) { return Array.prototype.map.call(tr.children, function (td) { return td.innerHTML; }); }
+  function buildRows(kind, table, ctx, doc) {
+    /* خروجی: {rowsHtml, variant} — ردیف‌ها از جدول فعلی گرفته و روی ترتیب/نمایش قالب چیده می‌شوند */
+    var tbody = table.querySelector('tbody') || table;
+    var trs = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+    var rec = uniRec(kind);
+    var ck = (kind === 'riz' && ctx && ctx.variant === 'lump') ? 'rizlump' : kind;
+    var cols = colCfg(ck, rec);
+    var vis = cols.filter(function (c) { return !c.hide; });
+    if (kind === 'kholase') return kholRows(trs, vis, ctx, doc);
+    var idx = {}; cols.forEach(function (c, i) { idx[c.k] = i; });
+    var out = trs.map(function (tr) {
+      var tds = tr.children;
+      if (tds.length === 1 && tds[0].colSpan > 1) { tds[0].colSpan = vis.length; tr.setAttribute('class', 'uni-band'); return tr.outerHTML; }
+      var cells = cellsOf(tr);
+      var isTot = /جمع/.test(tr.textContent) && tr === trs[trs.length - 1];
+      /* اصلاح ردیف جمع پیوست انبار: در خروجی خام df-fix12 این ردیف ۸ سلول دارد و جمع زیر «قیمت واحد» می‌افتد؛ اینجا زیر «مبلغ» می‌نشیند */
+      if (kind === 'whded' && isTot && cells.length === vis.length - 1) cells.splice(idx.price != null ? idx.price : cells.length - 1, 0, '');
+      var html = vis.map(function (c) { var i = idx[c.k]; return '<td>' + (i != null && cells[i] != null ? cells[i] : '') + '</td>'; }).join('');
+      return '<tr' + (isTot ? ' class="uni-tot"' : '') + '>' + html + '</tr>';
+    }).join('');
+    return { rowsHtml: out, vis: vis };
+  }
+  function kholRows(trs, vis, ctx, doc) {
+    /* خلاصه: افزودن واحد + مقدار تا قبل/این دوره/تجمعی + مبلغ تجمعی (پیش‌فرض تثبیت‌شدهٔ ۱) */
+    var view = doc ? docView55(doc, ctx && ctx.ver) : null;
+    var per = view ? aggMap55(view) : null;
+    var prev = {};
+    if (doc) {
+      var b = bucket55();
+      if (b) b.docs.filter(function (x) { return x.type === doc.type && (doc.type !== 'sub' || x.partyId === doc.partyId) && (x.seq || 0) < (doc.seq || 0); })
+        .forEach(function (x) { var m = aggMap55(docView55(x, ctx && ctx.ver)); Object.keys(m).forEach(function (k) { prev[k] = r6((prev[k] || 0) + m[k]); }); });
+    }
+    var dataRows = trs.filter(function (tr) { return !(tr.children.length === 1 && tr.children[0].colSpan > 1) && !(/جمع/.test(tr.textContent) && tr === trs[trs.length - 1]); });
+    var totRow = trs.length && /جمع/.test(trs[trs.length - 1].textContent) ? trs[trs.length - 1] : null;
+    /* تطبیق هر ردیف با (کد، پرچم پایکار) از روی خود جدول — مستقل از ترتیب */
+    var matched = 0, sPrev = 0, sQty = 0, sCum = 0, sAmt = 0;
+    var prep = dataRows.map(function (tr) {
+      var cells = cellsOf(tr);
+      var code = (tr.children[2] ? tr.children[2].textContent : '').trim();
+      var descTxt = tr.children[3] ? tr.children[3].textContent : '';
+      var key = code + (descTxt.indexOf('مصالح پایکار') >= 0 ? '|p' : '|k');
+      var sn = view && code ? (view.snap || {})[code] : null;
+      var hit = !!(per && code && per[key] != null);
+      var rec2 = { cells: cells, code: code, sn: sn, hit: hit, pq: 0, pv: 0, cum: 0, amtCum: 0 };
+      if (hit) { rec2.pq = per[key] || 0; rec2.pv = prev[key] || 0; rec2.cum = r6(rec2.pq + rec2.pv); rec2.amtCum = Math.round(rec2.cum * (sn ? N(sn.price) : 0)); matched++; sPrev = r6(sPrev + rec2.pv); sQty = r6(sQty + rec2.pq); sCum = r6(sCum + rec2.cum); sAmt += rec2.amtCum; }
+      return rec2;
+    });
+    var cumOk = !!per && dataRows.length > 0 && matched === dataRows.length;
+    var useVis = vis;
+    if (!cumOk) { /* بازگشت امن: همان ستون‌های دوره‌ای قبلی + واحد */
+      useVis = [['row', 'ردیف', 5], ['bank', 'رشته', 10], ['code', 'کد', 10], ['desc', 'شرح', 31], ['unit', 'واحد', 8], ['qty', 'مقدار کل', 11], ['price', 'بهای واحد (ریال)', 12], ['amt', 'مبلغ (ریال)', 13]].map(function (c) { return { k: c[0], l: c[1], w: c[2], hide: false }; });
+    }
+    var out = prep.map(function (rc) {
+      var cells = rc.cells;
+      var vals = { row: cells[0] || '', bank: cells[1] || '', code: cells[2] || '', desc: cells[3] || '', qty: cells[4] || '', price: cells[5] || '', amt: cells[6] || '', unit: rc.sn ? E(rc.sn.unit || '') : '', qtyPrev: '', qtyCum: '' };
+      if (cumOk) { vals.qtyPrev = fmtQ55(rc.pv); vals.qty = fmtQ55(rc.pq); vals.qtyCum = fmtQ55(rc.cum); vals.amt = fmtM55(rc.amtCum); }
+      return '<tr>' + useVis.map(function (c) { return '<td>' + (vals[c.k] != null ? vals[c.k] : '') + '</td>'; }).join('') + '</tr>';
+    }).join('');
+    if (totRow) {
+      var tc = cellsOf(totRow);
+      var tv = { row: '', bank: '', code: '', desc: '<b>جمع</b>', unit: '', price: '', qtyPrev: cumOk ? '<b>' + fmtQ55(sPrev) + '</b>' : '', qty: cumOk ? '<b>' + fmtQ55(sQty) + '</b>' : (tc[4] || ''), qtyCum: cumOk ? '<b>' + fmtQ55(sCum) + '</b>' : '', amt: cumOk ? '<b>' + fmtM55(sAmt) + '</b>' : (tc[6] || '') };
+      out += '<tr class="uni-tot">' + useVis.map(function (c) { return '<td>' + (tv[c.k] != null ? tv[c.k] : '') + '</td>'; }).join('') + '</tr>';
+    }
+    return { rowsHtml: out, vis: useVis, zipOk: cumOk };
+  }
+  function inferDoc(secTitle, docNo) {
+    var b = bucket55(); if (!b || !docNo) return null;
+    var type = secTitle && secTitle.indexOf('پیمانکار جزء') >= 0 ? 'sub' : (secTitle && secTitle.indexOf('صورت‌جلسه') >= 0 ? 'min' : 'emp');
+    var hits = b.docs.filter(function (d) { return d.type === type && String(d.no || '') === String(docNo); });
+    return hits.length === 1 ? hits[0] : null;
+  }
+  function transformUni(html, ctx) {
+    if (!html || html.indexOf(REP_MARK) < 0 || html.indexOf('<section') < 0) return html;
+    try {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var secs = Array.prototype.slice.call(doc.querySelectorAll('section.page'));
+      var styleDone = false;
+      secs.forEach(function (sec) {
+        var st = sec.getAttribute('style') || '';
+        if (st.indexOf(REP_MARK) < 0) return;
+        var kids = Array.prototype.slice.call(sec.children);
+        var titleEl = kids[0];
+        var titleTxt = titleEl ? titleEl.textContent.replace(/[«»]/g, '').trim() : '';
+        var kind = null, variant = null;
+        if (/پیشرفت فعالیت‌ها/.test(titleTxt)) { kind = 'riz'; variant = 'lump'; }
+        else if (/ریز متره/.test(titleTxt)) kind = 'riz';
+        else if (/خلاصه متره/.test(titleTxt)) kind = 'kholase';
+        else if (/روکش مالی/.test(titleTxt)) kind = 'rookes';
+        else if (/کسورات انبار/.test(titleTxt)) kind = 'whded';
+        /* امضای قدیمی (signFooterObj) → جای‌نگهدار استاندارد .sig (رفع G2) */
+        var sigDiv = kids[kids.length - 1];
+        var hasSigDiv = sigDiv && sigDiv.tagName === 'DIV' && (sigDiv.getAttribute('style') || '').indexOf('margin-top:2.2rem') >= 0;
+        if (!kind) { if (hasSigDiv) { var ph = doc.createElement('div'); ph.className = 'sig'; sigDiv.replaceWith(ph); } return; }
+        var subTxt = '';
+        var table = sec.querySelector('table');
+        if (kids[1] && kids[1].tagName === 'DIV' && (kids[1].getAttribute('style') || '').indexOf('text-align:center') >= 0) subTxt = kids[1].textContent.trim();
+        if (!table) return;
+        /* محتوای اضافه بعد از جدول اصلی (مثلاً جدول پله‌ای سرجمع در بخش خلاصه) */
+        var extraHtml = '';
+        var after = false;
+        kids.forEach(function (el) { if (el === table) { after = true; return; } if (after && el !== sigDiv) extraHtml += el.outerHTML; });
+        /* سند و توکن‌ها */
+        var d = (ctx && ctx.doc) || null;
+        if (!d) {
+          var noTxt = '';
+          sec.querySelectorAll('span').forEach(function (sp) { if (/شماره (صورت‌وضعیت|صورت‌جلسه)/.test(sp.textContent)) noTxt = sp.textContent.split(':').slice(1).join(':').trim(); });
+          d = inferDoc(ctx && ctx.titleHint, noTxt);
+        }
+        var T = tokensFor(d, subTxt, titleTxt);
+        if (ctx && ctx.ver) T.tk['doc.ver'] = T.verLbl[ctx.ver] || '';
+        var built = buildRows(kind, table, { variant: variant, ver: ctx && ctx.ver }, d);
+        var model = { tokens: T.tk, rowsHtml: built.rowsHtml, extraHtml: extraHtml, variant: variant, colsVis: built.vis, sigHtml: '<div class="sig"></div>' };
+        model.tokens['form.title'] = titleTxt;
+        var newHtml = uniRender(kind, model);
+        var tmp = doc.createElement('div'); tmp.innerHTML = newHtml;
+        var newSec = tmp.firstChild;
+        if (!styleDone) { var sty = doc.createElement('style'); sty.textContent = UNI_CSS; newSec.insertBefore(sty, newSec.firstChild); styleDone = true; }
+        sec.replaceWith(newSec);
+      });
+      return doc.body.innerHTML;
+    } catch (e) { return html; }
+  }
+
+  /* ================= پوست‌اندازی SV41 روی قالب واحد ================= */
+  function allocCg(table) {
+    var first = table.querySelector('tr'); if (!first) return;
+    var ths = first.children; if (!ths.length) return;
+    function wOf(t) {
+      if (/ردیف/.test(t)) return 5; if (/شرح|عنوان/.test(t)) return 30; if (/کد/.test(t)) return 9;
+      if (/واحد/.test(t)) return 6; if (/مبلغ/.test(t)) return 12; if (/مقدار/.test(t)) return 10;
+      if (/بها/.test(t)) return 11; if (/درصد/.test(t)) return 8; if (/رشته|فصل|بخش/.test(t)) return 15;
+      if (/اختلاف/.test(t)) return 11; if (/وضعیت/.test(t)) return 10; if (/منبع/.test(t)) return 10;
+      return 10;
+    }
+    var ws = Array.prototype.map.call(ths, function (th) { return wOf(th.textContent); });
+    var tot = ws.reduce(function (a, b) { return a + b; }, 0) || 100;
+    var cg = document.createElement('colgroup'); cg.className = 'uni-cg';
+    ws.forEach(function (w) { var c = document.createElement('col'); c.style.width = (Math.round(w / tot * 1000) / 10) + '%'; cg.appendChild(c); });
+    table.insertBefore(cg, table.firstChild);
+    table.setAttribute('data-uni', '1');
+  }
+  function reskinSV41(html) {
+    if (!html || html.indexOf('sv41') < 0) return html;
+    try {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var cont = doc.querySelector('.sv41'); if (!cont) return html;
+      cont.classList.add('uni');
+      var st = cont.querySelector('style'); if (st) st.textContent = SV41_CSS + UNI_CSS;
+      var hd = cont.querySelector('.sv41-hd');
+      if (hd) {
+        var bEl = hd.querySelector('b');
+        var title = bEl ? bEl.textContent.trim() : '';
+        var T = tokensFor(null, '', title);
+        var c = contract55();
+        T.tk['doc.sub'] = 'پروژه: ' + T.tk['proj.name'] + (c && c.name ? ' — پیمان: ' + c.name : '');
+        var tmp = doc.createElement('div'); tmp.innerHTML = uniRender('hdr', { tokens: T.tk });
+        hd.replaceWith(tmp.firstChild);
+      }
+      cont.querySelectorAll('table').forEach(allocCg);
+      return doc.body.innerHTML;
+    } catch (e) { return html; }
+  }
+
+  /* ================= fixDom: برتری colgroup قالب + برچسب/ترتیب امضاها (پس از df-fix46) ================= */
+  function fixDom(root) {
+    try {
+      if (!root || !root.querySelectorAll) return;
+      root.querySelectorAll('table[data-uni]').forEach(function (tb) {
+        var mine = null;
+        Array.prototype.slice.call(tb.children).forEach(function (ch) {
+          if (ch.tagName === 'COLGROUP') { if (ch.classList.contains('uni-cg')) mine = ch; else ch.remove(); }
+        });
+        if (!mine) return;
+      });
+      root.querySelectorAll('section.page[data-uni] table').forEach(function (tb) {
+        Array.prototype.slice.call(tb.children).forEach(function (ch) {
+          if (ch.tagName === 'COLGROUP' && !ch.classList.contains('uni-cg')) ch.remove();
+        });
+      });
+      var rec = cfgOf55('uni:sig');
+      if (rec && ((rec.f && Object.keys(rec.f).length) || (rec.ord && rec.ord.length))) {
+        var ord = (rec.ord && rec.ord.length) ? rec.ord : SIG_FIELDS.map(function (x) { return x[0]; });
+        root.querySelectorAll('.df46-sig').forEach(function (sig) {
+          var spans = Array.prototype.slice.call(sig.children);
+          if (!spans.length) return;
+          var byRole = {};
+          spans.forEach(function (sp) { SIG_FIELDS.forEach(function (fd) { if (sp.textContent.indexOf(fd[1]) >= 0) byRole[fd[0]] = sp; }); });
+          if (!Object.keys(byRole).length) return;
+          sig.innerHTML = '';
+          ord.forEach(function (k) {
+            var fd = SIG_FIELDS.find(function (x) { return x[0] === k; }); if (!fd) return;
+            var o = (rec.f || {})[k] || {}; if (o.hide) return;
+            var sp = byRole[k]; if (!sp) return;
+            if (o.l) sp.textContent = 'مهر و امضای ' + o.l;
+            sig.appendChild(sp);
+          });
+        });
+      }
+    } catch (e) {}
+  }
+  function fixDomHtml(html) {
+    if (!html || html.indexOf('data-uni') < 0) return html;
+    try { var doc = new DOMParser().parseFromString(html, 'text/html'); fixDom(doc); return doc.body.innerHTML; } catch (e) { return html; }
+  }
+
+  /* ================= دیالوگ واحد گزارشات صورت‌وضعیت ================= */
+  var SV41_REPORTS = ['صورت وضعیت', 'خلاصه مالی رشته', 'خلاصه مالی کل', 'گزارش خلاصه مالی بخش ها', 'خلاصه مالی فصول صورت وضعیت', 'خلاصه مالی تفصیلی رشته ها', 'گزارش مقایسه صورت وضعیت و برآورد', 'گزارش مقایسه فصلی صورت وضعیت و برآورد', 'گزارش مقایسه کلی صورت وضعیت و برآورد', 'گزارش مقایسه ضرایب صورت وضعیت و برآورد', 'گزارش مقایسه صورت وضعیت و برآورد جدید', 'گزارش فرم مالی(نفت و گاز)'];
+  var UNI = { chain: 'emp', docId: '', ver: 'k', item: 'pkg', ori: 'auto', lastDocId: '' };
+  var ITEM_FILTER = { riz: ['ریز متره'], kholase: ['خلاصه متره'], rookes: ['روکش مالی'], whded: ['پیوست کسورات انبار'] };
+  var ITEM_KIND = { riz: 'riz', kholase: 'kholase', rookes: 'rookes', whded: 'whded', pkg: 'hdr' };
+  function docsOf55(chain) { var b = bucket55(); if (!b) return []; return (b.docs || []).filter(function (d) { return d.type === chain; }).slice().sort(function (a, b2) { return (a.seq || 0) - (b2.seq || 0); }); }
+  function oriModeFor(item) {
+    if (UNI.ori === 'l' || UNI.ori === 'p') return UNI.ori;
+    var kind = ITEM_KIND[item] || 'hdr';
+    var o = uniRec(kind).orient;
+    return o === 'landscape' ? 'l' : (o === 'portrait' ? 'p' : null);
+  }
+  function filterSections(html, prefixes) {
+    try {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      doc.querySelectorAll('section.page').forEach(function (sec) {
+        var t = sec.children[0] ? sec.children[0].textContent.replace(/[«»]/g, '').trim() : '';
+        if (!prefixes.some(function (p) { return t.indexOf(p) === 0; })) sec.remove();
+      });
+      return doc.body.innerHTML;
+    } catch (e) { return html; }
+  }
+  function applyOriSafe(html, mode) { try { if (mode && window.AN43 && AN43.applyOri) return AN43.applyOri(html, mode); } catch (e) {} return html; }
+  /* بستهٔ کامل: جهت هر بخش از قالب خودش می‌آید (ریز/خلاصه افقی، روکش/پیوست عمودی) — نه یک جهت برای کل بسته */
+  function applyPkgOri(html) {
+    try {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var changed = false;
+      doc.querySelectorAll('section.page[data-uni]').forEach(function (sec) {
+        var o = uniRec(sec.getAttribute('data-uni')).orient;
+        var has = /(^|\s)ls(\s|$)/.test(sec.className);
+        if (o === 'landscape' && !has) { sec.className = (sec.className + ' ls').trim(); changed = true; }
+        else if (o === 'portrait' && has) { sec.className = sec.className.replace(/(^|\s)ls(\s|$)/g, ' ').replace(/\s+/g, ' ').trim(); changed = true; }
+      });
+      return changed ? doc.body.innerHTML : html;
+    } catch (e) { return html; }
+  }
+  function genDocHtml(item) {
+    var b = bucket55(); if (!b) return '';
+    var doc = (b.docs || []).find(function (d) { return d.id === UNI.docId; });
+    if (!doc) { toast55('سند انتخاب نشده است.', 1); return ''; }
+    try { if (window.SV12 && SV12.openDoc) SV12.openDoc(doc.id); } catch (e) {}
+    try { if (doc.type === 'emp' && UNI.ver !== 'k' && window.SV12 && SV12.setVer) SV12.setVer(UNI.ver); } catch (e) {}
+    window.__uniCtx = { doc: doc, ver: UNI.ver, oriMode: (item === 'pkg' && UNI.ori === 'auto') ? 'pkg' : oriModeFor(item), filter: item === 'pkg' ? null : ITEM_FILTER[item], capture: true, result: '' };
+    try { SV12.printDoc(); } catch (e) {}
+    var h = window.__uniCtx ? window.__uniCtx.result : '';
+    window.__uniCtx = null;
+    return h || '';
+  }
+  function genSv41Html(n) {
+    var docs = docsOf55('emp'); if (!docs.length) { toast55('صورت‌وضعیت کارفرمایی ثبت نشده است.', 1); return ''; }
+    var sel = docs.find(function (d) { return d.id === UNI.docId; }) || docs[docs.length - 1];
+    try { if (window.SV41) SV41.ori = UNI.ori; } catch (e) {}
+    try { return SV41.build(n, sel.seq || null) || ''; } catch (e) { return ''; }
+  }
+  function aoaFromHtml(html) {
+    var tmp = document.createElement('div'); tmp.innerHTML = html || '';
+    var out = [];
+    tmp.querySelectorAll('table').forEach(function (t) { t.querySelectorAll('tr').forEach(function (tr) { out.push(Array.prototype.map.call(tr.children, function (td) { return td.textContent.trim(); })); }); out.push([]); });
+    return out.length ? out : [['—']];
+  }
+  function itemTitle(item) {
+    if (item === 'pkg') return 'بستهٔ کامل صورت‌وضعیت';
+    if (item.indexOf('sv') === 0) return SV41_REPORTS[+item.slice(2) - 1];
+    return { riz: 'ریز متره', kholase: 'خلاصه متره', rookes: 'روکش مالی', whded: 'پیوست کسورات انبار' }[item] || 'گزارش';
+  }
+  function openDlg(preset) {
+    if (!bucket55()) { toast55('ابتدا پروژه و پیمان را انتخاب کنید.', 1); return; }
+    if (preset) { if (preset.chain) UNI.chain = preset.chain; if (preset.docId) UNI.docId = preset.docId; if (preset.item) UNI.item = preset.item; if (preset.ver) UNI.ver = preset.ver; }
+    var old = document.getElementById('uniDlg'); if (old) old.remove();
+    var dlg = document.createElement('dialog'); dlg.id = 'uniDlg'; dlg.className = 'mb-d'; dlg.style.cssText = 'max-width:min(580px,94vw);width:100%';
+    document.body.appendChild(dlg);
+    function docOpts() {
+      var docs = docsOf55(UNI.chain);
+      if (!docs.some(function (d) { return d.id === UNI.docId; })) UNI.docId = docs.length ? docs[docs.length - 1].id : '';
+      return docs.map(function (d) { return '<option value="' + E(d.id) + '"' + (d.id === UNI.docId ? ' selected' : '') + '>شماره ' + E(d.no || '') + ' — ' + E(d.date || '') + (d.party ? ' — ' + E(d.party) : '') + '</option>'; }).join('');
+    }
+    function itemsHtml() {
+      var isMin = UNI.chain === 'min', isEmp = UNI.chain === 'emp';
+      function r(v, t, dis) { return '<label style="display:flex;gap:.5rem;align-items:center;padding:.3rem 0;cursor:pointer' + (dis ? ';opacity:.45' : '') + '"><input type="radio" name="uniItem" value="' + v + '"' + (UNI.item === v ? ' checked' : '') + (dis ? ' disabled' : '') + ' style="width:auto"> ' + t + '</label>'; }
+      var h = r('pkg', 'بستهٔ کامل (ریز + خلاصه' + (isMin ? '' : ' + روکش') + ' + پیوست انبار)') +
+        r('riz', 'ریز متره') + r('kholase', 'خلاصه متره') +
+        r('rookes', 'روکش مالی', isMin) + r('whded', 'پیوست کسورات انبار', isMin);
+      h += '<div style="border-top:1px solid #ddd;margin:.45rem 0;padding-top:.35rem;font-weight:700;font-size:.86rem">گزارش‌های تجمعی (زنجیرهٔ کارفرما)</div>';
+      SV41_REPORTS.forEach(function (t, i) { h += r('sv' + (i + 1), (i + 1) + '. ' + t, !isEmp); });
+      return h;
+    }
+    function draw() {
+      dlg.innerHTML = '<h3 style="margin:.1rem 0 .6rem">گزارشات صورت‌وضعیت — قالب واحد</h3>' +
+        '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.5rem">' +
+        [['emp', 'کارفرما'], ['sub', 'پیمانکار جزء'], ['min', 'صورت‌جلسه']].map(function (c) { return '<label style="display:inline-flex;gap:.35rem;align-items:center;cursor:pointer"><input type="radio" name="uniChain" value="' + c[0] + '"' + (UNI.chain === c[0] ? ' checked' : '') + ' style="width:auto"> ' + c[1] + '</label>'; }).join('') + '</div>' +
+        '<label style="display:block;margin-bottom:.5rem">سند مبنا <select id="uniDocSel">' + docOpts() + '</select></label>' +
+        (UNI.chain === 'emp' ? '<label style="display:block;margin-bottom:.5rem">نسخه <select id="uniVerSel">' + [['k', 'کارفرما'], ['c', 'مشاور'], ['p', 'پیمانکار']].map(function (v) { return '<option value="' + v[0] + '"' + (UNI.ver === v[0] ? ' selected' : '') + '>' + v[1] + '</option>'; }).join('') + '</select></label>' : '') +
+        '<div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin:.2rem 0 .4rem"><span>جهت کاغذ:</span>' +
+        [['auto', 'پیش‌فرض قالب'], ['l', 'افقی'], ['p', 'عمودی']].map(function (o) { return '<label style="display:inline-flex;gap:.35rem;align-items:center;cursor:pointer"><input type="radio" name="uniOri" value="' + o[0] + '"' + (UNI.ori === o[0] ? ' checked' : '') + ' style="width:auto"> ' + o[1] + '</label>'; }).join('') + '</div>' +
+        '<div id="uniItems">' + itemsHtml() + '</div>' +
+        '<div class="mb-tools" style="justify-content:flex-end;margin-top:.7rem"><button class="btn" id="uniX">بستن</button><button class="btn" id="uniXls">📗 اکسل</button><button class="btn primary" id="uniShow">نمایش</button></div>';
+      dlg.querySelectorAll('[name=uniChain]').forEach(function (r) { r.onchange = function () { UNI.chain = r.value; UNI.docId = ''; draw(); }; });
+      var ds = dlg.querySelector('#uniDocSel'); if (ds) ds.onchange = function () { UNI.docId = ds.value; };
+      var vs = dlg.querySelector('#uniVerSel'); if (vs) vs.onchange = function () { UNI.ver = vs.value; };
+      dlg.querySelectorAll('[name=uniOri]').forEach(function (r) { r.onchange = function () { UNI.ori = r.value; }; });
+      dlg.querySelectorAll('[name=uniItem]').forEach(function (r) { r.onchange = function () { UNI.item = r.value; }; });
+      try { if (window.__df48 && __df48.inject) __df48.inject(dlg, dlg.querySelector('#uniItems')); } catch (e) {}
+      dlg.querySelector('#uniX').onclick = function () { dlg.close(); };
+      function produce() {
+        var it = UNI.item;
+        if (it.indexOf('sv') === 0 && UNI.chain !== 'emp') it = 'pkg';
+        var html = it.indexOf('sv') === 0 ? genSv41Html(+it.slice(2)) : genDocHtml(it);
+        if (!html || !/<table/.test(html)) { toast55('برای این انتخاب، خروجی‌ای نیست.', 1); return null; }
+        return { html: html, title: itemTitle(it) };
+      }
+      dlg.querySelector('#uniShow').onclick = function () { var p = produce(); if (!p) return; dlg.close(); try { showPreview(p.html, p.title); } catch (e) {} };
+      dlg.querySelector('#uniXls').onclick = function () { var p = produce(); if (!p) return; dlg.close(); try { dl(p.title + '.xlsx', makeXlsx([{ name: 'گزارش', aoa: aoaFromHtml(p.html) }]), XLSX_T); } catch (e) {} };
+    }
+    draw();
+    dlg.addEventListener('close', function () { dlg.remove(); });
+    dlg.showModal();
+  }
+
+  /* ================= طراح بصری قالب واحد (WYSIWYG روی خود برگه) ================= */
+  function design(fid) {
+    var kind = String(fid).slice(4);
+    if (KINDS.indexOf(kind) < 0) return;
+    if (typeof can === 'function' && !can('forms', 'edit')) { try { secDeny(); } catch (e) {} return; }
+    var saved = uniRec(kind);
+    var draft = JSON.parse(JSON.stringify(saved));
+    draft.f = draft.f || {}; draft.ord = draft.ord || [];
+    var old = document.getElementById('uni55Dlg'); if (old) old.remove();
+    var dlg = document.createElement('dialog'); dlg.id = 'uni55Dlg'; dlg.style.cssText = 'width:min(1060px,97vw)';
+    document.body.appendChild(dlg);
+    function sheetHtml() {
+      var m = demoModel(kind === 'sig' ? 'rookes' : kind);
+      if (kind === 'hdr') return '<div style="background:#fff;padding:6mm">' + uniRender('hdr', m, draft) + '</div>';
+      if (kind === 'sig') return '<div style="background:#fff;padding:6mm"><div style="display:flex;justify-content:space-between;gap:4mm;font-weight:700;font-size:12.5px">' + SIG_FIELDS.map(function (fd) { var o = draft.f[fd[0]] || {}; return o.hide ? '' : '<span>مهر و امضای ' + E(o.l || fd[1]) + '</span>'; }).join('') + '</div><div class="muted" style="margin-top:4mm;font-size:.8rem">نمایش نمونهٔ بلوک امضا — در چاپ، طرف‌ها از تیک‌های دیالوگ گزارش می‌آیند و این قالب فقط برچسب/ترتیب/نمایش را تعیین می‌کند.</div></div>';
+      var sec = uniRender(kind, m, draft);
+      return '<div style="background:#fff">' + sec.replace(/padding:10mm/, 'padding:6mm').replace('page-break-after:always', 'page-break-after:auto') + '</div>';
+    }
+    function colsEditor() {
+      if (kind === 'hdr') {
+        return '<div style="margin-top:.6rem"><b>خانه‌های سربرگ</b>' + HDR_FIELDS.map(function (fd) { var o = draft.f[fd[0]] || {}; return '<div style="display:flex;gap:.5rem;align-items:center;margin:.25rem 0"><span style="min-width:110px">' + E(fd[1]) + '</span><input data-hl="' + fd[0] + '" value="' + E(o.l || '') + '" placeholder="' + E(fd[1]) + '" style="flex:1"><label style="display:inline-flex;gap:.3rem;align-items:center"><input type="checkbox" data-hh="' + fd[0] + '"' + (o.hide ? ' checked' : '') + ' style="width:auto"> مخفی</label></div>'; }).join('') + '</div>';
+      }
+      if (kind === 'sig') {
+        var ord = (draft.ord && draft.ord.length) ? draft.ord : SIG_FIELDS.map(function (x) { return x[0]; });
+        return '<div style="margin-top:.6rem"><b>طرف‌های امضا (برچسب و ترتیب)</b>' + ord.map(function (k, i) { var fd = SIG_FIELDS.find(function (x) { return x[0] === k; }); if (!fd) return ''; var o = draft.f[k] || {}; return '<div style="display:flex;gap:.5rem;align-items:center;margin:.25rem 0"><button class="btn" data-mv="' + k + '|-1">▲</button><button class="btn" data-mv="' + k + '|1">▼</button><span style="min-width:90px">' + E(fd[1]) + '</span><input data-hl="' + k + '" value="' + E(o.l || '') + '" placeholder="' + E(fd[1]) + '" style="flex:1"><label style="display:inline-flex;gap:.3rem;align-items:center"><input type="checkbox" data-hh="' + k + '"' + (o.hide ? ' checked' : '') + ' style="width:auto"> مخفی</label></div>'; }).join('') + '</div>';
+      }
+      var cols = colCfg(kind, draft);
+      return '<div style="margin-top:.6rem"><b>ستون‌ها</b> — عنوان هر ستون را روی خود برگه هم می‌توانید ویرایش کنید.' + cols.map(function (c) {
+        return '<div style="display:flex;gap:.5rem;align-items:center;margin:.25rem 0"><button class="btn" data-mv="' + c.k + '|-1">▲</button><button class="btn" data-mv="' + c.k + '|1">▼</button><span style="min-width:130px">' + E(c.l) + '</span><label>عرض ٪ <input data-cw="' + c.k + '" type="number" min="2" max="80" value="' + c.w + '" style="width:70px"></label><label style="display:inline-flex;gap:.3rem;align-items:center"><input type="checkbox" data-ch="' + c.k + '"' + (c.hide ? ' checked' : '') + ' style="width:auto"> مخفی</label></div>';
+      }).join('') + '</div>';
+    }
+    function draw() {
+      var ls = draft.orient === 'landscape';
+      dlg.innerHTML = '<h3 style="margin:.1rem 0 .4rem">طراح قالب واحد: ' + E(KIND_TITLE[kind]) + '</h3>' +
+        '<div class="muted" style="font-size:.82rem">قالب روی خود برگه ویرایش می‌شود و دقیقاً همین ذخیره و چاپ می‌شود. توکن‌های داده (شماره سند، مبالغ، ردیف‌ها) قفل‌اند و از موتورهای فعلی پر می‌شوند.</div>' +
+        '<div style="display:flex;gap:.8rem;flex-wrap:wrap;margin:.5rem 0"><label>جهت کاغذ قالب <select id="u55Ori"><option value=""' + (!draft.orient ? ' selected' : '') + '>پیش‌فرض</option><option value="portrait"' + (draft.orient === 'portrait' ? ' selected' : '') + '>عمودی</option><option value="landscape"' + (draft.orient === 'landscape' ? ' selected' : '') + '>افقی</option></select></label>' +
+        '<label>اندازهٔ فونت <input id="u55Fs" type="number" min="8" max="20" value="' + E(draft.fs || '') + '" style="width:70px"></label>' +
+        '<label style="flex:1;min-width:200px">متن بالای جدول <input id="u55Top" value="' + E(draft.topNote || '') + '"></label>' +
+        '<label style="flex:1;min-width:200px">متن زیر جدول <input id="u55Bot" value="' + E(draft.bottomNote || '') + '"></label></div>' +
+        '<div id="u55Sheet" style="border:1px solid #bbb;box-shadow:0 2px 10px rgba(0,0,0,.15);margin:0 auto;max-width:' + (ls ? '980px' : '720px') + ';overflow:auto"><style>' + UNI_CSS + '</style>' + sheetHtml() + '</div>' +
+        colsEditor() +
+        '<div class="mb-tools" style="justify-content:flex-end;margin-top:.8rem"><button class="btn" id="u55X">انصراف</button><button class="btn primary" id="u55Save">ذخیره و اعمال</button></div><div id="u55Err" style="color:#b00;font-size:.8rem"></div>';
+      dlg.querySelector('#u55Ori').onchange = function () { draft.orient = this.value; draw(); };
+      dlg.querySelector('#u55Fs').onchange = function () { draft.fs = this.value === '' ? '' : Number(this.value); };
+      dlg.querySelector('#u55Top').onchange = function () { draft.topNote = this.value; draw(); };
+      dlg.querySelector('#u55Bot').onchange = function () { draft.bottomNote = this.value; draw(); };
+      dlg.querySelectorAll('[data-hl]').forEach(function (inp) { inp.onchange = function () { var k = inp.getAttribute('data-hl'); draft.f[k] = draft.f[k] || {}; draft.f[k].l = inp.value; draw(); }; });
+      dlg.querySelectorAll('[data-hh]').forEach(function (inp) { inp.onchange = function () { var k = inp.getAttribute('data-hh'); draft.f[k] = draft.f[k] || {}; draft.f[k].hide = inp.checked ? 1 : 0; draw(); }; });
+      dlg.querySelectorAll('[data-cw]').forEach(function (inp) { inp.onchange = function () { var k = inp.getAttribute('data-cw'); draft.f[k] = draft.f[k] || {}; draft.f[k].w = Number(inp.value) || 0; draw(); }; });
+      dlg.querySelectorAll('[data-ch]').forEach(function (inp) { inp.onchange = function () { var k = inp.getAttribute('data-ch'); draft.f[k] = draft.f[k] || {}; draft.f[k].hide = inp.checked ? 1 : 0; draw(); }; });
+      dlg.querySelectorAll('[data-mv]').forEach(function (btn) { btn.onclick = function () { var p = btn.getAttribute('data-mv').split('|'), k = p[0], dl2 = +p[1]; var ord = (draft.ord && draft.ord.length) ? draft.ord : (kind === 'sig' ? SIG_FIELDS.map(function (x) { return x[0]; }) : (COLS[kind] || []).map(function (x) { return x[0]; })); var i = ord.indexOf(k), j = i + dl2; if (i < 0 || j < 0 || j >= ord.length) return; ord[i] = ord[j]; ord[j] = k; draft.ord = ord; draw(); }; });
+      /* ویرایش عنوان ستون روی خود برگه */
+      var sheet = dlg.querySelector('#u55Sheet');
+      if (sheet && COLS[kind]) {
+        var cols = colCfg(kind, draft).filter(function (c) { return !c.hide; });
+        sheet.querySelectorAll('th').forEach(function (th, i) { var c = cols[i]; if (!c) return; th.contentEditable = 'true'; th.title = 'عنوان ستون — کلیک و ویرایش'; th.addEventListener('blur', function () { draft.f[c.k] = draft.f[c.k] || {}; draft.f[c.k].l = th.textContent.trim(); }); });
+      }
+      dlg.querySelector('#u55X').onclick = function () { dlg.close(); };
+      dlg.querySelector('#u55Save').onclick = function () {
+        if (draft.fs !== '' && !(Number(draft.fs) >= 8 && Number(draft.fs) <= 20)) { dlg.querySelector('#u55Err').textContent = 'اندازهٔ فونت باید بین ۸ و ۲۰ باشد.'; return; }
+        var A = cfgArr(), i = A.findIndex(function (x) { return x.fid === draft.fid; });
+        draft.version = ((i >= 0 && A[i].version) || 1) + 1;
+        if (!draft.tpl || !tplValid(kind, draft.tpl)) draft.tpl = uniSkeleton(kind, draft);
+        if (i >= 0) A[i] = draft; else A.push(draft);
+        save55(); dlg.close(); toast55('قالب ذخیره شد و از این پس چاپ‌ها با همین قالب می‌آیند.');
+        /* فهرست فرم‌های سیستم هنگام باز شدن تب خودش تازه می‌شود؛ render() سراسری اینجا لازم نیست */
+      };
+    }
+    draw();
+    dlg.addEventListener('close', function () { dlg.remove(); });
+    dlg.showModal();
+  }
+
+  /* ================= نصب wrapها (با نظرسنجی، مثل بقیهٔ پارت‌ها) ================= */
+  window.UNI55 = { open: openDlg, design: design, uniRender: uniRender, uniRec: uniRec, transformUni: transformUni, reskinSV41: reskinSV41, fixDom: fixDom, fixDomHtml: fixDomHtml, demoModel: demoModel, COLS: COLS, state: UNI, tplValid: tplValid };
+  setInterval(function () {
+    try {
+      /* showPreview: بیرونی‌ترین wrap — تبدیل قالب واحد + جهت/فیلتر/ضبط دیالوگ */
+      if (typeof window.showPreview === 'function' && window.showPreview.__df46 && window.showPreview.__df47 && !window.showPreview.__df55) {
+        var origSP = window.showPreview;
+        var w = function (html, title) {
+          var ctx = window.__uniCtx;
+          if (ctx) {
+            var h = html;
+            if (ctx.filter) h = filterSections(h, ctx.filter);
+            h = transformUni(h, { doc: ctx.doc, ver: ctx.ver, titleHint: title });
+            if (ctx.oriMode === 'pkg') h = applyPkgOri(h);
+            else if (ctx.oriMode) h = applyOriSafe(h, ctx.oriMode);
+            if (ctx.capture) { ctx.result = h; return; }
+            return origSP.call(window, h, title);
+          }
+          if (html && html.indexOf('<section') >= 0 && html.indexOf(REP_MARK) >= 0) html = transformUni(html, { titleHint: title });
+          return origSP.call(window, html, title);
+        };
+        w.__df46 = 1; w.__df47 = 1; w.__df55 = 1;
+        window.showPreview = w;
+      }
+      /* SV41.build: پوست‌اندازی روی قالب واحد */
+      if (window.SV41 && SV41.build && !SV41.build.__df55) {
+        var b0 = SV41.build;
+        var bw = function (n, s) { return reskinSV41(b0.apply(this, arguments)); };
+        bw.__df55 = 1; SV41.build = bw;
+      }
+      /* SV41.open: دیالوگ واحد جایگزین می‌شود */
+      if (window.SV41 && SV41.open && !SV41.open.__df55) {
+        var ow = function () { openDlg({ chain: 'emp' }); };
+        ow.__df55 = 1; SV41.open = ow;
+      }
+      /* ردیابی سند جاری برای پیش‌فرض دیالوگ */
+      if (window.SV12 && SV12.openDoc && !SV12.openDoc.__df55) {
+        var od = SV12.openDoc;
+        var odw = function (id) { UNI.lastDocId = id; return od.apply(this, arguments); };
+        odw.__df55 = 1; SV12.openDoc = odw;
+      }
+      /* فرم‌ساز: ثبت قلم‌های uni:* + ویرایش/پیش‌نمایش آن‌ها با طراح واحد */
+      if (typeof window.frmRegistry === 'function' && !window.frmRegistry.__df55) {
+        var rg = window.frmRegistry;
+        var rgw = function () {
+          var R = rg.apply(this, arguments);
+          KINDS.forEach(function (k) {
+            if (!R.some(function (r) { return r.fid === 'uni:' + k; })) R.push({ fid: 'uni:' + k, kind: 'uni', title: KIND_TITLE[k], where: 'صورت‌وضعیت و صورت‌جلسه ← گزارشات صورت‌وضعیت (قالب واحد)', page: 'engineering', tab: 'docs', spec: function () { return (k === 'hdr' ? HDR_FIELDS : (k === 'sig' ? SIG_FIELDS : (COLS[k] || []))).map(function (c) { return { k: c[0] }; }); } });
+          });
+          return R;
+        };
+        rgw.__df55 = 1; window.frmRegistry = rgw;
+      }
+      if (typeof window.fxEdit === 'function' && !window.fxEdit.__df55) {
+        var fe = window.fxEdit;
+        var few = function (fid) { if (String(fid).indexOf('uni:') === 0) { design(fid); return; } return fe.apply(this, arguments); };
+        few.__df55 = 1; window.fxEdit = few;
+      }
+      if (typeof window.fxPreview === 'function' && !window.fxPreview.__df55) {
+        var fp = window.fxPreview;
+        var fpw = function (fid) {
+          if (String(fid).indexOf('uni:') === 0) { var k = String(fid).slice(4); try { showPreview('<div dir="rtl"><style>' + UNI_CSS + '</style>' + uniRender(k, demoModel(k)) + '</div>', KIND_TITLE[k]); } catch (e) {} return; }
+          return fp.apply(this, arguments);
+        };
+        fpw.__df55 = 1; window.fxPreview = fpw;
+      }
+      if (typeof window.fxDefsOf === 'function' && !window.fxDefsOf.__df55) {
+        var fd0 = window.fxDefsOf;
+        var fdw = function (r) {
+          if (r && r.kind === 'uni') { var k = String(r.fid).slice(4); return { cols: (k === 'hdr' ? HDR_FIELDS : (k === 'sig' ? SIG_FIELDS : (COLS[k] || []))).map(function (c) { return { k: c[0], l: c[1], w: c[2] || 0, np: false }; }) }; }
+          return fd0.apply(this, arguments);
+        };
+        fdw.__df55 = 1; window.fxDefsOf = fdw;
+      }
+      /* اصلاح نهایی DOM پیش‌نمایش: برتری colgroup قالب و امضاها */
+      var pvm = document.getElementById('pvm');
+      if (pvm) {
+        var ifr = pvm.querySelector('iframe');
+        if (ifr && ifr.contentDocument && ifr.contentDocument.body && !ifr.contentDocument.body.__uniFixed) { fixDom(ifr.contentDocument); ifr.contentDocument.body.__uniFixed = 1; }
+        var btn = pvm.querySelector('#pvp');
+        if (btn && !btn.__uniCap) { btn.__uniCap = 1; btn.addEventListener('click', function () { try { var f2 = pvm.querySelector('iframe'); if (f2 && f2.contentDocument) fixDom(f2.contentDocument); } catch (e) {} }, true); }
+      }
+    } catch (e) {}
+  }, 650);
+  /* دکمهٔ «گزارش چاپی» صفحهٔ سند ← همان دیالوگ واحد با «بستهٔ کامل» ازپیش‌انتخاب‌شده */
+  document.addEventListener('click', function (ev) {
+    try {
+      var btn = ev.target && ev.target.closest ? ev.target.closest('button') : null;
+      if (!btn) return;
+      var oc = btn.getAttribute && btn.getAttribute('onclick');
+      if (!oc || oc.indexOf('SV12.printDoc()') < 0) return;
+      ev.preventDefault(); ev.stopPropagation();
+      var b = bucket55(), preset = { item: 'pkg' };
+      var doc = null;
+      if (UNI.lastDocId && b) doc = (b.docs || []).find(function (d) { return d.id === UNI.lastDocId; });
+      if (doc) { preset.chain = doc.type; preset.docId = doc.id; }
+      openDlg(preset);
+    } catch (e) {}
+  }, true);
 })();
 </script>
 
