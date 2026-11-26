@@ -4969,13 +4969,15 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
     for (var i = 1; i <= T; i++) { var dt = new Date(ua + i * 864e5), j = g2jD(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate()), q = Math.ceil(j[1] / 3), k = qk(j[0], q); var e = map.find(function (x) { return x.k === k; }); if (!e) { e = { k: k, y: j[0], q: q, days: 0 }; map.push(e); } e.days++; }
     return { T: T, quarters: map }; }
   function getAdj(p) { var a = p.adj;
-    if (!a || a.v !== 3) { var old = a; a = p.adj = { v: 3, b: 0.95, kdec: 4, lag: 1, fb: true, baseY: 1404, baseQ: 3, plYear: 1404, months: null, monthsExt: null, start: '', idx: {}, img: {}, list: [] }; if (old && (old.comps || old.a != null || old.per)) a.old = old; }
-    if (!a.idx) a.idx = {}; if (!a.img) a.img = {}; if (!Array.isArray(a.list)) a.list = []; return a; }
+    if (!a || a.v !== 3) { var old = a; a = p.adj = { v: 3, b: 0.95, kdec: 4, lag: 1, fb: true, baseY: 1404, baseQ: 3, plYear: 1404, months: null, monthsExt: null, start: '', idx: {}, img: {}, list: [], mode: 'fasli', reshte: '' }; if (old && (old.comps || old.a != null || old.per)) a.old = old; }
+    if (!a.idx) a.idx = {}; if (!a.img) a.img = {}; if (!Array.isArray(a.list)) a.list = []; if (!a.mode) a.mode = 'fasli'; if (a.reshte == null) a.reshte = ''; return a; }
   /* جدول شاخص مؤثر هر فصل: بانک داخلی (df-fix52) رشته‌ای «*» ← بانک فصلی ← ورود دستی کاربر (اولویت با دستی؛ خانهٔ خالی دستی، مقدار بانک را نمی‌پوشاند) */
-  function idxMerged(A, bank, ch) { var out = {}, B = (typeof window !== 'undefined' && window.IDX_BANK) || null, bb = B && B[bank], src, k;
-    if (bb) { src = bb['*'] || {}; for (k in src) out[k] = src[k]; src = bb[ch] || {}; for (k in src) out[k] = src[k]; }
-    src = ((A.idx[bank] || {})[ch]) || {}; for (k in src) { if (src[k] !== '' && src[k] != null) out[k] = src[k]; } return out; }
-  function idxAt(A, bank, ch, y, q) { var tb = idxMerged(A, bank, ch); var v = tb[qk(y, q)]; if (v > 0) return { v: v, y: y, q: q, prov: false };
+  /* fOnly=true: فقط سری فصلی (بدون «*») — برای تشخیص منبع شاخص (src). حالت رشته‌ای (A.mode==='reshte'): در جست‌وجوی مؤثر، هر فصل به سری رشته‌ای «*» نگاشت می‌شود */
+  function idxMerged(A, bank, ch, fOnly) { var out = {}, B = (typeof window !== 'undefined' && window.IDX_BANK) || null, bb = B && B[bank], src, k;
+    var ech = (A && A.mode === 'reshte' && !fOnly) ? '*' : ch;
+    if (bb) { if (!fOnly) { src = bb['*'] || {}; for (k in src) out[k] = src[k]; } src = bb[ech] || {}; for (k in src) out[k] = src[k]; }
+    src = ((A.idx[bank] || {})[ech]) || {}; for (k in src) { if (src[k] !== '' && src[k] != null) out[k] = src[k]; } return out; }
+  function idxAt(A, bank, ch, y, q, fOnly) { var tb = idxMerged(A, bank, ch, fOnly); var v = tb[qk(y, q)]; if (v > 0) return { v: v, y: y, q: q, prov: false };
     if (A.fb !== false) { var best = null; for (var k in tb) { var pr = k.split('-').map(Number), n = pr[0] * 4 + pr[1]; if (tb[k] > 0 && n <= y * 4 + q && (!best || n > best.n)) best = { v: tb[k], y: pr[0], q: pr[1], n: n }; } if (best) return { v: best.v, y: best.y, q: best.q, prov: true }; }
     return null; }
   function docsLabel(sel) { var n = sel.map(function (d) { return d.no; }); if (n.length > 2 && sel.every(function (d, i) { return i === 0 || (Number(d.seq) || 0) === (Number(sel[i - 1].seq) || 0) + 1; })) return n[0] + ' تا ' + n[n.length - 1]; return n.join(' و '); }
@@ -4988,6 +4990,11 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
     var diffM = {}, prvM = {}, man = it.man || {};
     sel.forEach(function (d) { var c = docChap(vOf(d, ver)); for (var k in c) diffM[k] = (diffM[k] || 0) + c[k]; });
     prevDocs.forEach(function (d) { var c = docChap(vOf(d, pver)); for (var k in c) prvM[k] = (prvM[k] || 0) + c[k]; });
+    /* سرجمع + رشته‌ای: docChap ردیف‌های سرجمع را رد می‌کند؛ پس کل مبلغ با شاخص رشتهٔ مشخص‌شده در یک گروه «*» می‌آید.
+       docNet هر سند سرجمع مبلغ همان دورهٔ خودش است (lumpSync: count=(cum−prevc)×۱۰۰)؛ پس مثل فصل‌ها: diff=جمع اسناد انتخابی، prev=جمع اسناد قبلی، cur=prev+diff */
+    if (isLump(p) && A.mode === 'reshte' && A.reshte) { var lk = A.reshte + '|*';
+      sel.forEach(function (d) { diffM[lk] = (diffM[lk] || 0) + docNet(vOf(d, ver)).net; });
+      prevDocs.forEach(function (d) { prvM[lk] = (prvM[lk] || 0) + docNet(vOf(d, pver)).net; }); }
     R.to = it.to ? (addDay(it.to, 0) || it.to) : (last.date ? (addDay(last.date, 0) || last.date) : '');
     R.fromExcl = it.from ? addDay(it.from, -1) : (R.prevDoc ? (addDay(R.prevDoc.date, 0)) : (A.start ? addDay(A.start, -1) : ''));
     R.from = it.from ? (addDay(it.from, 0) || it.from) : (R.fromExcl ? addDay(R.fromExcl, 1) : '');
@@ -5000,22 +5007,26 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
       var g = { bank: bank, ch: ch, key: key, cur: cur, prev: prev, diff: diff, rows: [], sumAmt: 0, sumAdj: 0, bad: false, manual: mo }, qs = R.sp ? R.sp.quarters : [null], tb = idxMerged(A, bank, ch), rest = diff;
       qs.forEach(function (q, i) {
         var isLast = i === qs.length - 1, amt = R.sp ? (isLast ? rest : Math.round(diff * q.days / R.sp.T)) : null; if (R.sp && !isLast) rest -= amt;
-        var w = { q: q, amt: amt, ratio: R.sp ? q.days + ':' + R.sp.T : '', A: null, B: null, use: null, prov: false, kk: null, adj: null };
+        var w = { q: q, amt: amt, ratio: R.sp ? q.days + ':' + R.sp.T : '', A: null, B: null, use: null, prov: false, kk: null, adj: null, src: 'fasl' };
         if (R.sp) { var sh = qShift(q.y, q.q, A.lag || 0), uy = sh[0], uq = sh[1], a = idxAt(A, bank, ch, uy, uq), bv = tb[qk(A.baseY, A.baseQ)];
           w.use = a ? { y: a.y, q: a.q } : { y: uy, q: uq }; w.A = a ? a.v : null; w.prov = !!(a && a.prov); w.B = bv > 0 ? bv : null;
+          /* منبع شاخص: اگر جست‌وجوی صرفاً فصلی (با همان fb) در دورهٔ به‌کاررفته یا مبنا خالی است ولی مقدار مؤثر از سری رشته‌ای «*» آمده، src='reshte' است (مثل تجهیز که شاخص فصلی ندارد) */
+          if (A.mode === 'reshte') w.src = 'reshte';
+          else { var aF = idxAt(A, bank, ch, uy, uq, true), bvF = idxMerged(A, bank, ch, true)[qk(A.baseY, A.baseQ)];
+            if ((a && !aF) || (w.B != null && !(bvF > 0))) w.src = 'reshte'; }
           if (a && w.B && typeof A.b === 'number') { w.kk = Number(((w.A / w.B - 1) * A.b).toFixed(A.kdec == null ? 3 : A.kdec)); w.adj = diff === 0 ? 0 : Math.round(amt * w.kk); } }
         if (diff !== 0 && w.adj == null) g.bad = true; if (w.prov && diff !== 0) R.prov++; g.sumAmt += amt || 0; g.sumAdj += w.adj || 0; g.rows.push(w);
       });
       if (g.bad) R.miss++; R.total += g.sumAdj; R.byBank[bank] = (R.byBank[bank] || 0) + g.sumAdj; R.groups.push(g);
     });
     /* فصل ارشد: شاخص دقیق فصل ارشد (پُرمبلغ‌ترین فصل همان رشته با شاخص کامل همان دوره) بر شاخص موقت (آخرین شاخص موجود) خود فصل اولویت دارد؛ اگر شاخص دقیق نبود و خود فصل هم هیچ شاخصی نداشت، شاخص موقت فصل ارشد به‌کار می‌رود */
-    if (R.sp) {
+    if (R.sp && A.mode !== 'reshte') {
       var domAny = {}, domExact = {};
       R.groups.forEach(function (g) { g.rows.forEach(function (w, i) { if (w.A != null && w.B != null) { var dk = g.bank + '#' + i, dc = domAny[dk]; if (!dc || Math.abs(g.diff) > Math.abs(dc.diff)) domAny[dk] = g; if (!w.prov) { var de = domExact[dk]; if (!de || Math.abs(g.diff) > Math.abs(de.diff)) domExact[dk] = g; } } }); });
       R.groups.forEach(function (g) { g.rows.forEach(function (w, i) { var dk2 = g.bank + '#' + i, dg = null;
         if (w.A == null) dg = domExact[dk2] || domAny[dk2];
         else if (w.prov) dg = domExact[dk2];
-        if (dg && dg !== g) { var dw = dg.rows[i]; if (dw && dw.A != null && dw.B != null) { w.A = dw.A; w.B = dw.B; w.use = dw.use; w.prov = dw.prov; w.via = dg.ch;
+        if (dg && dg !== g) { var dw = dg.rows[i]; if (dw && dw.A != null && dw.B != null) { w.A = dw.A; w.B = dw.B; w.use = dw.use; w.prov = dw.prov; w.via = dg.ch; w.src = dw.src || w.src;
           if (typeof A.b === 'number') { w.kk = Number(((w.A / w.B - 1) * A.b).toFixed(A.kdec == null ? 3 : A.kdec)); w.adj = g.diff === 0 ? 0 : (w.amt == null ? null : Math.round(w.amt * w.kk)); } } } }); });
     }
     R.total = 0; R.byBank = {}; R.miss = 0; R.prov = 0;
@@ -5631,6 +5642,12 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
   function adjWarnings(p, A, docs) {
     var out = [];
     if (typeof A.b !== 'number') out.push('ضریب تعدیل (b) عددی تنظیم نشده است — همهٔ مبالغ تعدیل صفر می‌شوند.');
+    if (A.mode === 'reshte') { var bkSet = {};
+      docs.forEach(function (d) { var c = docChap(d); for (var k in c) bkSet[k.split('|')[0]] = 1; });
+      if (isLump(p) && A.reshte) bkSet[A.reshte] = 1;
+      Object.keys(bkSet).forEach(function (bank) { var bv = idxMerged(A, bank, '*')[qk(A.baseY, A.baseQ)];
+        if (!(bv > 0)) out.push('شاخص مبنا (' + (A.baseY || '') + '-' + (A.baseQ || '') + ') برای رشتهٔ ' + (BN[bank] || bank) + ' وارد نشده است.'); });
+      return out; }
     var chapKeys = {};
     docs.forEach(function (d) { var c = docChap(d); for (var k in c) chapKeys[k] = 1; });
     Object.keys(chapKeys).forEach(function (k) { var pr = k.split('|'), bank = pr[0], ch = pr[1];
@@ -5675,7 +5692,9 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
       '<label>مدت پیمان (ماه) <input type="text" value="' + (A.months == null ? '' : E(String(A.months))) + '" onchange="SV12.aSet(\'months\',this)"></label>' +
       '<label>مدت با تمدید (ماه) <input type="text" value="' + (A.monthsExt == null ? '' : E(String(A.monthsExt))) + '" onchange="SV12.aSet(\'monthsExt\',this)"></label>' +
       '<label style="align-self:end"><input type="checkbox" ' + (A.fb !== false ? 'checked' : '') + ' onchange="SV12.aSetFb(this.checked)"> تعدیل موقت: استفاده از آخرین شاخص موجود وقتی شاخص دوره اعلام نشده</label>' +
-      '</div></div>' +
+      '<label>نوع شاخص <span style="display:inline-flex;gap:.7rem;margin-top:.2rem"><label style="font-weight:400"><input type="radio" name="svAdjMode" style="width:auto" ' + (A.mode !== 'reshte' ? 'checked' : '') + ' onchange="SV12.aSetMode(\'fasli\')"> فصلی</label><label style="font-weight:400"><input type="radio" name="svAdjMode" style="width:auto" ' + (A.mode === 'reshte' ? 'checked' : '') + ' onchange="SV12.aSetMode(\'reshte\')"> رشته‌ای</label></span></label>' +
+      '<label>رشتهٔ پیمان <select onchange="SV12.aSetReshte(this.value)"><option value=""' + (!A.reshte ? ' selected' : '') + '>مشخص نشده</option>' + BORD.map(function (k) { return '<option value="' + k + '"' + (A.reshte === k ? ' selected' : '') + '>' + E(BN[k]) + '</option>'; }).join('') + '</select></label>' +
+      '</div>' + (isLump(p) && A.mode !== 'reshte' ? '<div style="font-size:.85rem;color:#8a6d1a;background:#fdf6e0;border:1px solid #e8d48a;border-radius:8px;padding:.35rem .6rem;margin-top:.5rem">قرارداد سرجمع معمولاً با شاخص رشته‌ای محاسبه می‌شود.</div>' : '') + '</div>' +
       '<div class="mb-card" style="margin-top:.7rem"><h4>جدول شاخص‌ها</h4>' +
       (window.IDX_BANK ? '<div style="font-size:.85rem;background:#eef6ec;border:1px solid #b9d8b2;border-radius:8px;padding:.4rem .6rem;margin-bottom:.5rem">بانک شاخص‌های داخلی فعال است (فصلی ابنیه، تأسیسات مکانیکی و برقی برای ۱۴۰۴ و ۱۴۰۵، و شاخص رشته‌ای همهٔ رشته‌ها) — مقادیر بانک خودکار استفاده می‌شوند و ورود دستی شما روی آن‌ها اولویت دارد.</div>' : '') +
       '<div class="sv-tabs">' + BORD.map(function (k) { return '<button class="btn ' + (bank === k ? 'on' : '') + '" onclick="SV12.adjBank(\'' + k + '\')">' + E(BN[k]) + '</button>'; }).join('') + '</div>' +
@@ -5698,17 +5717,23 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
     r.groups.forEach(function (g) { g.rows.forEach(function (w) { if (w.use) need[qk(w.use.y, w.use.q)] = 1; }); });
     var qs = Object.keys(need).sort(function (a, b2) { var pa = a.split('-').map(Number), pb = b2.split('-').map(Number); return pa[0] * 4 + pa[1] - (pb[0] * 4 + pb[1]); });
     var head = '<tr><th>رشته — فصل</th>' + qs.map(function (q) { return '<th>' + (q === bk ? 'شاخص مبنا' : 'شاخص دوره') + ' (' + E(q) + ')</th>'; }).join('') + '</tr>';
-    var rows = r.groups.map(function (g) {
-      var tb = ((A.idx[g.bank] || {})[g.ch]) || {}, IB = (typeof window !== 'undefined' && window.IDX_BANK && window.IDX_BANK[g.bank]) || null;
+    /* حالت رشته‌ای: یک سطر برای هر رشته با ورودی‌های سری «*»؛ حالت فصلی: یک سطر برای هر فصل (مثل قبل) */
+    var entries;
+    if (A.mode === 'reshte') { var seenB = {}; entries = [];
+      r.groups.forEach(function (g) { if (seenB[g.bank]) return; seenB[g.bank] = 1;
+        entries.push({ bank: g.bank, ch: '*', label: (BN[g.bank] || g.bank) + ' — شاخص رشته‌ای', groups: r.groups.filter(function (x) { return x.bank === g.bank; }) }); });
+    } else entries = r.groups.map(function (g) { return { bank: g.bank, ch: g.ch, label: (BN[g.bank] || g.bank) + ' — فصل ' + g.ch, groups: [g] }; });
+    var rows = entries.map(function (en) {
+      var tb = ((A.idx[en.bank] || {})[en.ch]) || {}, IB = (typeof window !== 'undefined' && window.IDX_BANK && window.IDX_BANK[en.bank]) || null;
       var cells = qs.map(function (q) {
         var mv = tb[q], hasMan = (mv != null && mv !== ''), bv = null;
-        if (IB) { var bcv = (IB[g.ch] || {})[q]; if (bcv != null) bv = bcv; else { var bsv = (IB['*'] || {})[q]; if (bsv != null) bv = bsv; } }
+        if (IB) { var bcv = (IB[en.ch] || {})[q]; if (bcv != null) bv = bcv; else { var bsv = (IB['*'] || {})[q]; if (bsv != null) bv = bsv; } }
         var v = hasMan ? mv : bv, fromBank = !hasMan && bv != null, isEmpty = (v == null || v === '');
-        var neededHere = (q === bk) || g.rows.some(function (w) { return w.use && qk(w.use.y, w.use.q) === q; });
+        var neededHere = (q === bk) || en.groups.some(function (g) { return g.rows.some(function (w) { return w.use && qk(w.use.y, w.use.q) === q; }); });
         var sty = 'width:96px' + (isEmpty && neededHere ? ';background:#ffe9e6' : (fromBank ? ';background:#e7f4e4' : ''));
-        return '<td><input type="text" class="num" style="' + sty + '" value="' + (v == null ? '' : E(String(v))) + '" onchange="SV12.idxF2(\'' + g.bank + '\',\'' + g.ch + '\',\'' + q + '\',this)">' + (fromBank ? '<span style="display:block;font-size:.68rem;color:#3d7a34">بانک</span>' : '') + '</td>';
+        return '<td><input type="text" class="num" style="' + sty + '" value="' + (v == null ? '' : E(String(v))) + '" onchange="SV12.idxF2(\'' + en.bank + '\',\'' + en.ch + '\',\'' + q + '\',this)">' + (fromBank ? '<span style="display:block;font-size:.68rem;color:#3d7a34">بانک</span>' : '') + '</td>';
       }).join('');
-      return '<tr><td><b>' + E(BN[g.bank] || g.bank) + ' — فصل ' + E(g.ch) + '</b></td>' + cells + '</tr>';
+      return '<tr><td><b>' + E(en.label) + '</b></td>' + cells + '</tr>';
     }).join('');
     return '<h4 style="margin:.8rem 0 .3rem">شاخص‌های موردنیاز این تعدیل</h4>' +
       '<div style="font-size:.85rem;margin-bottom:.4rem">شاخص مبنا و شاخص دورهٔ هر فصل را همین‌جا وارد کنید — مقادیر در همان جدول شاخص‌ها ذخیره می‌شود و محاسبه بلافاصله به‌روز می‌شود.</div>' +
@@ -5716,9 +5741,9 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
   }
   function adjDetailHTML(p, A, r) {
     var rows = r.groups.map(function (g) {
-      var head = '<tr style="background:#f7f3ea"><td colspan="8"><b>' + E(BN[g.bank] || g.bank) + ' — فصل ' + E(g.ch) + '</b>' + (g.manual ? ' (مبلغ تجمعی دستی)' : '') + (g.bad ? ' <span style="color:#c8463c">⚠ شاخص ناقص</span>' : '') + ' — فعلی: ' + fmtM(g.cur) + ' | قبلی: ' + fmtM(g.prev) + ' | مابه‌التفاوت: ' + fmtM(g.diff) + ' | جمع تعدیل فصل: <b>' + fmtM(g.sumAdj) + '</b></td></tr>';
+      var head = '<tr style="background:#f7f3ea"><td colspan="8"><b>' + E(BN[g.bank] || g.bank) + (g.ch === '*' ? ' — شاخص رشته‌ای' : ' — فصل ' + E(g.ch)) + '</b>' + (g.manual ? ' (مبلغ تجمعی دستی)' : '') + (g.bad ? ' <span style="color:#c8463c">⚠ شاخص ناقص</span>' : '') + ' — فعلی: ' + fmtM(g.cur) + ' | قبلی: ' + fmtM(g.prev) + ' | مابه‌التفاوت: ' + fmtM(g.diff) + ' | جمع تعدیل فصل: <b>' + fmtM(g.sumAdj) + '</b></td></tr>';
       var qrows = g.rows.map(function (w) {
-        return '<tr><td>' + (w.q ? E(w.q.y + ' — ' + AQ[w.q.q - 1]) : '—') + '</td><td>' + (w.use ? E(w.use.y + '-' + w.use.q) + (w.prov ? ' (موقت)' : '') + (w.via ? ' (از فصل ارشد ' + E(w.via) + ')' : '') : '—') + '</td><td>' + E(w.ratio || '') + '</td><td class="res">' + (w.amt == null ? '—' : fmtM(w.amt)) + '</td><td class="res">' + (w.B == null ? '—' : fmtQ(w.B)) + '</td><td class="res">' + (w.A == null ? '—' : fmtQ(w.A)) + '</td><td class="res">' + kTxt(w.kk, A) + '</td><td class="res">' + (w.adj == null ? '—' : fmtM(w.adj)) + '</td></tr>';
+        return '<tr><td>' + (w.q ? E(w.q.y + ' — ' + AQ[w.q.q - 1]) : '—') + '</td><td>' + (w.use ? E(w.use.y + '-' + w.use.q) + (w.prov ? ' (موقت)' : '') + (w.via ? ' (از فصل ارشد ' + E(w.via) + ')' : (w.src === 'reshte' ? ' (شاخص رشته)' : '')) : '—') + '</td><td>' + E(w.ratio || '') + '</td><td class="res">' + (w.amt == null ? '—' : fmtM(w.amt)) + '</td><td class="res">' + (w.B == null ? '—' : fmtQ(w.B)) + '</td><td class="res">' + (w.A == null ? '—' : fmtQ(w.A)) + '</td><td class="res">' + kTxt(w.kk, A) + '</td><td class="res">' + (w.adj == null ? '—' : fmtM(w.adj)) + '</td></tr>';
       }).join('');
       return head + qrows;
     }).join('');
@@ -5732,6 +5757,8 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
   G.aSet = function (f, el) { var A = ADJ(); if (!A) return; A[f] = el.value === '' ? '' : num(el.value); SV(); adjPage(); };
   G.aSetS = function (f, el) { var A = ADJ(); if (!A) return; A[f] = el.value; SV(); };
   G.aSetQ = function (v) { var A = ADJ(); if (!A) return; A.baseQ = +v; SV(); adjPage(); };
+  G.aSetMode = function (v) { var A = ADJ(); if (!A) return; A.mode = v === 'reshte' ? 'reshte' : 'fasli'; SV(); adjPage(); };
+  G.aSetReshte = function (v) { var A = ADJ(); if (!A) return; A.reshte = v || ''; SV(); adjPage(); };
   G.aSetFb = function (on) { var A = ADJ(); if (!A) return; A.fb = !!on; SV(); adjPage(); };
   G.idxF = function (ch, q, el) { var A = ADJ(); if (!A) return; var bank = S.adjBank; A.idx[bank] = A.idx[bank] || {}; A.idx[bank][ch] = A.idx[bank][ch] || {}; if (el.value === '') delete A.idx[bank][ch][q]; else A.idx[bank][ch][q] = num(el.value); SV(); };
   G.idxF2 = function (bank, ch, q, el) { var A = ADJ(); if (!A) return; A.idx[bank] = A.idx[bank] || {}; A.idx[bank][ch] = A.idx[bank][ch] || {}; if (el.value === '') delete A.idx[bank][ch][q]; else A.idx[bank][ch][q] = num(el.value); SV(); adjPage(); };
@@ -5847,13 +5874,15 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
 
   /* ---------- چاپ: گزارش تعدیل (فرم فیلم تدکار: تفکیک فصول، به‌تفکیک رشته، قاب‌دار افقی) ---------- */
   var ADJ_ORD = ['اول', 'دوم', 'سوم', 'چهارم', 'پنجم', 'ششم', 'هفتم', 'هشتم', 'نهم', 'دهم', 'یازدهم', 'دوازدهم', 'سیزدهم', 'چهاردهم', 'پانزدهم', 'شانزدهم', 'هفدهم', 'هجدهم', 'نوزدهم', 'بیستم', 'بیست‌ویکم', 'بیست‌ودوم', 'بیست‌وسوم', 'بیست‌وچهارم', 'بیست‌وپنجم', 'بیست‌وششم', 'بیست‌وهفتم', 'بیست‌وهشتم', 'بیست‌ونهم'];
-  var ADJ_FASL = { 1: 'عملیات تخریب', 2: 'عملیات خاکی با دست', 3: 'عملیات خاکی با ماشین', 4: 'عملیات بنایی با سنگ', 5: 'قالب‌بندی غیرفلزی', 6: 'قالب‌بندی فلزی', 7: 'کارهای فولادی با میلگرد', 8: 'بتن درجا', 9: 'کارهای فولادی سنگین', 10: 'سقف تیرچه و بلوک', 11: 'آجرکاری و شفته‌ریزی', 12: 'بتن پیش‌ساخته و بلوک چینی', 13: 'عایق‌کاری رطوبتی', 14: 'عایق‌کاری حرارتی و پوشش‌های مقاوم در برابر آتش', 15: 'کارهای آزبست سیمان', 16: 'کارهای فولادی سبک', 17: 'کارهای آلومینیومی', 18: 'اندودکاری و بندکشی', 19: 'کارهای چوبی', 20: 'کاشی‌کاری با کاشی‌های سرامیکی', 21: 'فرش موزاییک و کف‌پوش بتنی', 22: 'کارهای سنگی با سنگ پلاک', 23: 'کارهای پلاستیکی و پلیمری', 24: 'شیشه و نصب آن', 25: 'رنگ‌آمیزی', 26: 'زیرسازی و اساس', 27: 'آسفالت', 28: 'حمل‌ونقل', 29: 'کارهای دستمزدی' };
+  var ADJ_FASL = { 1: 'عملیات تخریب', 2: 'عملیات خاکی با دست', 3: 'عملیات خاکی با ماشین', 4: 'عملیات بنایی با سنگ', 5: 'قالب‌بندی غیرفلزی', 6: 'قالب‌بندی فلزی', 7: 'کارهای فولادی با میلگرد', 8: 'بتن درجا', 9: 'کارهای فولادی سنگین', 10: 'سقف تیرچه و بلوک', 11: 'آجرکاری و شفته‌ریزی', 12: 'بتن پیش‌ساخته و بلوک چینی', 13: 'عایق‌کاری رطوبتی', 14: 'عایق‌کاری حرارتی و پوشش‌های مقاوم در برابر آتش', 15: 'کارهای آزبست سیمان', 16: 'کارهای فولادی سبک', 17: 'کارهای آلومینیومی', 18: 'اندودکاری و بندکشی', 19: 'کارهای چوبی', 20: 'کاشی‌کاری با کاشی‌های سرامیکی', 21: 'فرش موزاییک و کف‌پوش بتنی', 22: 'کارهای سنگی با سنگ پلاک', 23: 'کارهای پلاستیکی و پلیمری', 24: 'شیشه و نصب آن', 25: 'رنگ‌آمیزی', 26: 'زیرسازی و اساس', 27: 'آسفالت', 28: 'حمل‌ونقل', 29: 'کارهای دستمزدی', 42: 'تجهیز و برچیدن کارگاه', 99: 'تجهیز و برچیدن کارگاه' };
   var ADJR_CSS = '.adjr-frame{border:2px solid #000;outline:1px solid #000;outline-offset:3px;display:flex;flex-direction:column;padding:4mm;box-sizing:border-box;min-height:100%}' +
-    '.adjr table{font-size:11.5px}.adjr td,.adjr th{padding:3px 5px;line-height:1.4}' +
+    '.adjr table{font-size:11.5px;table-layout:fixed}.adjr td,.adjr th{padding:3px 5px;line-height:1.4}' +
+    '.adjr table th{font-size:11px}.adjr table td{font-size:11.5px}' +
+    '.adjr table td.arsh{white-space:normal!important}' +
     '.adjr .adjr-title{text-align:center;font-weight:700;font-size:15px;margin:2mm 0}' +
     '.adjr .adjr-co{text-align:center;font-weight:700;font-size:13.5px}' +
-    '.adjr .adjr-info{display:flex;flex-wrap:wrap;gap:1mm 8mm;font-size:11.5px;margin:2mm 0}' +
-    '.adjr tr.sum td{font-weight:700;background:#eef1f2}';
+    '.adjr .adjr-info{font-size:11.5px;margin:2mm 0}.adjr .adjr-irow{display:grid;grid-template-columns:repeat(4,1fr);gap:1mm 6mm}' +
+    '.adjr tr.sum td{font-weight:700;background:#eef1f2;white-space:nowrap;vertical-align:middle}';
   G.adjPrint = function (id) {
     var b = B(); if (!b) return; var p = P(), A = ADJ(); if (!A) return;
     var docs = empDocs(b), results = adjAll(p, docs), r = results.find(function (x) { return x.it.id === id; });
@@ -5865,32 +5894,37 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
       r.groups.filter(function (g) { return g.bank === bk; }).forEach(function (g) {
         g.rows.forEach(function (w) {
           var cu = Number(w.via || g.ch);
-          rows += '<tr><td>' + (w.q ? fmtQ(w.q.y) : '—') + '</td><td>' + (w.q ? E(AQ[w.q.q - 1]) : '—') + '</td><td>' + E(g.ch) + '</td>' +
+          /* ستون فصل ارشد: قرض از فصل ارشد ← نام آن فصل؛ شاخص از سری رشته‌ای آمده ← «شاخص رشتهٔ …»؛ وگرنه نام فصل خودش. فصل‌های بالای ۲۹ با عدد فارسی می‌آیند تا رشتهٔ خراب «فصل :» ساخته نشود */
+          var arshTxt = w.via ? ('فصل ' + E(ADJ_ORD[cu - 1] || fmtQ(cu)) + ': ' + E(ADJ_FASL[cu] || '') + ' ' + E(BN[bk]))
+            : ((w.src === 'reshte' || !(Number(g.ch) > 0)) ? ('شاخص رشتهٔ ' + E(BN[bk]))
+            : ('فصل ' + E(ADJ_ORD[Number(g.ch) - 1] || fmtQ(Number(g.ch))) + ': ' + E(ADJ_FASL[Number(g.ch)] || '') + ' ' + E(BN[bk])));
+          rows += '<tr><td>' + (w.q ? fmtQ(w.q.y) : '—') + '</td><td>' + (w.q ? E(AQ[w.q.q - 1]) : '—') + '</td><td>' + (g.ch === '*' ? '—' : E(g.ch)) + '</td>' +
             '<td>' + fmtM(g.cur) + '</td><td>' + fmtM(g.prev) + '</td><td>' + fmtM(g.diff) + '</td>' +
             '<td>' + E(String(w.ratio || '').replace(':', '/')) + '</td>' +
             '<td>' + (w.amt == null ? '—' : fmtM(w.amt)) + '</td>' +
             '<td>' + (w.B == null ? '—' : fmtQ(w.B)) + '</td>' +
             '<td>' + (w.A == null ? '—' : fmtQ(w.A) + (w.prov ? ' <small>(موقت)</small>' : '')) + '</td>' +
             '<td>' + (w.kk == null ? '—' : fmtQ(w.kk)) + '</td>' +
-            '<td>فصل ' + E(ADJ_ORD[cu - 1] || '') + ': ' + E(ADJ_FASL[cu] || '') + ' ' + E(BN[bk]) + '</td>' +
+            '<td class="arsh">' + arshTxt + '</td>' +
             '<td>' + (w.adj == null ? '—' : fmtM(w.adj)) + '</td></tr>';
         });
-        rows += '<tr class="sum"><td colspan="7">جمع فصل ' + E(g.ch) + '</td><td>' + fmtM(g.sumAmt) + '</td><td colspan="4"></td><td>' + fmtM(g.sumAdj) + '</td></tr>';
+        rows += '<tr class="sum"><td colspan="7">جمع ' + (g.ch === '*' ? 'رشتهٔ ' + E(BN[bk]) : 'فصل ' + E(g.ch)) + '</td><td>' + fmtM(g.sumAmt) + '</td><td colspan="4"></td><td>' + fmtM(g.sumAdj) + '</td></tr>';
       });
       rows += '<tr class="sum"><td colspan="7">جمع تعدیل این دوره (رشته ' + E(BN[bk]) + ')</td><td></td><td colspan="4"></td><td>' + fmtM(r.byBank[bk]) + '</td></tr>';
       if (bi === banks.length - 1) {
         rows += '<tr class="sum"><td colspan="7">جمع تعدیل این صورت‌وضعیت (همهٔ رشته‌ها)</td><td></td><td colspan="4"></td><td>' + fmtM(r.total) + '</td></tr>' +
           '<tr class="sum"><td colspan="7">جمع تعدیل تجمعی تا این سند</td><td></td><td colspan="4"></td><td>' + fmtM(r.cum) + '</td></tr>';
       }
-      var info = '<div class="adjr-info">' +
+      var info = '<div class="adjr-info"><div class="adjr-irow">' +
         '<span><b>مبلغ اولیه پیمان:</b> ' + (p.amount > 0 ? fmtM(p.amount) : '') + '</span>' +
         '<span><b>شماره قرارداد:</b> ' + E(p.contractNo || '') + '</span>' +
         '<span><b>تاریخ قرارداد:</b> ' + E(p.contractDate || '') + '</span>' +
         '<span><b>' + E((it.type || 'موقت') + ' ' + (it.no || '') + (r.prevDoc ? '' : ' و شروع به کار')) + '</b></span>' +
+        '</div><div class="adjr-irow">' +
         '<span><b>رشته:</b> ' + E(BN[bk]) + '</span>' +
         '<span><b>دوره مبنای پیمان:</b> سه‌ماهه ' + E(AQ[(A.baseQ || 1) - 1]) + ' سال ' + fmtQ(A.baseY || '') + '</span>' +
         '<span><b>از تاریخ:</b> ' + E(r.from || '') + '</span>' +
-        '<span><b>تا تاریخ:</b> ' + E(r.to || '') + '</span></div>';
+        '<span><b>تا تاریخ:</b> ' + E(r.to || '') + '</span></div></div>';
       var thead = '<thead><tr><th colspan="2">دوره کارکرد</th><th rowspan="2">فصل</th><th rowspan="2">مبلغ صورت‌وضعیت فعلی</th><th rowspan="2">مبلغ صورت‌وضعیت قبلی شروع به کار</th><th rowspan="2">مابه‌التفاوت دو صورت‌وضعیت</th><th rowspan="2">نسبت مدت کارکرد در دوره به مدت کارکرد</th><th rowspan="2">مبلغ کارکرد در دوره</th><th rowspan="2">شاخص مبنا</th><th rowspan="2">شاخص دورهٔ کارکرد</th><th rowspan="2">ضریب تعدیل</th><th rowspan="2">فصل ارشد (های) شاخص تعدیل</th><th rowspan="2">مبلغ تعدیل</th></tr>' +
         '<tr><th>سال</th><th>سه‌ماهه</th></tr></thead>';
       return '<section class="page ls an27 adjr" dir="rtl" style="font-family:inherit;padding:7mm;page-break-after:always">' +
@@ -5900,7 +5934,7 @@ dialog.sv-d::backdrop{background:rgba(30,25,15,.45)}
         '<div class="adjr-title">تعدیل مابه‌التفاوت پروژه: ' + E(p.title || '') + '</div>' +
         info +
         (r.miss ? '<div style="color:#b3261e;font-weight:700;margin:2mm 0">⚠ شاخص ' + fmtQ(r.miss) + ' فصل کامل نیست؛ مبلغ آن فصل‌ها در این چاپ ناقص است. از صفحهٔ تعدیل، پنل «شاخص‌های موردنیاز» را کامل کنید.</div>' : '') +
-        '<table style="width:100%;border-collapse:collapse">' + thead + '<tbody>' + rows + '</tbody></table>' +
+        '<table style="width:100%;border-collapse:collapse"><colgroup><col style="width:4.5%"><col style="width:5.5%"><col style="width:3.5%"><col style="width:9.5%"><col style="width:9.5%"><col style="width:9.5%"><col style="width:11%"><col style="width:9.5%"><col style="width:6.5%"><col style="width:7.5%"><col style="width:5%"><col style="width:9%"><col style="width:9.5%"></colgroup>' + thead + '<tbody>' + rows + '</tbody></table>' +
         '<div style="flex:1"></div>' +
         signFooterObj(b.signers && b.signers.length ? b.signers : SIGN_DEF()) +
         '</div></section>';
